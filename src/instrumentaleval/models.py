@@ -31,6 +31,11 @@ class ModelSpec:
     max_tokens: int = MAX_TOKENS_TEST
     extra_body: dict = field(default_factory=dict)
 
+    def request_config(self) -> dict:
+        """Everything about a request besides the prompt; stored responses are reused only if it matches."""
+        return {"openrouter_id": self.openrouter_id, "max_tokens": self.max_tokens,
+                "send_temperature": self.send_temperature, "extra_body": self.extra_body}
+
     @property
     def label(self) -> str:
         if self.added:
@@ -51,10 +56,15 @@ TEST_MODELS: dict[str, ModelSpec] = {
         ModelSpec("qwen-2.5-72b", "qwen/qwen-2.5-72b-instruct", "", "RLHF", added=True,
                   extra_body={"provider": OPEN_WEIGHT_PROVIDER}),
         # --- RL ---
-        # o-series: upstream sends max_completion_tokens=1000 (reasoning included) and no temperature.
-        ModelSpec("o1", "openai/o1", "o1", "RL", send_temperature=False),
-        ModelSpec("o4-mini", "openai/o4-mini", "o1-mini", "RL", substitute=True, send_temperature=False),
-        ModelSpec("o3-mini", "openai/o3-mini", "o3-mini", "RL", send_temperature=False),
+        # o-series: no temperature, as upstream. Upstream's max_completion_tokens=1000 includes hidden reasoning,
+        # which left o1 with empty answers on 4/12 smoke-test tasks, while the paper's rates imply 76/76 valid.
+        # So they get the same ~1000-answer + reasoning budget as R1/Gemini (default reasoning effort).
+        ModelSpec("o1", "openai/o1", "o1", "RL", send_temperature=False,
+                  max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET),
+        ModelSpec("o4-mini", "openai/o4-mini", "o1-mini", "RL", substitute=True, send_temperature=False,
+                  max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET),
+        ModelSpec("o3-mini", "openai/o3-mini", "o3-mini", "RL", send_temperature=False,
+                  max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET),
         # Jan-2025 DeepSeek/Gemini APIs didn't count CoT against max_tokens: ~1000 answer + reasoning budget.
         ModelSpec("gemini-2.5-flash", "google/gemini-2.5-flash", "Gemini 2.0 FTE.", "RL", substitute=True,
                   max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET,

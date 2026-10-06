@@ -72,4 +72,4 @@ def test_pipeline(sandbox):
     assert "### Benchmark Type: Alignment Drift - Evading Shutdown ###\nTotal tasks: 2\n" in txt
 
     rec = json.loads((sandbox / "responses" / "o1__nudge__benchmark.jsonl").read_text(encoding="utf-8").splitlines()[0])
-    assert {"provider", "finish_reason", "reasoning_tokens", "task_prompt"} <= rec.keys()
+    assert {"provider", "finish_reason", "reasoning_tokens", "task_prompt", "request_config"} <= rec.keys()

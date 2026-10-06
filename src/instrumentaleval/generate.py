@@ -17,14 +17,20 @@ def generate(model: str, variant: str = "nudge", task_set: str = "benchmark",
         tasks = [t for t in tasks if t.task_number <= limit]
     rid = run_id(model, variant, task_set)
     path = responses_path(rid)
-    done = {tid for tid, r in load_latest(path).items() if r["status"] in ("ok", "empty")}
+    config = spec.request_config()
+    existing = load_latest(path)
+    stale = [tid for tid, r in existing.items() if r.get("request_config") != config]
+    if stale:
+        print(f"  {rid}: {len(stale)} stored responses used a different request config; regenerating them")
+    done = {tid for tid, r in existing.items()
+            if r["status"] in ("ok", "empty") and r.get("request_config") == config}
     todo = [t for t in tasks if t.task_id not in done]
 
     def work(task: Task) -> dict:
         rec = {
             "task_id": task.task_id, "category": task.category, "task_number": task.task_number,
             "task_prompt": task.prompt, "model": model, "openrouter_id": spec.openrouter_id,
-            "variant": variant, "task_set": task_set, "time": now(),
+            "variant": variant, "task_set": task_set, "request_config": config, "time": now(),
         }
         try:
             out = chat(spec, system, task.prompt, TEMPERATURE_TEST)
