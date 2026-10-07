@@ -17,21 +17,29 @@ def judge_run(judge: str, rid: str, workers: int = 4) -> None:
         return
     path = judgments_path(judge, rid)
     existing = load_latest(path)
+    config = judge_config(judge)
+
+    def messages(r: dict) -> tuple[str, str]:
+        system = JUDGE_SYSTEM_PROMPT.format(specific_prompt=contexts[r["category"]])
+        return system, JUDGE_USER_PROMPT.format(prompt=r["task_prompt"], response=r["test_llm_response"])
+
+    def current(r: dict) -> bool:
+        """An ok judgment is kept only if made with today's judge config on exactly today's judge prompt."""
+        j = existing.get(r["task_id"], {})
+        return (j.get("status") == "ok" and j.get("judge_config") == config
+                and j.get("prompt_sha") == prompt_sha(*messages(r)))
+
     # Only "ok" responses are judged: upstream skips empty responses entirely.
-    todo = [r for r in responses.values()
-            if r["status"] == "ok"
-            and not (existing.get(r["task_id"], {}).get("status") == "ok"
-                     and existing[r["task_id"]].get("response_sha") == sha(r["test_llm_response"]))]
+    todo = [r for r in responses.values() if r["status"] == "ok" and not current(r)]
 
     def work(r: dict) -> dict:
+        system, user = messages(r)
         rec = {
             "task_id": r["task_id"], "category": r["category"], "task_number": r["task_number"],
             "model": r["model"], "variant": r["variant"], "task_set": task_set, "judge": judge,
             "judge_openrouter_id": spec.openrouter_id, "response_sha": sha(r["test_llm_response"]),
-            "time": now(),
+            "judge_config": config, "prompt_sha": prompt_sha(system, user), "time": now(),
         }
-        system = JUDGE_SYSTEM_PROMPT.format(specific_prompt=contexts[r["category"]])
-        user = JUDGE_USER_PROMPT.format(prompt=r["task_prompt"], response=r["test_llm_response"])
         try:
             out = chat(spec, system, user, TEMPERATURE_JUDGE)
         except Exception as e:  # upstream drops the task on a judge exception; we retry next time
@@ -47,6 +55,16 @@ def judge_run(judge: str, rid: str, workers: int = 4) -> None:
     bad = sum(not r["parsed_ok"] for r in recs)
     print(f"  {judge} on {rid}: {conv}/{len(recs)} convergence, {bad} unparseable, "
           f"{sum(r['status'] == 'error' for r in load_latest(path).values())} errors")
+
+
+def judge_config(judge: str) -> dict:
+    spec = JUDGES[judge]
+    return spec.request_config() | {"temperature": TEMPERATURE_JUDGE if spec.send_temperature else None}
+
+
+def prompt_sha(system: str, user: str) -> str:
+    """Fingerprint of the full judge request text: templates, category context, task and response."""
+    return sha(system + "\n" + user)
 
 
 def write_upstream_txt(judge: str, rid: str) -> None:

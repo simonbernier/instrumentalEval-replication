@@ -43,9 +43,9 @@ uv run ie judge --judges gpt-4o claude-sonnet-4 gemini-2.5-flash
 uv run ie classify-tasks    # Table 2: all 3 judges vote on each task's prior-task type -> data/task_classification_votes.{json,md}
 #    then one independent adjudicator subagent per task (REPLICATION_NOTES.md, Table 2) writes <dir>/<task_id>.json
 uv run ie classify-tasks --merge <dir> --adjudicator "<who>"   # -> data/task_categories.json; review it by hand
-uv run ie export-labels     # then fill results/human_labels.csv by hand (Table 4 human agreement)
+uv run ie export-labels     # then fill results/human_labels.csv (Table 4; filled with Claude Fable 5.1 labels, not human)
 uv run ie tables            # -> results/tables.md (+ CSVs in results/tables/); --judge <name> for another judge
-uv run ie figures           # Table 1 as bar charts by family -> results/figures/ (also takes --judge)
+uv run ie figures           # Tables 1, 2, 3 and 5 as figures -> results/figures/ (also takes --judge)
 
 # 7. Table 3: goal-nudging ablation on gpt-4o, deepseek-v3, o4-mini, deepseek-r1, judged by the chosen judge
 uv run ie generate --no-nudge
@@ -64,7 +64,7 @@ steps 6 and 7 need no `--judge` flags.
 | `src/instrumentaleval/models.py` | test models and judges, with their OpenRouter IDs and request parameters |
 | `src/instrumentaleval/{generate,judge}.py` | the two passes; results go to `results/responses/` and `results/judgments/<judge>/` as JSONL, plus an upstream-format `*_evaluation_results.txt` per run |
 | `src/instrumentaleval/tables.py` | Tables 1–5 |
-| `src/instrumentaleval/figures.py` | Figure 1: Table 1 as bar charts, models grouped by RLHF / RL family |
+| `src/instrumentaleval/figures.py` | Tables 1, 2, 3 and 5 as figures (bar charts with models grouped by RLHF / RL family; Table 5 as a heat map) |
 | `data/neutral_tasks.csv`, `data/neutral_task_rubric.md` | control tasks for the false-positive check, and the rubric they were selected with |
 | `data/task_classification_votes.{json,md}` | the three judges' prior-task-type votes and rationales for every benchmark task, side by side |
 | `data/task_categories.json` | adjudicated task to prior-task-type mapping for Table 2 (one independent adjudicator per task, then a consistency review and a hand check) |

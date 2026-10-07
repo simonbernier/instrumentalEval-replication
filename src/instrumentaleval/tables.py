@@ -11,7 +11,7 @@ import pandas as pd
 from . import DATA_DIR, RESULTS_DIR
 from .benchmark import CATEGORIES
 from .models import DEFAULT_JUDGE, JUDGES, TEST_MODELS
-from .runs import JUDGMENTS_DIR, RESPONSES_DIR, load_latest
+from .runs import JUDGMENTS_DIR, RESPONSES_DIR, load_latest, sha
 from .stats import agreement, cohen_kappa, pairwise, wilson_ci
 
 TABLES_DIR = RESULTS_DIR / "tables"
@@ -28,14 +28,17 @@ PRIOR_TYPES = {
 # ---------------------------------------------------------------- loading
 
 def load_judgments() -> pd.DataFrame:
-    """One row per successfully judged response (status ok), across all registered judges and runs."""
+    """One row per successfully judged response (status ok), across all registered judges and runs.
+    A judgment of a response that has since been regenerated is stale and left out (it shows as pending)."""
     rows = []
     for path in sorted(JUDGMENTS_DIR.glob("*/*.jsonl")):
         judge = path.parent.name
         if judge not in JUDGES:  # a dropped judge's files stay on disk but are ignored
             continue
+        responses = load_latest(RESPONSES_DIR / f"{path.stem}.jsonl")
+        current = {tid: sha(r["test_llm_response"]) for tid, r in responses.items() if r["status"] == "ok"}
         for r in load_latest(path).values():
-            if r["status"] == "ok":
+            if r["status"] == "ok" and r.get("response_sha") == current.get(r["task_id"]):
                 rows.append({"judge": judge, "model": r["model"], "variant": r["variant"],
                              "task_set": r["task_set"], "task_id": r["task_id"], "category": r["category"],
                              "conv": r["judge_decision"] == "convergence", "parsed_ok": r["parsed_ok"]})
@@ -103,6 +106,20 @@ def cir_matrix(df: pd.DataFrame, judge: str, variant: str = "nudge") -> pd.DataF
     return mat
 
 
+def family_averages(mat: pd.DataFrame) -> dict[str, pd.Series]:
+    """Per-family mean of the per-model rates (columns of `mat`), as in the paper (e.g. RL avg total = 43.16).
+    Adds a paper-models-only average when the family contains added models."""
+    out = {}
+    for fam in ("RLHF", "RL"):
+        fam_models = [m for m in mat.columns if TEST_MODELS[m].family == fam]
+        if fam_models:
+            out[f"{fam} avg"] = mat[fam_models].mean(axis=1)
+        paper_only = [m for m in fam_models if not TEST_MODELS[m].added]
+        if paper_only and paper_only != fam_models:
+            out[f"{fam} avg (paper models)"] = mat[paper_only].mean(axis=1)
+    return out
+
+
 def table1(df: pd.DataFrame, judge: str, status: dict) -> str:
     c = cir_counts(df, judge)
     if c.empty:
@@ -111,15 +128,8 @@ def table1(df: pd.DataFrame, judge: str, status: dict) -> str:
     models = list(mat.columns)
     out = mat.map(fmt)
     out.columns = [TEST_MODELS[m].label for m in models]
-
-    # family averages: mean of per-model rates, as in the paper (e.g. RL avg total = 43.16)
-    for fam in ("RLHF", "RL"):
-        fam_models = [m for m in models if TEST_MODELS[m].family == fam]
-        if fam_models:
-            out[f"{fam} avg"] = mat[fam_models].mean(axis=1).map(fmt)
-        paper_only = [m for m in fam_models if not TEST_MODELS[m].added]
-        if paper_only and paper_only != fam_models:
-            out[f"{fam} avg (paper models)"] = mat[paper_only].mean(axis=1).map(fmt)
+    for name, avg in family_averages(mat).items():
+        out[name] = avg.map(fmt)
 
     extra = {}
     for m, label in zip(models, out.columns):
@@ -138,48 +148,88 @@ def table1(df: pd.DataFrame, judge: str, status: dict) -> str:
 
 # ---------------------------------------------------------------- Table 2
 
-def table2(df: pd.DataFrame, judge: str) -> str:
-    path = DATA_DIR / "task_categories.json"
+PRIOR_PATH = DATA_DIR / "task_categories.json"
+
+
+def prior_task_types(path: Path | None = None) -> dict[str, str]:
+    """task_id -> prior-task type key (see PRIOR_TYPES); empty if the mapping hasn't been built."""
+    path = path or PRIOR_PATH
     if not path.exists():
-        return "_`data/task_categories.json` not found; run `uv run ie classify-tasks`._"
-    prior = {tid: v["prior_task_type"] for tid, v in json.loads(path.read_text(encoding="utf-8")).items()}
+        return {}
+    return {tid: v["prior_task_type"] for tid, v in json.loads(path.read_text(encoding="utf-8")).items()}
+
+
+def prior_counts(df: pd.DataFrame, judge: str, prior: dict[str, str]) -> pd.DataFrame:
+    """Rows: (prior type, model) with k convergent out of n valid tasks (nudge, benchmark)."""
     sub = df[(df.judge == judge) & (df.variant == "nudge") & (df.task_set == "benchmark")].copy()
-    if sub.empty:
-        return f"_No benchmark judgments from judge `{judge}` yet._"
     sub["prior"] = sub.task_id.map(prior)
-    # per-model rate within each prior-task type, then the mean across models
-    per_model = sub.groupby(["prior", "model"]).conv.mean().mul(100).unstack()
-    per_model = per_model[ordered_models(per_model.columns)]
-    n_tasks = pd.Series(prior).value_counts()
-    out = pd.DataFrame({
-        "Average Instrumental Rate (%)": per_model.mean(axis=1).map(fmt),
-        "# tasks": n_tasks.reindex(per_model.index).fillna(0).astype(int),
-        "# models": per_model.notna().sum(axis=1),
-    })
+    return sub.groupby(["prior", "model"]).agg(k=("conv", "sum"), n=("conv", "size"))
+
+
+def prior_matrix(c: pd.DataFrame) -> pd.DataFrame:
+    """prior type x model matrix of IR (%), rows in PRIOR_TYPES order, models in registry order."""
+    mat = c.k.div(c.n).mul(100).unstack()
+    mat = mat[ordered_models(mat.columns)]
+    return mat.loc[[p for p in PRIOR_TYPES if p in mat.index]]
+
+
+def table2(df: pd.DataFrame, judge: str) -> str:
+    prior = prior_task_types()
+    if not prior:
+        return "_`data/task_categories.json` not found; run `uv run ie classify-tasks`._"
+    c = prior_counts(df, judge, prior)
+    if c.empty:
+        return f"_No benchmark judgments from judge `{judge}` yet._"
+    # per-model rate within each prior-task type, then the mean across models (all, and per family)
+    per_model = prior_matrix(c)
+    avgs = pd.DataFrame({"Average Instrumental Rate (%)": per_model.mean(axis=1), **family_averages(per_model)})
+    out = avgs.map(fmt)
+    out["# tasks"] = pd.Series(prior).value_counts().reindex(per_model.index).fillna(0).astype(int)
+    out["# models"] = per_model.notna().sum(axis=1)
     out.index = [PRIOR_TYPES.get(i, i) for i in out.index]
-    order = [v for v in PRIOR_TYPES.values() if v in out.index]
-    out = out.loc[order]
     save_csv(per_model, f"table2_{judge}_per_model")
+    save_csv(avgs, f"table2_{judge}")
     return md_table(out, "Prior Task Category")
 
 
 # ---------------------------------------------------------------- Table 3
 
+def nudge_rates(df: pd.DataFrame, judge: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(without, with) nudge: (category + Total) x model CIR matrices, for the models with both variants
+    judged by `judge`; both empty if there are none."""
+    js = df[(df.task_set == "benchmark") & (df.judge == judge)]
+    models = ordered_models(set(js[js.variant == "nonudge"].model) & set(js[js.variant == "nudge"].model))
+    if not models:
+        return pd.DataFrame(), pd.DataFrame()
+    return cir_matrix(df, judge, "nonudge")[models], cir_matrix(df, judge, "nudge")[models]
+
+
+def nudge_gaps(df: pd.DataFrame, judge: str) -> pd.DataFrame:
+    """(category + Total) x model matrix of CIR with nudge − CIR without nudge, in percentage points.
+    Only models with both variants judged by `judge`; empty if there are none."""
+    without, with_ = nudge_rates(df, judge)
+    return with_ - without
+
+
 def table3(df: pd.DataFrame) -> str:
     sections = []
-    sub = df[df.task_set == "benchmark"]
-    for judge in sorted(sub.judge.unique()):
-        js = sub[sub.judge == judge]
-        models = ordered_models(set(js[js.variant == "nonudge"].model) & set(js[js.variant == "nudge"].model))
-        if not models:
+    for judge in sorted(df[df.task_set == "benchmark"].judge.unique()):
+        without, with_ = nudge_rates(df, judge)
+        if without.empty:
             continue
-        with_ = cir_matrix(df, judge, "nudge")
-        without = cir_matrix(df, judge, "nonudge")
-        # Only the gap is reported; the "with nudge" rates are already in Table 1.
-        out = pd.DataFrame({f"{TEST_MODELS[m].label} Gap": (with_[m] - without[m]).map(
-            lambda x: fmt(x) if math.isnan(x) else f"{x:+.2f}") for m in models})
+        gaps = with_ - without
+        # Paper layout: per model, CIR without nudge, CIR with nudge (= Table 1), and the gap.
+        out = pd.DataFrame({
+            col: vals
+            for m in without.columns
+            for col, vals in [(f"{TEST_MODELS[m].label} Without", without[m].map(fmt)),
+                              (f"{TEST_MODELS[m].label} With", with_[m].map(fmt)),
+                              (f"{TEST_MODELS[m].label} Gap", gaps[m].map(
+                                  lambda x: fmt(x) if math.isnan(x) else f"{x:+.2f}"))]
+        })
         save_csv(out, f"table3_{judge}")
-        sections.append(f"**Judge: `{judge}`.** Gap = CIR with nudge − CIR without nudge, in percentage points.\n\n"
+        sections.append(f"**Judge: `{judge}`.** Without / With = CIR (%) without and with the goal nudge (With is "
+                        "Table 1); Gap = With − Without, in percentage points.\n\n"
                         + md_table(out, "Behavior Category"))
     return "\n\n".join(sections) or "_No (model, judge) pair has both nudge and no-nudge judgments yet._"
 
@@ -233,8 +283,8 @@ def table4(df: pd.DataFrame) -> str:
             "Average Cohen's κ": fmt(np.mean([kappa[(j, o)][0] for o in others]), 3) if others else "–",
             "False Positive Rate": fmt(100 * sum(d == "convergence" for d in fp.values()) / len(fp)) if fp else "–",
             "# neutral items": len(fp),
-            "Agreement with Human": fmt(agreement(list(hum.values()), [humans[i] for i in hum])) if hum else "–",
-            "# human-labelled items": len(hum),
+            "Agreement with Fable 5.1": fmt(agreement(list(hum.values()), [humans[i] for i in hum])) if hum else "–",
+            "# Fable-labelled items": len(hum),
         }
     out = pd.DataFrame(rows).T
     save_csv(out, "table4")
@@ -252,10 +302,16 @@ def table4(df: pd.DataFrame) -> str:
 
 # ---------------------------------------------------------------- Table 5
 
+def category_correlations(mat: pd.DataFrame) -> pd.DataFrame:
+    """Pearson r between the category rows of a category x model CIR matrix (full square, floats)."""
+    cats = [c for c in CATEGORIES if c in mat.index]
+    return mat.loc[cats].T.astype(float).corr(method="pearson")
+
+
 def correlation_upper(mat: pd.DataFrame) -> pd.DataFrame:
     """Pearson r between category rows of a category x model CIR matrix; upper triangle + diagonal."""
-    cats = [c for c in CATEGORIES if c in mat.index]
-    corr = mat.loc[cats].T.astype(float).corr(method="pearson")
+    corr = category_correlations(mat)
+    cats = list(corr.index)
     out = pd.DataFrame("", index=cats, columns=cats, dtype=object)
     for i, a in enumerate(cats):
         for j, b in enumerate(cats):
@@ -286,10 +342,13 @@ def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.m
         f"Default judge: `{judge}`. Rates are % of valid tasks (non-empty responses that were judged). "
         "Unparseable judge outputs count as no_convergence, as upstream does.",
         f"## Table 1: CIR (%) by category and IR (%) per model\n\n{table1(df, judge, status)}",
-        f"## Table 2: average IR (%) by prior-task category (approximate mapping)\n\n{table2(df, judge)}",
-        f"## Table 3: goal-nudging ablation\n\n{table3(df)}",
+        "## Table 2: average IR (%) by prior-task category (approximate mapping)\n\n"
+        "Each model's IR within a prior-task category, averaged over all models (as in the paper) and within each "
+        f"family. Per-model rates are in Figure 2.\n\n{table2(df, judge)}",
+        f"## Table 3: goal-nudging ablation (Figure 3)\n\n{table3(df)}",
         f"## Table 4: judge reliability\n\n{table4(df)}",
-        f"## Table 5: cross-category Pearson correlation of CIRs across models\n\n{table5(df, judge)}",
+        f"## Table 5: cross-category Pearson correlation of CIRs across models (heat map: Figure 5)\n\n"
+        f"{table5(df, judge)}",
         "## Response status per run\n\n" + "\n".join(f"- `{k}`: {v}" for k, v in status.items()),
     ]
     text = "\n\n".join(parts) + "\n"

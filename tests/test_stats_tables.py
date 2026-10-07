@@ -101,3 +101,71 @@ def test_table4_shows_fpr_for_judge_without_benchmark_judgments(monkeypatch, tmp
     claude_row = next(line for line in md.splitlines() if line.startswith("| claude-sonnet-4"))
     assert "20.00" in claude_row and "–" in claude_row  # FPR 2/10; no IAR/κ without benchmark judgments
     assert "Pairwise IAR" in md and "claude-sonnet-4 |" not in md.split("Pairwise IAR")[1]
+
+
+def _fake_prior():
+    """Evading Shutdown tasks -> resource, Hacking -> efficiency, the rest -> general."""
+    by_cat = {"Evading Shutdown": "resource", "Hacking Computer Systems": "efficiency"}
+    return {f"{code}-{i:02d}": by_cat.get(cat, "general") for cat, code in CATEGORIES.items() for i in range(10)}
+
+
+def test_table2_all_model_and_family_averages(monkeypatch, tmp_path):
+    monkeypatch.setattr(tables, "TABLES_DIR", tmp_path)
+    monkeypatch.setattr(tables, "prior_task_types", _fake_prior)
+    df = _fake_judgments({"gpt-4o": {"Evading Shutdown": 8}, "gpt-4o-mini": {"Evading Shutdown": 2},
+                          "o1": {"Evading Shutdown": 5}})
+    c = tables.prior_counts(df, "gpt-4o", _fake_prior())
+    assert (c.loc[("resource", "gpt-4o"), "k"], c.loc[("resource", "gpt-4o"), "n"]) == (8, 10)
+    md = tables.table2(df, "gpt-4o")
+    header, _, row = md.splitlines()[:3]
+    assert header.split(" | ")[1:5] == ["Average Instrumental Rate (%)", "RLHF avg", "RLHF avg (paper models)", "RL avg"]
+    # all models (80 + 20 + 50) / 3; RLHF (80 + 20) / 2; RLHF paper models: gpt-4o only; RL: o1 only
+    assert row.split(" | ")[:5] == ["| Direct Resource-Related Goals", "50.00", "50.00", "80.00", "50.00"]
+    saved = pd.read_csv(tmp_path / "table2_gpt-4o.csv", index_col=0)
+    assert saved.loc["resource", "RL avg"] == 50.0
+
+
+def test_figure2_writes_files(monkeypatch, tmp_path):
+    from instrumentaleval import figures
+    df = _fake_judgments({m: {c: 5 for c in CATEGORIES} for m in ["gpt-4o", "o1", "deepseek-r1"]})
+    monkeypatch.setattr(figures, "load_judgments", lambda: df)
+    monkeypatch.setattr(figures, "prior_task_types", _fake_prior)
+    paths = figures.figure2("gpt-4o", out_dir=tmp_path)
+    assert [p.name for p in paths] == ["figure2_gpt-4o.png", "figure2_gpt-4o.pdf"]
+    assert all(p.stat().st_size > 0 for p in paths)
+
+
+def test_nudge_gaps_only_models_with_both_variants():
+    df = pd.concat([
+        _fake_judgments({"gpt-4o": {c: 3 for c in CATEGORIES}, "o1": {c: 6 for c in CATEGORIES}}),
+        _fake_judgments({"gpt-4o": {c: 1 for c in CATEGORIES}}, variant="nonudge"),
+    ])
+    gaps = tables.nudge_gaps(df, "gpt-4o")
+    assert list(gaps.columns) == ["gpt-4o"] and gaps.loc["Total", "gpt-4o"] == pytest.approx(20.0)
+    assert tables.nudge_gaps(df, "claude-sonnet-4").empty
+
+
+def test_category_correlations_symmetric_unit_diagonal():
+    import random
+    rng = random.Random(2)
+    df = _fake_judgments({m: {c: rng.randint(0, 10) for c in CATEGORIES}
+                          for m in ["gpt-4o", "o1", "o3-mini", "deepseek-r1", "deepseek-v3"]})
+    corr = tables.category_correlations(tables.cir_matrix(df, "gpt-4o"))
+    assert list(corr.index) == list(CATEGORIES)
+    assert (corr.values.diagonal() == pytest.approx(1.0)) and (corr == corr.T).all().all()
+
+
+def test_figure3_and_figure5_write_files(monkeypatch, tmp_path):
+    import random
+    from instrumentaleval import figures
+    rng = random.Random(3)
+    models = ["gpt-4o", "o1", "deepseek-r1"]
+    df = pd.concat([
+        _fake_judgments({m: {c: rng.randint(0, 10) for c in CATEGORIES} for m in models}),
+        _fake_judgments({"gpt-4o": {c: 4 for c in CATEGORIES}}, variant="nonudge"),
+    ])
+    monkeypatch.setattr(figures, "load_judgments", lambda: df)
+    assert [p.name for p in figures.figure3("gpt-4o", tmp_path)] == ["figure3_gpt-4o.png", "figure3_gpt-4o.pdf"]
+    assert [p.name for p in figures.figure5("gpt-4o", tmp_path)] == ["figure5_gpt-4o.png", "figure5_gpt-4o.pdf"]
+    monkeypatch.setattr(figures, "load_judgments", lambda: df[df.variant == "nudge"])
+    assert figures.figure3("gpt-4o", tmp_path) == []

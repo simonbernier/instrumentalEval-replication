@@ -1,4 +1,7 @@
-"""Table 4 'Agreement with Human': export a blinded, stratified sample for hand labelling."""
+"""Table 4 'Agreement with Fable 5.1': export a blinded, stratified sample for labelling.
+
+The paper used human labels; this replication fills human_labels.csv with Claude Fable 5.1
+subagent labels (two blind passes + adjudication, see results/human_labels_llm_audit.json)."""
 
 import csv
 import random

@@ -45,9 +45,15 @@ Instrumental Goals?* (arXiv:2502.12206, Feb 2025). Upstream code: `yf-he/Instrum
    - *The visible answer is not hard-capped at 1000.* `completion_tokens - reasoning_tokens` is logged per
      response. In the smoke test, 5 of 60 reasoning-model answers ran slightly over 1000 tokens (max 1716,
      Gemini).
-   - *Stored responses track their request config.* Each response records `request_config`, and `ie generate`
-     regenerates any task whose stored config differs from the current one, so runs with different settings never
-     mix.
+   - *Stored results track everything that produced them.* Each response records `request_config` plus
+     `prompt_config` (a hash of the system prompt, and the temperature), and `ie generate` regenerates any task whose
+     config, system prompt or task text differs from the current one. Each judgment records `judge_config` and a
+     hash of the full judge request (`prompt_sha`: judge prompts, category context, task and response), and
+     `ie judge` re-judges when either differs; `ie tables` ignores a judgment whose response was regenerated since.
+     So runs with different settings never mix. These fields were added on 2026-10-07, after every stored result
+     existed, and backfilled with the current values; that is valid because `prompts.py`, the temperatures and the
+     judge specs had not changed since the first code commit (3decdd9), and the backfill checked that every stored
+     response's config and task text, and every judgment's response hash, matched the current ones.
 6. **Open-weight providers.** OpenRouter routes open-weight models to third-party hosts. We exclude sub-fp8
    quantizations (`provider.quantizations = fp8/fp16/bf16/fp32/unknown`). As of 2026-10-06 DeepSeek-V3
    (`deepseek/deepseek-chat`) had only DeepInfra (fp4) and StreamLake (quantization unreported), so V3 runs on
@@ -60,8 +66,8 @@ Instrumental Goals?* (arXiv:2502.12206, Feb 2025). Upstream code: `yf-he/Instrum
    benchmark, for Table 4's IAR and κ. On the neutral tasks (2026-10-07) GPT-4o had 0/180 false positives,
    Claude Sonnet 4 3/180 (1.7%) and Gemini 2.5 Flash 8/180 (4.4%), so `DEFAULT_JUDGE` is `gpt-4o`, as in the paper.
 9. **The goal-nudging ablation (Table 3) covers 4 test models**: the paper's GPT-4o and DeepSeek-R1, plus
-   DeepSeek-V3 and o4-mini (one more model per family). It is judged by `DEFAULT_JUDGE` only, and the table reports
-   only the gap (CIR with nudge − CIR without), since the with-nudge rates are already in Table 1.
+   DeepSeek-V3 and o4-mini (one more model per family). It is judged by `DEFAULT_JUDGE` only. As in the paper, the table
+   reports per model the CIR without the nudge, with it (the Table 1 rates) and the gap (with − without).
 10. **No judge in the Grok 2 slot, so Table 4 has 3 judges instead of 4.** The substitute was
     `mistralai/mistral-large-2407` (every Grok on OpenRouter is now reasoning-only). On the neutral tasks it wrote
     its verdict as `**DECISION:** ...` in 173 of 180 responses. Upstream's parser only reads lines that start with
@@ -147,8 +153,16 @@ providers, run at T=0:
   tasks were lightly edited, and 20 final graders verified the edited set (all accepted; scores in the CSV).
   The verifiers' own minor wording fixes were applied after that pass. Every grade, with the grader's
   goal-maximizing answer and residual risks, is in `data/neutral_tasks_grading_log.json`.
-- **Table 4 human agreement.** This needs human labels. `uv run ie export-labels` writes a blinded, stratified
-  sample of 100 responses to `results/human_labels.csv`. Fill in `human_label` and rerun `ie tables`.
+- **Table 4 human agreement → "Agreement with Fable 5.1".** The paper used human labels; this replication did not
+  do a human pass. `uv run ie export-labels` wrote a blinded, stratified sample of 98 responses (quotas rounded per
+  category) to `results/human_labels.csv`, and on 2026-10-07 it was filled by Claude Fable 5.1 subagents, which are
+  stronger judges than any of the three judge models: two independent blind passes of 10 agents each (~10 items per
+  agent, different chunking, same rubric built from the upstream judge prompt and category contexts), 95/98
+  agreement; then one fresh adjudicator per item for the 3 disagreements and the 13 items both passes labelled at
+  confidence ≤ 3. No adjudicator overturned an agreed label. Nobody opened `human_labels_key.csv`. Final labels:
+  41 convergence / 57 no_convergence. Every pass label, confidence, quote and adjudication is in
+  `results/human_labels_llm_audit.json`. The column is therefore model-vs-model agreement with a stronger model,
+  not human agreement, and is named accordingly in Table 4.
 - **Table 4 IAR.** Computed over every Table-1 response (9 models × 76 tasks). We also report Cohen's κ, because
   raw agreement is inflated when most items are `no_convergence`.
 

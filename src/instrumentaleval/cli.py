@@ -69,8 +69,8 @@ def cmd_tables(a):
 
 
 def cmd_figures(a):
-    from .figures import figure1
-    for p in figure1(a.judge):
+    from .figures import figure1, figure2, figure3, figure5
+    for p in figure1(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge):
         print(p)
 
 
@@ -147,6 +147,10 @@ def main() -> None:
     sub.add_parser("check-anthropic", help="list models on the Anthropic API").set_defaults(func=cmd_check_anthropic)
 
     a = p.parse_args()
+    # Tables contain non-cp1252 characters (e.g. U+2212); force UTF-8 on Windows consoles.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     a.func(a)
 
 

@@ -73,3 +73,48 @@ def test_pipeline(sandbox):
 
     rec = json.loads((sandbox / "responses" / "o1__nudge__benchmark.jsonl").read_text(encoding="utf-8").splitlines()[0])
     assert {"provider", "finish_reason", "reasoning_tokens", "task_prompt", "request_config"} <= rec.keys()
+
+
+def _lines(path):
+    return len(path.read_text(encoding="utf-8").splitlines())
+
+
+@pytest.mark.skipif(not BENCHMARK_DIR.exists(), reason="run `uv run ie fetch` first")
+def test_prompt_changes_invalidate_stored_results(sandbox, monkeypatch):
+    resp = sandbox / "responses" / "o1__nudge__benchmark.jsonl"
+    judg = sandbox / "judgments" / "gpt-4o" / "o1__nudge__benchmark.jsonl"
+    generate.generate("o1", "nudge", "benchmark", limit=1, workers=2)
+    judge.judge_run("gpt-4o", "o1__nudge__benchmark", workers=2)
+    n_resp, n_judg = _lines(resp), _lines(judg)
+    assert n_resp == n_judg == 6
+
+    # a different test system prompt -> every response is regenerated
+    monkeypatch.setattr(generate, "system_prompt", lambda v: "edited system prompt")
+    generate.generate("o1", "nudge", "benchmark", limit=1, workers=2)
+    assert _lines(resp) == n_resp + 6
+    # the old judgments are now stale: tables leave them out until they are re-judged
+    assert tables.load_judgments().empty
+    judge.judge_run("gpt-4o", "o1__nudge__benchmark", workers=2)
+    assert _lines(judg) == n_judg + 6 and len(tables.load_judgments()) == 6
+
+    # a different judge prompt, or judge config, -> every judgment is redone
+    monkeypatch.setattr(judge, "JUDGE_USER_PROMPT", judge.JUDGE_USER_PROMPT + "\n")
+    judge.judge_run("gpt-4o", "o1__nudge__benchmark", workers=2)
+    assert _lines(judg) == n_judg + 12
+    monkeypatch.setattr(judge, "TEMPERATURE_JUDGE", 0.5)
+    judge.judge_run("gpt-4o", "o1__nudge__benchmark", workers=2)
+    assert _lines(judg) == n_judg + 18
+    judge.judge_run("gpt-4o", "o1__nudge__benchmark", workers=2)  # nothing changed -> no new calls
+    assert _lines(judg) == n_judg + 18
+
+
+@pytest.mark.skipif(not BENCHMARK_DIR.exists(), reason="run `uv run ie fetch` first")
+def test_table3_reports_without_with_and_gap(sandbox):
+    for variant in ("nudge", "nonudge"):
+        generate.generate("o1", variant, "benchmark", limit=1, workers=2)
+        judge.judge_run("gpt-4o", f"o1__{variant}__benchmark", workers=2)
+    md = tables.table3(tables.load_judgments())
+    header = next(line for line in md.splitlines() if line.startswith("| Behavior Category"))
+    assert header.split(" | ")[1:] == ["o1 Without", "o1 With", "o1 Gap |"]
+    total = next(line for line in md.splitlines() if line.startswith("| Total"))
+    assert total.split(" | ")[1:] == ["0.00", "100.00", "+100.00 |"]  # fake o1 converges only with the nudge

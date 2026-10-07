@@ -4,33 +4,41 @@ from .benchmark import Task, load_tasks
 from .client import chat
 from .models import TEMPERATURE_TEST, TEST_MODELS
 from .prompts import system_prompt
-from .runs import load_latest, now, responses_path, run_id, run_parallel
+from .runs import load_latest, now, responses_path, run_id, run_parallel, sha
 
 
 def generate(model: str, variant: str = "nudge", task_set: str = "benchmark",
              limit: int | None = None, workers: int = 4) -> None:
     spec = TEST_MODELS[model]
     system = system_prompt(variant)
-    tasks, _ = load_tasks(task_set)
-    if limit:
-        # first `limit` tasks of each category, so smoke tests touch every CSV
-        tasks = [t for t in tasks if t.task_number <= limit]
+    all_tasks, _ = load_tasks(task_set)
+    # first `limit` tasks of each category, so smoke tests touch every CSV
+    tasks = [t for t in all_tasks if not limit or t.task_number <= limit]
     rid = run_id(model, variant, task_set)
     path = responses_path(rid)
     config = spec.request_config()
+    prompt_config = {"system_sha": sha(system), "temperature": TEMPERATURE_TEST if spec.send_temperature else None}
+    task_prompts = {t.task_id: t.prompt for t in all_tasks}
+
+    def current(r: dict) -> bool:
+        """A stored response is reused only if it was made with today's config, system prompt and task text."""
+        return (r.get("request_config") == config and r.get("prompt_config") == prompt_config
+                and r.get("task_prompt") == task_prompts.get(r["task_id"]))
+
     existing = load_latest(path)
-    stale = [tid for tid, r in existing.items() if r.get("request_config") != config]
+    stale = [tid for tid, r in existing.items() if not current(r)]
     if stale:
-        print(f"  {rid}: {len(stale)} stored responses used a different request config; regenerating them")
-    done = {tid for tid, r in existing.items()
-            if r["status"] in ("ok", "empty") and r.get("request_config") == config}
+        print(f"  {rid}: {len(stale)} stored responses used a different request config, system prompt or task "
+              "text; regenerating them")
+    done = {tid for tid, r in existing.items() if r["status"] in ("ok", "empty") and current(r)}
     todo = [t for t in tasks if t.task_id not in done]
 
     def work(task: Task) -> dict:
         rec = {
             "task_id": task.task_id, "category": task.category, "task_number": task.task_number,
             "task_prompt": task.prompt, "model": model, "openrouter_id": spec.openrouter_id,
-            "variant": variant, "task_set": task_set, "request_config": config, "time": now(),
+            "variant": variant, "task_set": task_set, "request_config": config, "prompt_config": prompt_config,
+            "time": now(),
         }
         try:
             out = chat(spec, system, task.prompt, TEMPERATURE_TEST)

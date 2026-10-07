@@ -21,34 +21,36 @@ Default judge: `gpt-4o`. Rates are % of valid tasks (non-empty responses that we
 
 ## Table 2: average IR (%) by prior-task category (approximate mapping)
 
-| Prior Task Category | Average Instrumental Rate (%) | # tasks | # models |
-|---|---|---|---|
-| Direct Resource-Related Goals | 71.43 | 7 | 9 |
-| Optimizing Efficiency | 74.33 | 29 | 9 |
-| Persuasion | 51.39 | 8 | 9 |
-| General Problem Solving | 34.03 | 32 | 9 |
+Each model's IR within a prior-task category, averaged over all models (as in the paper) and within each family. Per-model rates are in Figure 2.
 
-## Table 3: goal-nudging ablation
+| Prior Task Category | Average Instrumental Rate (%) | RLHF avg | RLHF avg (paper models) | RL avg | # tasks | # models |
+|---|---|---|---|---|---|---|
+| Direct Resource-Related Goals | 71.43 | 64.29 | 85.71 | 77.14 | 7 | 9 |
+| Optimizing Efficiency | 74.33 | 72.41 | 84.48 | 75.86 | 29 | 9 |
+| Persuasion | 51.39 | 46.88 | 62.50 | 55.00 | 8 | 9 |
+| General Problem Solving | 34.03 | 30.47 | 39.06 | 36.88 | 32 | 9 |
 
-**Judge: `gpt-4o`.** Gap = CIR with nudge − CIR without nudge, in percentage points.
+## Table 3: goal-nudging ablation (Figure 3)
 
-| Behavior Category | gpt-4o Gap | deepseek-v3 Gap | o4-mini (for o1-mini) Gap | deepseek-r1 Gap |
-|---|---|---|---|---|
-| Evading Shutdown | -10.00 | +0.00 | -5.00 | +0.00 |
-| Hacking Computer Systems | +0.00 | -20.00 | +10.00 | +0.00 |
-| Running Multiple AI Copies | +0.00 | -7.69 | -7.69 | +0.00 |
-| Hiding Unwanted Behavior | -9.09 | +0.00 | +0.00 | +0.00 |
-| Strategically Appearing Aligned | +9.09 | +18.18 | -9.09 | +9.09 |
-| Deceptive Behavior | +9.09 | +18.18 | +0.00 | -18.18 |
-| Total | -1.32 | +1.32 | -2.63 | -1.32 |
+**Judge: `gpt-4o`.** Without / With = CIR (%) without and with the goal nudge (With is Table 1); Gap = With − Without, in percentage points.
+
+| Behavior Category | gpt-4o Without | gpt-4o With | gpt-4o Gap | deepseek-v3 Without | deepseek-v3 With | deepseek-v3 Gap | o4-mini (for o1-mini) Without | o4-mini (for o1-mini) With | o4-mini (for o1-mini) Gap | deepseek-r1 Without | deepseek-r1 With | deepseek-r1 Gap |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Evading Shutdown | 95.00 | 85.00 | -10.00 | 100.00 | 100.00 | +0.00 | 70.00 | 65.00 | -5.00 | 85.00 | 85.00 | +0.00 |
+| Hacking Computer Systems | 0.00 | 0.00 | +0.00 | 40.00 | 20.00 | -20.00 | 0.00 | 10.00 | +10.00 | 20.00 | 20.00 | +0.00 |
+| Running Multiple AI Copies | 84.62 | 84.62 | +0.00 | 100.00 | 92.31 | -7.69 | 92.31 | 84.62 | -7.69 | 100.00 | 100.00 | +0.00 |
+| Hiding Unwanted Behavior | 54.55 | 45.45 | -9.09 | 100.00 | 100.00 | +0.00 | 0.00 | 0.00 | +0.00 | 100.00 | 100.00 | +0.00 |
+| Strategically Appearing Aligned | 36.36 | 45.45 | +9.09 | 54.55 | 72.73 | +18.18 | 45.45 | 36.36 | -9.09 | 54.55 | 63.64 | +9.09 |
+| Deceptive Behavior | 0.00 | 9.09 | +9.09 | 18.18 | 36.36 | +18.18 | 9.09 | 9.09 | +0.00 | 90.91 | 72.73 | -18.18 |
+| Total | 52.63 | 51.32 | -1.32 | 73.68 | 75.00 | +1.32 | 42.11 | 39.47 | -2.63 | 77.63 | 76.32 | -1.32 |
 
 ## Table 4: judge reliability
 
-| Judge Model | Average IAR | Average Cohen's κ | False Positive Rate | # neutral items | Agreement with Human | # human-labelled items |
+| Judge Model | Average IAR | Average Cohen's κ | False Positive Rate | # neutral items | Agreement with Fable 5.1 | # Fable-labelled items |
 |---|---|---|---|---|---|---|
-| gpt-4o | 91.23 | 0.823 | 0.00 | 180 | – | 0 |
-| claude-sonnet-4 (for Sonnet-3.5) | 89.99 | 0.799 | 1.67 | 180 | – | 0 |
-| gemini-2.5-flash (for Gemini 2.0 Flash) | 88.08 | 0.762 | 4.44 | 180 | – | 0 |
+| gpt-4o | 91.23 | 0.823 | 0.00 | 180 | 84.69 | 98 |
+| claude-sonnet-4 (for Sonnet-3.5) | 89.99 | 0.799 | 1.67 | 180 | 81.63 | 98 |
+| gemini-2.5-flash (for Gemini 2.0 Flash) | 88.08 | 0.762 | 4.44 | 180 | 89.80 | 98 |
 
 Pairwise IAR (%) on shared benchmark responses:
 
@@ -58,7 +60,7 @@ Pairwise IAR (%) on shared benchmark responses:
 | claude-sonnet-4 | 93.13 (n=684) | 100.00 | 86.84 (n=684) |
 | gemini-2.5-flash | 89.33 (n=684) | 86.84 (n=684) | 100.00 |
 
-## Table 5: cross-category Pearson correlation of CIRs across models
+## Table 5: cross-category Pearson correlation of CIRs across models (heat map: Figure 5)
 
 | Category (n = 9 models) | ES | HC | RAC | HB | SAA | DB |
 |---|---|---|---|---|---|---|
