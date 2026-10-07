@@ -28,10 +28,12 @@ PRIOR_TYPES = {
 # ---------------------------------------------------------------- loading
 
 def load_judgments() -> pd.DataFrame:
-    """One row per successfully judged response (status ok), across all judges and runs."""
+    """One row per successfully judged response (status ok), across all registered judges and runs."""
     rows = []
     for path in sorted(JUDGMENTS_DIR.glob("*/*.jsonl")):
         judge = path.parent.name
+        if judge not in JUDGES:  # a dropped judge's files stay on disk but are ignored
+            continue
         for r in load_latest(path).values():
             if r["status"] == "ok":
                 rows.append({"judge": judge, "model": r["model"], "variant": r["variant"],
@@ -173,16 +175,12 @@ def table3(df: pd.DataFrame) -> str:
             continue
         with_ = cir_matrix(df, judge, "nudge")
         without = cir_matrix(df, judge, "nonudge")
-        cols = {}
-        for m in models:
-            label = TEST_MODELS[m].label
-            cols[(label, "Without")] = without[m].map(fmt)
-            cols[(label, "With")] = with_[m].map(fmt)
-            cols[(label, "Gap")] = (with_[m] - without[m]).map(lambda x: fmt(x) if math.isnan(x) else f"{x:+.2f}")
-        out = pd.DataFrame(cols)
+        # Only the gap is reported; the "with nudge" rates are already in Table 1.
+        out = pd.DataFrame({f"{TEST_MODELS[m].label} Gap": (with_[m] - without[m]).map(
+            lambda x: fmt(x) if math.isnan(x) else f"{x:+.2f}") for m in models})
         save_csv(out, f"table3_{judge}")
-        out.columns = [f"{a} {b}" for a, b in out.columns]
-        sections.append(f"**Judge: `{judge}`**\n\n" + md_table(out, "Behavior Category"))
+        sections.append(f"**Judge: `{judge}`.** Gap = CIR with nudge − CIR without nudge, in percentage points.\n\n"
+                        + md_table(out, "Behavior Category"))
     return "\n\n".join(sections) or "_No (model, judge) pair has both nudge and no-nudge judgments yet._"
 
 
@@ -214,20 +212,22 @@ def human_labels() -> dict[str, str]:
 
 def table4(df: pd.DataFrame) -> str:
     bench = _decisions(df, "benchmark")
-    judges = [j for j in JUDGES if j in bench]
+    neutral = _decisions(df, "neutral")
+    # A judge with only neutral judgments still gets a row, so FPR can be read before the benchmark is judged.
+    judges = [j for j in JUDGES if j in bench or j in neutral]
     if not judges:
-        return "_No benchmark judgments yet._"
-    bench = {j: bench[j] for j in judges}
+        return "_No judgments yet._"
+    bench_judges = [j for j in judges if j in bench]
+    bench = {j: bench[j] for j in bench_judges}
     iar = pairwise(bench, agreement)
     kappa = pairwise(bench, cohen_kappa)
-    neutral = _decisions(df, "neutral")
     humans = human_labels()
 
     rows = {}
     for j in judges:
-        others = [o for o in judges if o != j]
+        others = [o for o in bench_judges if o != j] if j in bench else []
         fp = neutral.get(j, {})
-        hum = {i: d for i, d in bench[j].items() if i in humans}
+        hum = {i: d for i, d in bench.get(j, {}).items() if i in humans}
         rows[f"{j}" + (f" (for {JUDGES[j].paper_name})" if JUDGES[j].substitute else "")] = {
             "Average IAR": fmt(np.mean([iar[(j, o)][0] for o in others])) if others else "–",
             "Average Cohen's κ": fmt(np.mean([kappa[(j, o)][0] for o in others]), 3) if others else "–",
@@ -238,10 +238,12 @@ def table4(df: pd.DataFrame) -> str:
         }
     out = pd.DataFrame(rows).T
     save_csv(out, "table4")
+    if len(bench_judges) < 2:
+        return md_table(out, "Judge Model")
 
-    pair = pd.DataFrame(index=judges, columns=judges, dtype=object)
-    for j1 in judges:
-        for j2 in judges:
+    pair = pd.DataFrame(index=bench_judges, columns=bench_judges, dtype=object)
+    for j1 in bench_judges:
+        for j2 in bench_judges:
             pair.loc[j1, j2] = "100.00" if j1 == j2 else f"{fmt(iar[(j1, j2)][0])} (n={iar[(j1, j2)][1]})"
     save_csv(pair, "table4_pairwise_iar")
     return (md_table(out, "Judge Model") + "\n\nPairwise IAR (%) on shared benchmark responses:\n\n"

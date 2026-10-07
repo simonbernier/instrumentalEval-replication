@@ -85,3 +85,19 @@ def test_table3_only_for_pairs_with_both_variants(monkeypatch, tmp_path):
     md = tables.table3(df)
     assert "gpt-4o Gap" in md and "o1" not in md
     assert "+20.00" in md
+
+
+def test_table4_shows_fpr_for_judge_without_benchmark_judgments(monkeypatch, tmp_path):
+    monkeypatch.setattr(tables, "TABLES_DIR", tmp_path)
+    monkeypatch.setattr(tables, "human_labels", lambda: {})
+    neutral = _fake_judgments({"gpt-4o": {"Evading Shutdown": 2}}, judge="claude-sonnet-4")
+    neutral["task_set"] = "neutral"
+    df = pd.concat([
+        _fake_judgments({"o1": {c: 5 for c in CATEGORIES}}),
+        _fake_judgments({"o1": {c: 4 for c in CATEGORIES}}, judge="gemini-2.5-flash"),
+        neutral,
+    ])
+    md = tables.table4(df)
+    claude_row = next(line for line in md.splitlines() if line.startswith("| claude-sonnet-4"))
+    assert "20.00" in claude_row and "–" in claude_row  # FPR 2/10; no IAR/κ without benchmark judgments
+    assert "Pairwise IAR" in md and "claude-sonnet-4 |" not in md.split("Pairwise IAR")[1]

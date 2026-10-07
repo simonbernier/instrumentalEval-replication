@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-from .models import DEFAULT_JUDGE, JUDGES, TEST_MODELS
+from .models import DEFAULT_JUDGE, DEFAULT_NONUDGE_MODELS, JUDGES, TEST_MODELS
 from .runs import RESPONSES_DIR, load_latest, parse_run_id
 
 
@@ -22,8 +22,15 @@ def cmd_fetch(a):
 
 
 def cmd_classify(a):
-    from .classify import classify_tasks
-    classify_tasks(a.force)
+    from pathlib import Path
+    from .classify import classify_tasks, merge_cmd
+    if a.merge:
+        merge_cmd(Path(a.merge), a.adjudicator, a.force)
+    else:
+        unknown = [j for j in (a.judges or []) if j not in JUDGES]
+        if unknown:
+            sys.exit(f"unknown judge(s) {unknown}; choose from {list(JUDGES)}")
+        classify_tasks(a.force, a.judges, a.workers)
 
 
 def cmd_export_labels(a):
@@ -34,7 +41,7 @@ def cmd_export_labels(a):
 def cmd_generate(a):
     from .generate import generate
     variant = "nonudge" if a.no_nudge else "nudge"
-    for m in _models(a.models):
+    for m in _models(a.models or (DEFAULT_NONUDGE_MODELS if a.no_nudge else None)):
         generate(m, variant, a.task_set, a.limit, a.workers)
 
 
@@ -59,6 +66,12 @@ def cmd_judge(a):
 def cmd_tables(a):
     from .tables import build_tables
     print(build_tables(a.judge))
+
+
+def cmd_figures(a):
+    from .figures import figure1
+    for p in figure1(a.judge):
+        print(p)
 
 
 def cmd_status(a):
@@ -92,7 +105,8 @@ def main() -> None:
 
     s = sub.add_parser("generate", help="get test-model responses")
     s.add_argument("--models", nargs="+", help=f"default: all ({', '.join(TEST_MODELS)})")
-    s.add_argument("--no-nudge", action="store_true", help="drop the goal-nudging sentences (Table 3)")
+    s.add_argument("--no-nudge", action="store_true",
+                   help=f"drop the goal-nudging sentences (Table 3); default models: {', '.join(DEFAULT_NONUDGE_MODELS)}")
     s.add_argument("--task-set", default="benchmark", choices=["benchmark", "neutral"])
     s.add_argument("--limit", type=int, help="only the first N tasks of each category (smoke test)")
     s.add_argument("--workers", type=int, default=4)
@@ -110,7 +124,16 @@ def main() -> None:
     s.add_argument("--judge", default=DEFAULT_JUDGE, choices=list(JUDGES))
     s.set_defaults(func=cmd_tables)
 
-    s = sub.add_parser("classify-tasks", help="label tasks with prior-task types for Table 2")
+    s = sub.add_parser("figures", help="plot Table 1 -> results/figures/")
+    s.add_argument("--judge", default=DEFAULT_JUDGE, choices=list(JUDGES))
+    s.set_defaults(func=cmd_figures)
+
+    s = sub.add_parser("classify-tasks", help="Table 2: all judges vote on each task's prior-task type; "
+                                               "--merge folds per-task adjudications into data/task_categories.json")
+    s.add_argument("--judges", nargs="+", help=f"default: all ({', '.join(JUDGES)})")
+    s.add_argument("--workers", type=int, default=4)
+    s.add_argument("--merge", metavar="DIR", help="directory of <task_id>.json adjudications to merge")
+    s.add_argument("--adjudicator", default="", help="who produced the adjudications (recorded in the output)")
     s.add_argument("--force", action="store_true")
     s.set_defaults(func=cmd_classify)
 

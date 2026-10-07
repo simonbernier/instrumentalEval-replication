@@ -19,37 +19,42 @@ uv run pytest               # offline; checks prompts against upstream byte for 
 
 ## Running
 
-Every command can be resumed: finished tasks are skipped, and failed calls are retried on the next run.
+Every command can be resumed: finished tasks are skipped, and failed calls are retried on the next run. Step 1 is
+the Setup section above.
 
 ```sh
-# 0. Smoke test: 2 tasks per category per model; check for empty or truncated answers and the provider used
+# 2. Smoke test: 2 tasks per category per model; check for empty or truncated answers and the provider used
 uv run ie generate --limit 2
 uv run ie status
 
-# 1. Gemini 2.5 Flash leaves OpenRouter on 2026-10-20, so run everything that uses it first
-uv run ie generate --models gemini-2.5-flash
-uv run ie generate --models gpt-4o --task-set neutral
-uv run ie judge --judges gemini-2.5-flash --task-sets benchmark neutral   # after step 2 as well
-
-# 2. Table 1: all 9 test models, judged by GPT-4o
+# 3. Responses from all 9 test models on the 76 benchmark tasks and the 20 neutral control tasks
 uv run ie generate
-uv run ie judge
+uv run ie generate --task-set neutral
 
-# 3. Table 3: goal-nudging ablation (the paper uses GPT-4o and DeepSeek-R1; any model or judge works)
-uv run ie generate --models gpt-4o deepseek-r1 --no-nudge
+# 4. Judge reliability: all 3 judges on the neutral tasks, then read the FPR column of Table 4
+uv run ie judge --judges gpt-4o claude-sonnet-4 gemini-2.5-flash --task-sets neutral
+uv run ie tables
+#    then set DEFAULT_JUDGE in src/instrumentaleval/models.py to the judge with the lowest FPR
+
+# 5. Benchmark judged by all 3 judges (Table 4 IAR and κ); the chosen judge drives Tables 1, 2, 3, 5 and the figures
+uv run ie judge --judges gpt-4o claude-sonnet-4 gemini-2.5-flash
+
+# 6. Tables and figures
+uv run ie classify-tasks    # Table 2: all 3 judges vote on each task's prior-task type -> data/task_classification_votes.{json,md}
+#    then one independent adjudicator subagent per task (REPLICATION_NOTES.md, Table 2) writes <dir>/<task_id>.json
+uv run ie classify-tasks --merge <dir> --adjudicator "<who>"   # -> data/task_categories.json; review it by hand
+uv run ie export-labels     # then fill results/human_labels.csv by hand (Table 4 human agreement)
+uv run ie tables            # -> results/tables.md (+ CSVs in results/tables/); --judge <name> for another judge
+uv run ie figures           # Table 1 as bar charts by family -> results/figures/ (also takes --judge)
+
+# 7. Table 3: goal-nudging ablation on gpt-4o, deepseek-v3, o4-mini, deepseek-r1, judged by the chosen judge
+uv run ie generate --no-nudge
 uv run ie judge --variants nonudge
-
-# 4. Table 4: re-judge everything with the other judges, then FPR on the neutral control tasks
-uv run ie judge --judges claude-sonnet-4 mistral-large-2407 gemini-2.5-flash
-uv run ie judge --judges gpt-4o claude-sonnet-4 mistral-large-2407 gemini-2.5-flash --task-sets neutral
-uv run ie export-labels     # then fill results/human_labels.csv by hand
-
-# 5. Table 2 mapping (review data/task_categories.json by hand afterwards)
-uv run ie classify-tasks
-
-# 6. Build all tables -> results/tables.md (+ CSVs in results/tables/)
-uv run ie tables            # --judge <name> rebuilds Tables 1, 2 and 5 with another judge
+uv run ie tables
 ```
+
+Once `DEFAULT_JUDGE` is set in step 4, `ie judge`, `ie tables` and `ie figures` all default to the chosen judge, so
+steps 6 and 7 need no `--judge` flags.
 
 ## Layout
 
@@ -59,5 +64,7 @@ uv run ie tables            # --judge <name> rebuilds Tables 1, 2 and 5 with ano
 | `src/instrumentaleval/models.py` | test models and judges, with their OpenRouter IDs and request parameters |
 | `src/instrumentaleval/{generate,judge}.py` | the two passes; results go to `results/responses/` and `results/judgments/<judge>/` as JSONL, plus an upstream-format `*_evaluation_results.txt` per run |
 | `src/instrumentaleval/tables.py` | Tables 1–5 |
+| `src/instrumentaleval/figures.py` | Figure 1: Table 1 as bar charts, models grouped by RLHF / RL family |
 | `data/neutral_tasks.csv`, `data/neutral_task_rubric.md` | control tasks for the false-positive check, and the rubric they were selected with |
-| `data/task_categories.json` | task to prior-task-type mapping for Table 2 (generated, then hand-checked) |
+| `data/task_classification_votes.{json,md}` | the three judges' prior-task-type votes and rationales for every benchmark task, side by side |
+| `data/task_categories.json` | adjudicated task to prior-task-type mapping for Table 2 (one independent adjudicator per task, then a consistency review and a hand check) |

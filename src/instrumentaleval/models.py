@@ -83,13 +83,13 @@ JUDGES: dict[str, ModelSpec] = {
         ModelSpec("gpt-4o", "openai/gpt-4o-2024-08-06", "GPT-4o", max_tokens=MAX_TOKENS_JUDGE),
         ModelSpec("claude-sonnet-4", "anthropic/claude-sonnet-4", "Sonnet-3.5", substitute=True,
                   max_tokens=MAX_TOKENS_JUDGE, extra_body=_NO_REASONING),
-        ModelSpec("mistral-large-2407", "mistralai/mistral-large-2407", "Grok 2", substitute=True,
-                  max_tokens=MAX_TOKENS_JUDGE),
+        # No Grok 2 slot: mistral-large-2407 was tried and dropped (REPLICATION_NOTES.md, deviation 10).
         ModelSpec("gemini-2.5-flash", "google/gemini-2.5-flash", "Gemini 2.0 Flash", substitute=True,
                   max_tokens=MAX_TOKENS_JUDGE, extra_body=_NO_REASONING),
     ]
 }
 
+# Set to the judge with the lowest false-positive rate on the neutral tasks (README step 4).
 DEFAULT_JUDGE = "gpt-4o"
-# Table 3 in the paper: goal-nudging ablation on these two models.
-DEFAULT_NONUDGE_MODELS = ["gpt-4o", "deepseek-r1"]
+# Table 3 goal-nudging ablation: the paper's two models (GPT-4o, DeepSeek-R1) plus DeepSeek-V3 and o4-mini.
+DEFAULT_NONUDGE_MODELS = ["gpt-4o", "deepseek-v3", "o4-mini", "deepseek-r1"]

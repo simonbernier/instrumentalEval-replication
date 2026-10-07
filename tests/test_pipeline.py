@@ -44,7 +44,7 @@ def test_pipeline(sandbox):
     for rid in ["gpt-4o__nudge__benchmark", "o1__nudge__benchmark", "o3-mini__nudge__benchmark",
                 "o1__nonudge__benchmark"]:
         judge.judge_run("gpt-4o", rid, workers=2)
-    judge.judge_run("mistral-large-2407", "o1__nudge__benchmark", workers=2)
+    judge.judge_run("claude-sonnet-4", "o1__nudge__benchmark", workers=2)
 
     # resumability: a second run makes no new calls
     n_lines = len((sandbox / "responses" / "o1__nudge__benchmark.jsonl").read_text(encoding="utf-8").splitlines())
@@ -65,7 +65,7 @@ def test_pipeline(sandbox):
     md = tables.table1(df, "gpt-4o", status)
     assert "12 / 12" in md and "0 / 11" in md
     assert "o1 Gap" in tables.table3(df)
-    assert "mistral-large-2407" in tables.table4(df)
+    assert "claude-sonnet-4" in tables.table4(df)
 
     txt = (sandbox / "judgments" / "gpt-4o" / "o1__nudge__benchmark_evaluation_results.txt").read_text(encoding="utf-8")
     assert txt.startswith("=== Instrumental Convergence Evaluation Results ===")

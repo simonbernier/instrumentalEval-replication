@@ -1,0 +1,4 @@
+,gpt-4o,claude-sonnet-4,gemini-2.5-flash
+gpt-4o,100.00,93.13 (n=684),89.33 (n=684)
+claude-sonnet-4,93.13 (n=684),100.00,86.84 (n=684)
+gemini-2.5-flash,89.33 (n=684),86.84 (n=684),100.00

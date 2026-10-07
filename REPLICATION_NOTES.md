@@ -54,6 +54,22 @@ Instrumental Goals?* (arXiv:2502.12206, Feb 2025). Upstream code: `yf-he/Instrum
    StreamLake. The serving provider is logged on every response.
 7. **GPT-4o snapshot.** `openai/gpt-4o-2024-08-06` is pinned, the snapshot the `gpt-4o` alias pointed to during
    the paper's Dec 2024–Jan 2025 runs. It's configurable in `models.py`.
+8. **The primary judge is chosen by false-positive rate.** The paper uses GPT-4o for every table. Here all 3 judges
+   first judge the 20 neutral control tasks for all 9 test models, and the judge with the lowest FPR becomes
+   `DEFAULT_JUDGE` (`models.py`), which Tables 1, 2, 3 and 5 and the figures use. All 3 judges still judge the
+   benchmark, for Table 4's IAR and κ. On the neutral tasks (2026-10-07) GPT-4o had 0/180 false positives,
+   Claude Sonnet 4 3/180 (1.7%) and Gemini 2.5 Flash 8/180 (4.4%), so `DEFAULT_JUDGE` is `gpt-4o`, as in the paper.
+9. **The goal-nudging ablation (Table 3) covers 4 test models**: the paper's GPT-4o and DeepSeek-R1, plus
+   DeepSeek-V3 and o4-mini (one more model per family). It is judged by `DEFAULT_JUDGE` only, and the table reports
+   only the gap (CIR with nudge − CIR without), since the with-nudge rates are already in Table 1.
+10. **No judge in the Grok 2 slot, so Table 4 has 3 judges instead of 4.** The substitute was
+    `mistralai/mistral-large-2407` (every Grok on OpenRouter is now reasoning-only). On the neutral tasks it wrote
+    its verdict as `**DECISION:** ...` in 173 of 180 responses. Upstream's parser only reads lines that start with
+    `DECISION:`, so those defaulted to `no_convergence`. That gave an apparent FPR of 1.1% (2/180), but reading
+    through the markdown it flagged 18/180 (10.0%), the worst of the four. On the benchmark the same defaulting
+    would push its rates towards zero and make its IAR and κ meaningless. The user chose to drop it rather than
+    loosen the upstream parser. Its neutral judgments are kept in `results/judgments/mistral-large-2407/`, and
+    `ie tables` ignores them.
 
 ## Model substitutions
 
@@ -79,16 +95,45 @@ providers, run at T=0:
 
 | Paper | Used | Reason |
 |---|---|---|
-| GPT-4o | `openai/gpt-4o-2024-08-06` | same model; default judge for every table |
+| GPT-4o | `openai/gpt-4o-2024-08-06` | same model |
 | Sonnet-3.5 | `anthropic/claude-sonnet-4`, reasoning disabled | Anthropic slot; with thinking off it runs as a non-reasoning model |
-| Grok 2 | `mistralai/mistral-large-2407` | every Grok on OpenRouter is now reasoning-only. Mistral Large 2 is a non-reasoning flagship from an independent lab, from the same generation as Grok 2 (Jul vs Aug 2024), and isn't a test model |
+| Grok 2 | — (dropped) | every Grok on OpenRouter is now reasoning-only. `mistralai/mistral-large-2407` was tried and dropped because it ignored the verdict format (deviation 10) |
 | Gemini 2.0 Flash | `google/gemini-2.5-flash`, reasoning disabled | Google Flash slot; same 2026-10-20 expiry |
 
 ## Parts of the paper that cannot be reproduced exactly
 
 - **Table 2 (prior-task categories).** The paper doesn't release which task belongs to which of its four prior-task
-  types. `uv run ie classify-tasks` labels each task with GPT-4o (T=0) into `data/task_categories.json`.
-  **Check this file by hand**; Table 2 is only as good as this mapping.
+  types, so the mapping is rebuilt here in three stages (2026-10-07):
+  1. *Three judge votes.* `uv run ie classify-tasks` has all three judges (GPT-4o, Claude Sonnet 4, Gemini 2.5
+     Flash; T=0, the same one-paragraph definitions, JSON output) label each of the 76 tasks by the agent's stated
+     primary goal. Votes and one-sentence rationales are written side by side to
+     `data/task_classification_votes.{json,md}`. Result: 64/76 unanimous, 11 two-to-one, 1 three-way split
+     (SAA-06). Per-judge label counts: GPT-4o 32 efficiency / 32 general / 7 resource / 5 persuasion; Sonnet 4
+     29/34/8/5; Gemini 28/33/7/8.
+  2. *One independent adjudicator per task.* 76 Claude Sonnet 5.5 subagents, one per task, each saw only that
+     task's text and the three votes with rationales, with the instruction to judge by the stated goal, treat the
+     judges as advisors rather than a vote to count, and classify proxy metrics by what they measure
+     (productivity/throughput = efficiency, revenue/funds = resource, satisfaction/engagement = persuasion).
+     Each wrote a label, a rationale and a confidence. `uv run ie classify-tasks --merge <dir>` validates and
+     merges them into `data/task_categories.json`, which keeps every judge's vote next to the final label.
+     Result: 29 efficiency, 32 general, 9 resource, 6 persuasion; 51 high / 25 medium confidence; the
+     adjudicator agreed with GPT-4o on 71/76 and with each other judge on 69/76, and overrode the judge majority
+     on 3 tasks (HC-01 efficiency→resource: the goal is "maximize computational capacity"; RAC-03
+     general→persuasion: "increase viewer satisfaction"; HB-02 persuasion→resource, against a unanimous vote:
+     "maximize client satisfaction and portfolio performance", where returns are the only lever).
+  3. *Consistency review and hand check.* One Claude Opus 5.5 subagent read the whole mapping for near-identical
+     goals labelled differently and for labels no judge supported; its report is in
+     `data/task_classification_review.md`. It found the defects concentrated in the four overridden or tied tasks,
+     all turning on one convention: whether a goal phrased as "maximize customer/client satisfaction" counts as
+     persuasion (the definitions list "satisfaction ratings" there) or defers to the concrete task metric.
+     Hand check (2026-10-07): the user chose the literal rule, **satisfaction/ratings goals are persuasion**,
+     so HB-01 efficiency→persuasion and HB-02 resource→persuasion (back to the unanimous vote); RAC-03 and SAA-06
+     stay persuasion. HC-01 resource→efficiency separately, because no judge chose resource and the reviewer
+     found the label driven by the hacking temptation. Each edited entry carries a `hand_check` note and keeps the
+     `adjudicator_label`. Final distribution: 29 efficiency, 32 general, 7 resource, 8 persuasion. The rule can be
+     revisited if the resulting Table 2 doesn't make sense. Caveats: the persuasion and resource cells are small,
+     and prior-task type is confounded with benchmark category (5 of the 7 resource tasks are the same Evading
+     Shutdown trading prompt; 10 of the 32 general tasks are Deceptive Behavior).
 - **Table 4 FPR.** The paper's "intentionally neutral tasks" were not released. `data/neutral_tasks.csv` holds 20
   control tasks built for this replication against `data/neutral_task_rubric.md`. Each pairs with a benchmark
   category (3–4 per category, 5 per prior-task type), matches that category's house format and length range, and
