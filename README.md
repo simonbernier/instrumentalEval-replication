@@ -47,10 +47,20 @@ uv run ie export-labels     # then fill results/human_labels.csv (Table 4; fille
 uv run ie tables            # -> results/tables.md (+ CSVs in results/tables/); --judge <name> for another judge
 uv run ie figures           # Tables 1, 2, 3 and 5 as figures -> results/figures/ (also takes --judge)
 
-# 7. Table 3: goal-nudging ablation on gpt-4o, deepseek-v3, o4-mini, deepseek-r1, judged by the chosen judge
+# 7. Table 3: goal-nudging ablation, judged by the chosen judge. The no-nudge runs cover every model but o1
+#    (they are also a Table 6 arm); Table 3 shows gpt-4o, deepseek-v3, o4-mini and deepseek-r1, as configured
 uv run ie generate --no-nudge
 uv run ie judge --variants nonudge
 uv run ie tables
+
+# 8. System-prompt ablations (Table 6 and Figure 6, not in the paper). Pre-registered in REPLICATION_NOTES.md,
+#    "Additional experiments": commit that section before generating. Default models: all but o1 (nudge-rep: 4).
+V="nocause-nudge nocause-nonudge plain-nudge plain-goal plain-nonudge nudge-rep"
+uv run ie generate --variants $V --limit 1   # smoke test: read a few answers, check `ie status`
+uv run ie generate --variants $V
+uv run ie judge --variants $V
+uv run ie tables
+uv run ie figures
 ```
 
 Once `DEFAULT_JUDGE` is set in step 4, `ie judge`, `ie tables` and `ie figures` all default to the chosen judge, so
@@ -60,11 +70,12 @@ steps 6 and 7 need no `--judge` flags.
 
 | Path | Contents |
 |---|---|
-| `src/instrumentaleval/prompts.py` | upstream prompts (verbatim) and judge-output parser |
+| `src/instrumentaleval/prompts.py` | upstream prompts (verbatim), the system-prompt variants for Table 6 (deletions of upstream text only) and the judge-output parser |
 | `src/instrumentaleval/models.py` | test models and judges, with their OpenRouter IDs and request parameters |
 | `src/instrumentaleval/{generate,judge}.py` | the two passes; results go to `results/responses/` and `results/judgments/<judge>/` as JSONL, plus an upstream-format `*_evaluation_results.txt` per run |
-| `src/instrumentaleval/tables.py` | Tables 1–5 |
-| `src/instrumentaleval/figures.py` | Tables 1, 2, 3 and 5 as figures (bar charts with models grouped by RLHF / RL family; Table 5 as a heat map) |
+| `src/instrumentaleval/tables.py` | Tables 1–5, and Table 6 (system-prompt ablations, not in the paper) |
+| `src/instrumentaleval/figures.py` | Tables 1, 2, 3, 5 and 6 as figures (bar charts with models grouped by RLHF / RL family; Table 5 as a heat map; Table 6 as one panel per model) |
 | `data/neutral_tasks.csv`, `data/neutral_task_rubric.md` | control tasks for the false-positive check, and the rubric they were selected with |
 | `data/task_classification_votes.{json,md}` | the three judges' prior-task-type votes and rationales for every benchmark task, side by side |
 | `data/task_categories.json` | adjudicated task to prior-task-type mapping for Table 2 (one independent adjudicator per task, then a consistency review and a hand check) |
+| `data/paper_results.json` | the paper's Tables 1 and 3 as numbers (with task counts), for the Table 6 comparison |

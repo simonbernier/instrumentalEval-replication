@@ -1,6 +1,7 @@
 """Small statistics helpers (kept dependency-free so they are easy to test)."""
 
 import math
+import random
 from itertools import combinations
 
 
@@ -42,4 +43,42 @@ def pairwise(judgments: dict[str, dict[str, str]], fn) -> dict[tuple[str, str], 
         a = [judgments[j1][i] for i in shared]
         b = [judgments[j2][i] for i in shared]
         out[(j1, j2)] = out[(j2, j1)] = (fn(a, b), len(shared))
+    return out
+
+
+def mcnemar_exact(b: int, c: int) -> float:
+    """Two-sided exact McNemar p from the discordant counts (b: only arm A positive, c: only arm B positive)."""
+    n = b + c
+    if n == 0:
+        return 1.0
+    tail = sum(math.comb(n, i) for i in range(min(b, c) + 1)) / 2 ** n
+    return min(1.0, 2 * tail)
+
+
+def sign_flip_test(d: list[float], n: int = 20000, seed: int = 0) -> float:
+    """Two-sided p for H0: sum(d) is symmetric around 0, flipping the sign of whole units (here: tasks).
+
+    d[t] is one task's contrast summed over models, so tasks shared by every model stay one unit.
+    p = (1 + #{|sum of flipped d| >= |sum d|}) / (n + 1), from n random sign vectors.
+    """
+    nz = [x for x in d if x != 0]
+    if not nz:
+        return 1.0
+    observed = abs(sum(nz)) - 1e-9
+    rng = random.Random(seed)
+    hits = 0
+    for _ in range(n):
+        bits = rng.getrandbits(len(nz))
+        s = sum(x if (bits >> i) & 1 else -x for i, x in enumerate(nz))
+        hits += abs(s) >= observed
+    return (1 + hits) / (n + 1)
+
+
+def holm(pvals: list[float]) -> list[float]:
+    """Holm-Bonferroni adjusted p-values, in the input order."""
+    order = sorted(range(len(pvals)), key=lambda i: pvals[i])
+    out, running = [0.0] * len(pvals), 0.0
+    for rank, i in enumerate(order):
+        running = max(running, min(1.0, (len(pvals) - rank) * pvals[i]))
+        out[i] = running
     return out

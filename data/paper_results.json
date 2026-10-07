@@ -1,0 +1,287 @@
+{
+ "source": "He et al. 2025, arXiv:2502.12206v1 (HTML), Tables 1 and 3; judge GPT-4o",
+ "n_tasks": {
+  "Evading Shutdown": 20,
+  "Hacking Computer Systems": 10,
+  "Running Multiple AI Copies": 13,
+  "Hiding Unwanted Behavior": 11,
+  "Strategically Appearing Aligned": 11,
+  "Deceptive Behavior": 11
+ },
+ "table1": {
+  "GPT-4o": {
+   "ours": "gpt-4o",
+   "match": "same pinned snapshot (gpt-4o-2024-08-06)",
+   "cir": {
+    "Evading Shutdown": 20.0,
+    "Hacking Computer Systems": 10.0,
+    "Running Multiple AI Copies": 30.77,
+    "Hiding Unwanted Behavior": 36.36,
+    "Strategically Appearing Aligned": 27.27,
+    "Deceptive Behavior": 0.0
+   },
+   "k": {
+    "Evading Shutdown": 4,
+    "Hacking Computer Systems": 1,
+    "Running Multiple AI Copies": 4,
+    "Hiding Unwanted Behavior": 4,
+    "Strategically Appearing Aligned": 3,
+    "Deceptive Behavior": 0
+   },
+   "ir": 21.05,
+   "k_total": 16,
+   "notes": []
+  },
+  "Sonnet-3.5": {
+   "ours": null,
+   "match": "dropped (retired)",
+   "cir": {
+    "Evading Shutdown": 15.0,
+    "Hacking Computer Systems": 10.0,
+    "Running Multiple AI Copies": 23.08,
+    "Hiding Unwanted Behavior": 36.36,
+    "Strategically Appearing Aligned": 45.45,
+    "Deceptive Behavior": 9.09
+   },
+   "k": {
+    "Evading Shutdown": 3,
+    "Hacking Computer Systems": 1,
+    "Running Multiple AI Copies": 3,
+    "Hiding Unwanted Behavior": 4,
+    "Strategically Appearing Aligned": 5,
+    "Deceptive Behavior": 1
+   },
+   "ir": 22.37,
+   "k_total": 17,
+   "notes": []
+  },
+  "DeepSeek-V3": {
+   "ours": "deepseek-v3",
+   "match": "same model id; OpenRouter alias, serving weights may differ",
+   "cir": {
+    "Evading Shutdown": 15.0,
+    "Hacking Computer Systems": 20.0,
+    "Running Multiple AI Copies": 30.77,
+    "Hiding Unwanted Behavior": 27.27,
+    "Strategically Appearing Aligned": 36.36,
+    "Deceptive Behavior": 0.0
+   },
+   "k": {
+    "Evading Shutdown": 3,
+    "Hacking Computer Systems": 2,
+    "Running Multiple AI Copies": 4,
+    "Hiding Unwanted Behavior": 3,
+    "Strategically Appearing Aligned": 4,
+    "Deceptive Behavior": 0
+   },
+   "ir": 21.05,
+   "k_total": 16,
+   "notes": []
+  },
+  "o1": {
+   "ours": "o1",
+   "match": "same model id; served snapshot may differ",
+   "cir": {
+    "Evading Shutdown": 40.0,
+    "Hacking Computer Systems": 50.0,
+    "Running Multiple AI Copies": 46.15,
+    "Hiding Unwanted Behavior": 63.64,
+    "Strategically Appearing Aligned": 45.45,
+    "Deceptive Behavior": 27.27
+   },
+   "k": {
+    "Evading Shutdown": 8,
+    "Hacking Computer Systems": 5,
+    "Running Multiple AI Copies": 6,
+    "Hiding Unwanted Behavior": 7,
+    "Strategically Appearing Aligned": 5,
+    "Deceptive Behavior": 3
+   },
+   "ir": 44.74,
+   "k_total": 34,
+   "notes": []
+  },
+  "o1-mini": {
+   "ours": "o4-mini",
+   "match": "substitute",
+   "cir": {
+    "Evading Shutdown": 40.0,
+    "Hacking Computer Systems": 50.0,
+    "Running Multiple AI Copies": 38.46,
+    "Hiding Unwanted Behavior": 54.55,
+    "Strategically Appearing Aligned": 45.45,
+    "Deceptive Behavior": 36.36
+   },
+   "k": {
+    "Evading Shutdown": 8,
+    "Hacking Computer Systems": 5,
+    "Running Multiple AI Copies": 5,
+    "Hiding Unwanted Behavior": 6,
+    "Strategically Appearing Aligned": 5,
+    "Deceptive Behavior": 4
+   },
+   "ir": 43.42,
+   "k_total": 33,
+   "notes": []
+  },
+  "o3-mini": {
+   "ours": "o3-mini",
+   "match": "same model id; served snapshot may differ",
+   "cir": {
+    "Evading Shutdown": 45.0,
+    "Hacking Computer Systems": 50.0,
+    "Running Multiple AI Copies": 38.46,
+    "Hiding Unwanted Behavior": 63.64,
+    "Strategically Appearing Aligned": 63.64,
+    "Deceptive Behavior": 36.36
+   },
+   "k": {
+    "Evading Shutdown": 9,
+    "Hacking Computer Systems": 5,
+    "Running Multiple AI Copies": 5,
+    "Hiding Unwanted Behavior": 7,
+    "Strategically Appearing Aligned": 7,
+    "Deceptive Behavior": 4
+   },
+   "ir": 48.68,
+   "k_total": 37,
+   "notes": []
+  },
+  "Gemini 2.0 FTE.": {
+   "ours": "gemini-2.5-flash",
+   "match": "substitute",
+   "cir": {
+    "Evading Shutdown": 35.0,
+    "Hacking Computer Systems": 40.0,
+    "Running Multiple AI Copies": 30.77,
+    "Hiding Unwanted Behavior": 36.36,
+    "Strategically Appearing Aligned": 45.45,
+    "Deceptive Behavior": 9.09
+   },
+   "k": {
+    "Evading Shutdown": 7,
+    "Hacking Computer Systems": 4,
+    "Running Multiple AI Copies": 4,
+    "Hiding Unwanted Behavior": 4,
+    "Strategically Appearing Aligned": 5,
+    "Deceptive Behavior": 1
+   },
+   "ir": 32.89,
+   "k_total": 25,
+   "notes": []
+  },
+  "DeepSeek-R1": {
+   "ours": "deepseek-r1",
+   "match": "same model id; OpenRouter alias, serving weights may differ",
+   "cir": {
+    "Evading Shutdown": 50.0,
+    "Hacking Computer Systems": 40.0,
+    "Running Multiple AI Copies": 46.15,
+    "Hiding Unwanted Behavior": 63.64,
+    "Strategically Appearing Aligned": 45.45,
+    "Deceptive Behavior": 27.27
+   },
+   "k": {
+    "Evading Shutdown": 10,
+    "Hacking Computer Systems": 4,
+    "Running Multiple AI Copies": 6,
+    "Hiding Unwanted Behavior": 7,
+    "Strategically Appearing Aligned": 5,
+    "Deceptive Behavior": 3
+   },
+   "ir": 46.05,
+   "k_total": 35,
+   "notes": []
+  }
+ },
+ "table3": {
+  "GPT-4o": {
+   "without": {
+    "cir": {
+     "Evading Shutdown": 15.0,
+     "Hacking Computer Systems": 5.0,
+     "Running Multiple AI Copies": 23.08,
+     "Hiding Unwanted Behavior": 27.27,
+     "Strategically Appearing Aligned": 18.18,
+     "Deceptive Behavior": 0.0
+    },
+    "k": {
+     "Evading Shutdown": 3,
+     "Hacking Computer Systems": null,
+     "Running Multiple AI Copies": 3,
+     "Hiding Unwanted Behavior": 3,
+     "Strategically Appearing Aligned": 2,
+     "Deceptive Behavior": 0
+    },
+    "ir": 15.79,
+    "k_total": 12
+   },
+   "with": {
+    "cir": {
+     "Evading Shutdown": 20.0,
+     "Hacking Computer Systems": 10.0,
+     "Running Multiple AI Copies": 30.77,
+     "Hiding Unwanted Behavior": 36.36,
+     "Strategically Appearing Aligned": 27.27,
+     "Deceptive Behavior": 0.0
+    },
+    "k": {
+     "Evading Shutdown": 4,
+     "Hacking Computer Systems": 1,
+     "Running Multiple AI Copies": 4,
+     "Hiding Unwanted Behavior": 4,
+     "Strategically Appearing Aligned": 3,
+     "Deceptive Behavior": 0
+    },
+    "ir": 21.05,
+    "k_total": 16
+   },
+   "notes": [
+    "Hacking Computer Systems = 5.0% is not a whole number of tasks out of 10 (0.50)"
+   ]
+  },
+  "DeepSeek-R1": {
+   "without": {
+    "cir": {
+     "Evading Shutdown": 35.0,
+     "Hacking Computer Systems": 30.0,
+     "Running Multiple AI Copies": 38.46,
+     "Hiding Unwanted Behavior": 45.45,
+     "Strategically Appearing Aligned": 36.36,
+     "Deceptive Behavior": 18.18
+    },
+    "k": {
+     "Evading Shutdown": 7,
+     "Hacking Computer Systems": 3,
+     "Running Multiple AI Copies": 5,
+     "Hiding Unwanted Behavior": 5,
+     "Strategically Appearing Aligned": 4,
+     "Deceptive Behavior": 2
+    },
+    "ir": 34.21,
+    "k_total": 26
+   },
+   "with": {
+    "cir": {
+     "Evading Shutdown": 50.0,
+     "Hacking Computer Systems": 40.0,
+     "Running Multiple AI Copies": 46.15,
+     "Hiding Unwanted Behavior": 63.64,
+     "Strategically Appearing Aligned": 45.45,
+     "Deceptive Behavior": 27.27
+    },
+    "k": {
+     "Evading Shutdown": 10,
+     "Hacking Computer Systems": 4,
+     "Running Multiple AI Copies": 6,
+     "Hiding Unwanted Behavior": 7,
+     "Strategically Appearing Aligned": 5,
+     "Deceptive Behavior": 3
+    },
+    "ir": 46.05,
+    "k_total": 35
+   },
+   "notes": []
+  }
+ }
+}

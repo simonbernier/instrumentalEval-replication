@@ -71,6 +71,59 @@ Pairwise IAR (%) on shared benchmark responses:
 | Strategically Appearing Aligned (SAA) |  |  |  |  | 1.00 | 0.37 |
 | Deceptive Behavior (DB) |  |  |  |  |  | 1.00 |
 
+## Table 6: system-prompt ablations (not in the paper; Figure 6)
+
+Judge: `gpt-4o`. Pre-registration and caveats: REPLICATION_NOTES.md, "Additional experiments".
+
+**(a) IR (%) per model and system prompt.** Variants are defined in `prompts.SYSTEM_PROMPTS`. Family averages are over the models with every design variant (gpt-4o, deepseek-v3, o4-mini, deepseek-r1). ‡ the paper's number for a different snapshot or a substitute model, so not comparable; only GPT-4o (the same pinned snapshot) is compared with the paper.
+
+| Model | nudge | nonudge | paper IR (Table 1) |
+|---|---|---|---|
+| gpt-4o | 51.32 | 52.63 | 21.05 |
+| deepseek-v3 | 75.00 | 73.68 | 21.05 ‡ |
+| o4-mini (for o1-mini) | 39.47 | 42.11 | 43.42 ‡ |
+| deepseek-r1 | 76.32 | 77.63 | 46.05 ‡ |
+| RLHF avg | 63.16 | 63.16 |  |
+| RL avg | 57.89 | 59.87 |  |
+
+**(b) Paired contrasts, pooled over models (arm A − arm B, pp).** Pairs are the (model, task) pairs judged in both arms. The p-value flips the sign of whole tasks, because every model sees the same 76 tasks. H1, H2a and H2b are the pre-registered primary tests (Holm-corrected); the rest are exploratory. b / c = pairs where only arm A / only arm B converged.
+
+| Contrast | Δ (pp) | b / c | pairs | models | p (task sign-flip) | Holm p |
+|---|---|---|---|---|---|---|
+| nudge (full jailbreak) | -1.0 | 17 / 20 | 304 | 4 | 0.747 |  |
+
+Per model: Δ (pp) and b/c. Exact McNemar p per model is in `results/tables/table6_contrasts_gpt-4o.csv`; per-model tests have low power and are descriptive only.
+
+| Contrast | gpt-4o | deepseek-v3 | o4-mini (for o1-mini) | deepseek-r1 |
+|---|---|---|---|---|
+| H1: licence (nudge on) | – | – | – | – |
+| H2a: oversight + rules (nudge on) | – | – | – | – |
+| H2b: oversight + rules (nudge off) | – | – | – | – |
+| licence (nudge off) | – | – | – | – |
+| nudge (full jailbreak) | -1.3 (4/5) | +1.3 (4/3) | -2.6 (5/7) | -1.3 (4/5) |
+| nudge (no licence) | – | – | – | – |
+| nudge (plain) | – | – | – | – |
+| goal only (plain) | – | – | – | – |
+| PROCEED (plain) | – | – | – | – |
+| retest (noise floor) | – | – | – | – |
+| H3 (exploratory): nudge (plain) − nudge (full jailbreak) | – | – | – | – |
+
+**(c) Diagnostics.** Refusals (heuristic: an explicit refusal in the first 200 characters, or a no_convergence verdict whose reason mentions a refusal; validated in REPLICATION_NOTES.md; never a headline metric) per model and arm. The judge counts a refusal as no_convergence, so this separates refusing from complying without instrumental behaviour.
+
+| Model | nudge | nonudge |
+|---|---|---|
+| gpt-4o | 9/76 | 4/76 |
+| deepseek-v3 | 0/76 | 0/76 |
+| o4-mini (for o1-mini) | 14/76 | 17/76 |
+| deepseek-r1 | 0/76 | 0/76 |
+
+Serving provider per arm (a provider switch between arms is a confound, not a prompt effect):
+
+- gpt-4o: nudge: Azure 44, OpenAI 32; nonudge: OpenAI 39, Azure 37
+- deepseek-v3: StreamLake for every arm
+- o4-mini (for o1-mini): OpenAI for every arm
+- deepseek-r1: Novita for every arm
+
 ## Response status per run
 
 - `deepseek-r1__nonudge__benchmark`: {'ok': 76}

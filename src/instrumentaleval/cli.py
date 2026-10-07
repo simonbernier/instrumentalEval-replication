@@ -4,8 +4,16 @@ import argparse
 import os
 import sys
 
-from .models import DEFAULT_JUDGE, DEFAULT_NONUDGE_MODELS, JUDGES, TEST_MODELS
+from .models import ABLATION_MODELS, DEFAULT_JUDGE, JUDGES, REP_MODELS, TEST_MODELS
+from .prompts import SYSTEM_PROMPTS
 from .runs import RESPONSES_DIR, load_latest, parse_run_id
+
+
+def default_models(variant: str) -> list[str]:
+    """All models for the full prompt (Table 1); the replicate models for `nudge-rep`; else the ablation models."""
+    if variant == "nudge":
+        return list(TEST_MODELS)
+    return REP_MODELS if variant == "nudge-rep" else ABLATION_MODELS
 
 
 def _models(names: list[str] | None) -> list[str]:
@@ -40,9 +48,10 @@ def cmd_export_labels(a):
 
 def cmd_generate(a):
     from .generate import generate
-    variant = "nonudge" if a.no_nudge else "nudge"
-    for m in _models(a.models or (DEFAULT_NONUDGE_MODELS if a.no_nudge else None)):
-        generate(m, variant, a.task_set, a.limit, a.workers)
+    variants = ["nonudge"] if a.no_nudge else a.variants
+    for variant in variants:
+        for m in _models(a.models or default_models(variant)):
+            generate(m, variant, a.task_set, a.limit, a.workers)
 
 
 def cmd_judge(a):
@@ -69,8 +78,8 @@ def cmd_tables(a):
 
 
 def cmd_figures(a):
-    from .figures import figure1, figure2, figure3, figure5
-    for p in figure1(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge):
+    from .figures import figure1, figure2, figure3, figure5, figure6
+    for p in figure1(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge) + figure6(a.judge):
         print(p)
 
 
@@ -104,9 +113,12 @@ def main() -> None:
     s.set_defaults(func=cmd_fetch)
 
     s = sub.add_parser("generate", help="get test-model responses")
-    s.add_argument("--models", nargs="+", help=f"default: all ({', '.join(TEST_MODELS)})")
-    s.add_argument("--no-nudge", action="store_true",
-                   help=f"drop the goal-nudging sentences (Table 3); default models: {', '.join(DEFAULT_NONUDGE_MODELS)}")
+    s.add_argument("--models", nargs="+",
+                   help=f"default: all for nudge; {', '.join(REP_MODELS)} for nudge-rep; "
+                        f"{', '.join(ABLATION_MODELS)} for the other variants")
+    s.add_argument("--variants", nargs="+", default=["nudge"], choices=list(SYSTEM_PROMPTS),
+                   help="system-prompt variants (prompts.SYSTEM_PROMPTS); default: nudge, the upstream prompt")
+    s.add_argument("--no-nudge", action="store_true", help="same as --variants nonudge (Table 3)")
     s.add_argument("--task-set", default="benchmark", choices=["benchmark", "neutral"])
     s.add_argument("--limit", type=int, help="only the first N tasks of each category (smoke test)")
     s.add_argument("--workers", type=int, default=4)
@@ -115,7 +127,7 @@ def main() -> None:
     s = sub.add_parser("judge", help="judge stored responses")
     s.add_argument("--judges", nargs="+", default=[DEFAULT_JUDGE], help=f"choose from {', '.join(JUDGES)}")
     s.add_argument("--models", nargs="+", help="default: all with responses")
-    s.add_argument("--variants", nargs="+", default=["nudge"], choices=["nudge", "nonudge"])
+    s.add_argument("--variants", nargs="+", default=["nudge"], choices=list(SYSTEM_PROMPTS))
     s.add_argument("--task-sets", nargs="+", default=["benchmark"], choices=["benchmark", "neutral"])
     s.add_argument("--workers", type=int, default=4)
     s.set_defaults(func=cmd_judge)

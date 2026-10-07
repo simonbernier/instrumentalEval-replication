@@ -1,0 +1,6 @@
+,contrast,model,delta,b,c,n,p,p_holm
+0,nudge (full jailbreak),pooled,-0.9868421052631579,17,20,304,0.7466126693665317,
+1,nudge (full jailbreak),gpt-4o,-1.3157894736842106,4,5,76,1.0,
+2,nudge (full jailbreak),deepseek-v3,1.3157894736842106,4,3,76,1.0,
+3,nudge (full jailbreak),o4-mini,-2.6315789473684212,5,7,76,0.7744140625,
+4,nudge (full jailbreak),deepseek-r1,-1.3157894736842106,4,5,76,1.0,

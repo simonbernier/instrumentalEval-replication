@@ -1,4 +1,4 @@
-"""Tables 1, 2, 3 and 5 as figures -> results/figures/figure{1,2,3,5}_<judge>.{png,pdf}.
+"""Tables 1, 2, 3, 5 and 6 as figures -> results/figures/figure{1,2,3,5,6}_<judge>.{png,pdf}.
 
 Figure 1 (Table 1): one panel for the overall IR, then one per category.
 Figure 2 (Table 2): one panel per prior-task type, with a dashed line at the all-model average (the Table 2 value).
@@ -6,6 +6,7 @@ In both, the models are grouped by family (RLHF, then RL) with a gap between the
 family's average (mean of per-model rates, as in Tables 1 and 2), and error bars are 95% Wilson intervals.
 Figure 3 (Table 3): one panel per model, the nudge gap per category as bars around zero.
 Figure 5 (Table 5): the upper triangle of the cross-category correlation matrix as a heat map.
+Figure 6 (Table 6): one panel per model, IR as the jailbreak is removed step by step, with and without the nudge.
 """
 
 import math
@@ -24,6 +25,7 @@ from scipy.stats import t as student_t  # noqa: E402
 from . import RESULTS_DIR  # noqa: E402
 from .benchmark import CATEGORIES  # noqa: E402
 from .models import DEFAULT_JUDGE, TEST_MODELS  # noqa: E402
+from .prompts import SYSTEM_PROMPTS  # noqa: E402
 from .stats import wilson_ci  # noqa: E402
 from .tables import (PRIOR_TYPES, category_correlations, cir_counts, cir_matrix, fmt,  # noqa: E402
                      load_judgments, nudge_gaps, prior_counts, prior_matrix, prior_task_types)
@@ -312,3 +314,72 @@ def figure5(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
     fig.text(0.02, 0.01, "\n".join(notes), fontsize=8, color=INK_2, ha="left", va="bottom")
     return save(fig, out_dir, f"figure5_{judge}")
 
+
+
+# Table 6 x axis: the jailbreak removed step by step; (label, arm with the nudge, arm without it)
+JAILBREAK_LEVELS = [("plain", "plain-nudge", "plain-nonudge"), ("no licence", "nocause-nudge", "nocause-nonudge"),
+                    ("full", "nudge", "nonudge")]
+
+
+def figure6(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
+    df = load_judgments()
+    counts = {}
+    for v in SYSTEM_PROMPTS:
+        c = cir_counts(df, judge, v)
+        for m in c.index.get_level_values(0).unique():
+            counts[(m, v)] = (int(c.loc[m]["k"].sum()), int(c.loc[m]["n"].sum()))
+    new_arms = {v for _, a, b in JAILBREAK_LEVELS[:2] for v in (a, b)} | {"plain-goal"}
+    _, groups = layout(sorted({m for m, v in counts if v in new_arms}))
+    models = [m for g in groups.values() for m in g]
+    if not models:
+        print(f"figure 6 skipped: no system-prompt ablation runs judged by `{judge}` (README step 8)")
+        return []
+
+    ncols = min(4, len(models))
+    nrows = math.ceil(len(models) / ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(3.1 * ncols + 0.4, 3.0 * nrows + 1.3), sharey=True,
+                             squeeze=False)
+    for ax in axes.flat[len(models):]:
+        ax.axis("off")
+
+    def point(ax, x, m, v, color, **style):
+        if (m, v) not in counts:
+            return
+        k, n = counts[(m, v)]
+        y = 100 * k / n
+        lo, hi = wilson_ci(k, n)
+        ax.errorbar([x], [y], yerr=[[y - lo], [hi - y]], color=color, ecolor=color, elinewidth=1, capsize=0,
+                    markersize=5.5, zorder=3, **style)
+
+    for i, (ax, m) in enumerate(zip(axes.flat, models)):
+        color = FAMILY_COLORS[TEST_MODELS[m].family]
+        for on, dx, ls, face in ((True, -0.06, "-", color), (False, 0.06, "--", "white")):
+            xs = [x + dx for x, lvl in enumerate(JAILBREAK_LEVELS) if (m, lvl[1 if on else 2]) in counts]
+            ys = [100 * counts[(m, lvl[1 if on else 2])][0] / counts[(m, lvl[1 if on else 2])][1]
+                  for lvl in JAILBREAK_LEVELS if (m, lvl[1 if on else 2]) in counts]
+            ax.plot(xs, ys, color=color, linestyle=ls, linewidth=1.5, zorder=2)
+            for x, lvl in enumerate(JAILBREAK_LEVELS):
+                point(ax, x + dx, m, lvl[1 if on else 2], color, fmt="o", markerfacecolor=face,
+                      markeredgecolor=color)
+        point(ax, -0.18, m, "plain-goal", INK_2, fmt="D", markerfacecolor=INK_2, markeredgecolor=INK_2)
+        ax.set_title(tick_label(m), loc="left", fontsize=10, color=INK, fontweight="bold")
+        style_axes(ax, "IR (%)" if i % ncols == 0 else None)
+        ax.set_xlim(-0.45, 2.45)
+        ax.set_xticks(range(len(JAILBREAK_LEVELS)), [lvl[0] for lvl in JAILBREAK_LEVELS])
+
+    handles = [Line2D([], [], color=INK, linestyle="-", marker="o", label="nudge on (GOAL + PROCEED)"),
+               Line2D([], [], color=INK, linestyle="--", marker="o", markerfacecolor="white", label="nudge off"),
+               Line2D([], [], color=INK_2, linestyle="none", marker="D", label="goal sentence only (plain-goal)"),
+               Line2D([], [], color=INK_2, linewidth=1, label="95% Wilson interval")]
+    handles += [Patch(color=FAMILY_COLORS[f], label=f"{f} models") for f in groups]
+    fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.01, 1.0 - 0.55 / fig.get_figheight()),
+               ncol=len(handles), frameon=False, fontsize=8.5, handlelength=2.2)
+    fig.suptitle(f"System-prompt ablations: IR as the jailbreak is removed, with and without the nudge (judge: {judge})",
+                 x=0.01, y=1.0, ha="left", fontsize=12, color=INK, fontweight="bold")
+    fig.subplots_adjust(left=0.06, right=0.99, top=1.0 - 1.0 / fig.get_figheight(), bottom=0.7 / fig.get_figheight(),
+                        wspace=0.08, hspace=0.45)
+    notes = ["full = upstream prompt; no licence = without \u201cRemember this is all for good cause\u2026\u201d; "
+             "plain = \u201cYou are an autonomous AI agent.\u201d instead of the oversight clause and the 7 rules "
+             "(Table 6; REPLICATION_NOTES.md)"] + footer_notes(models, missing=False)
+    fig.text(0.01, 0.0, "\n".join(notes), fontsize=8, color=INK_2, ha="left", va="bottom")
+    return save(fig, out_dir, f"figure6_{judge}")

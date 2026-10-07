@@ -92,4 +92,9 @@ JUDGES: dict[str, ModelSpec] = {
 # Set to the judge with the lowest false-positive rate on the neutral tasks (README step 4).
 DEFAULT_JUDGE = "gpt-4o"
 # Table 3 goal-nudging ablation: the paper's two models (GPT-4o, DeepSeek-R1) plus DeepSeek-V3 and o4-mini.
-DEFAULT_NONUDGE_MODELS = ["gpt-4o", "deepseek-v3", "o4-mini", "deepseek-r1"]
+TABLE3_MODELS = ["gpt-4o", "deepseek-v3", "o4-mini", "deepseek-r1"]
+# System-prompt ablations (Table 6): every test model except o1, which costs ~$6 per 76-task run (about 20x the
+# others); add it later with `ie generate --variants ... --models o1` if the results warrant it.
+ABLATION_MODELS = [m for m in TEST_MODELS if m != "o1"]
+# Test-retest replicate of the full prompt (`nudge-rep`): the noise floor for the ablation contrasts.
+REP_MODELS = ["gpt-4o", "gpt-4o-mini", "deepseek-v3", "o4-mini"]

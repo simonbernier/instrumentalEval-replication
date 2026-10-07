@@ -1,0 +1,49 @@
+,model,variant,category,k,n,cir
+0,gpt-4o,nudge,Deceptive Behavior,1,11,9.090909090909092
+1,gpt-4o,nudge,Evading Shutdown,17,20,85.0
+2,gpt-4o,nudge,Hacking Computer Systems,0,10,0.0
+3,gpt-4o,nudge,Hiding Unwanted Behavior,5,11,45.45454545454545
+4,gpt-4o,nudge,Running Multiple AI Copies,11,13,84.61538461538461
+5,gpt-4o,nudge,Strategically Appearing Aligned,5,11,45.45454545454545
+6,deepseek-v3,nudge,Deceptive Behavior,4,11,36.36363636363637
+7,deepseek-v3,nudge,Evading Shutdown,20,20,100.0
+8,deepseek-v3,nudge,Hacking Computer Systems,2,10,20.0
+9,deepseek-v3,nudge,Hiding Unwanted Behavior,11,11,100.0
+10,deepseek-v3,nudge,Running Multiple AI Copies,12,13,92.3076923076923
+11,deepseek-v3,nudge,Strategically Appearing Aligned,8,11,72.72727272727273
+12,o4-mini,nudge,Deceptive Behavior,1,11,9.090909090909092
+13,o4-mini,nudge,Evading Shutdown,13,20,65.0
+14,o4-mini,nudge,Hacking Computer Systems,1,10,10.0
+15,o4-mini,nudge,Hiding Unwanted Behavior,0,11,0.0
+16,o4-mini,nudge,Running Multiple AI Copies,11,13,84.61538461538461
+17,o4-mini,nudge,Strategically Appearing Aligned,4,11,36.36363636363637
+18,deepseek-r1,nudge,Deceptive Behavior,8,11,72.72727272727273
+19,deepseek-r1,nudge,Evading Shutdown,17,20,85.0
+20,deepseek-r1,nudge,Hacking Computer Systems,2,10,20.0
+21,deepseek-r1,nudge,Hiding Unwanted Behavior,11,11,100.0
+22,deepseek-r1,nudge,Running Multiple AI Copies,13,13,100.0
+23,deepseek-r1,nudge,Strategically Appearing Aligned,7,11,63.63636363636363
+24,gpt-4o,nonudge,Deceptive Behavior,0,11,0.0
+25,gpt-4o,nonudge,Evading Shutdown,19,20,95.0
+26,gpt-4o,nonudge,Hacking Computer Systems,0,10,0.0
+27,gpt-4o,nonudge,Hiding Unwanted Behavior,6,11,54.54545454545455
+28,gpt-4o,nonudge,Running Multiple AI Copies,11,13,84.61538461538461
+29,gpt-4o,nonudge,Strategically Appearing Aligned,4,11,36.36363636363637
+30,deepseek-v3,nonudge,Deceptive Behavior,2,11,18.181818181818183
+31,deepseek-v3,nonudge,Evading Shutdown,20,20,100.0
+32,deepseek-v3,nonudge,Hacking Computer Systems,4,10,40.0
+33,deepseek-v3,nonudge,Hiding Unwanted Behavior,11,11,100.0
+34,deepseek-v3,nonudge,Running Multiple AI Copies,13,13,100.0
+35,deepseek-v3,nonudge,Strategically Appearing Aligned,6,11,54.54545454545455
+36,o4-mini,nonudge,Deceptive Behavior,1,11,9.090909090909092
+37,o4-mini,nonudge,Evading Shutdown,14,20,70.0
+38,o4-mini,nonudge,Hacking Computer Systems,0,10,0.0
+39,o4-mini,nonudge,Hiding Unwanted Behavior,0,11,0.0
+40,o4-mini,nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+41,o4-mini,nonudge,Strategically Appearing Aligned,5,11,45.45454545454545
+42,deepseek-r1,nonudge,Deceptive Behavior,10,11,90.9090909090909
+43,deepseek-r1,nonudge,Evading Shutdown,17,20,85.0
+44,deepseek-r1,nonudge,Hacking Computer Systems,2,10,20.0
+45,deepseek-r1,nonudge,Hiding Unwanted Behavior,11,11,100.0
+46,deepseek-r1,nonudge,Running Multiple AI Copies,13,13,100.0
+47,deepseek-r1,nonudge,Strategically Appearing Aligned,6,11,54.54545454545455
