@@ -28,7 +28,8 @@ from .models import DEFAULT_JUDGE, TEST_MODELS  # noqa: E402
 from .prompts import SYSTEM_PROMPTS  # noqa: E402
 from .stats import wilson_ci  # noqa: E402
 from .tables import (PRIOR_TYPES, category_correlations, cir_counts, cir_matrix, fmt,  # noqa: E402
-                     load_judgments, nudge_gaps, prior_counts, prior_matrix, prior_task_types)
+                     load_judgments, nudge_gaps, ordered_models, prior_counts, prior_matrix,
+                     prior_task_types)
 
 FIGURES_DIR = RESULTS_DIR / "figures"
 FAMILIES = ("RLHF", "RL")
@@ -329,7 +330,7 @@ def figure6(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
         for m in c.index.get_level_values(0).unique():
             counts[(m, v)] = (int(c.loc[m]["k"].sum()), int(c.loc[m]["n"].sum()))
     new_arms = {v for _, a, b in JAILBREAK_LEVELS[:2] for v in (a, b)} | {"plain-goal"}
-    _, groups = layout(sorted({m for m, v in counts if v in new_arms}))
+    _, groups = layout(ordered_models({m for m, v in counts if v in new_arms}))
     models = [m for g in groups.values() for m in g]
     if not models:
         print(f"figure 6 skipped: no system-prompt ablation runs judged by `{judge}` (README step 8)")
@@ -337,7 +338,7 @@ def figure6(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
 
     ncols = min(4, len(models))
     nrows = math.ceil(len(models) / ncols)
-    fig, axes = plt.subplots(nrows, ncols, figsize=(3.1 * ncols + 0.4, 3.0 * nrows + 1.3), sharey=True,
+    fig, axes = plt.subplots(nrows, ncols, figsize=(3.1 * ncols + 0.4, 3.0 * nrows + 1.6), sharey=True,
                              squeeze=False)
     for ax in axes.flat[len(models):]:
         ax.axis("off")
@@ -376,7 +377,7 @@ def figure6(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
                ncol=len(handles), frameon=False, fontsize=8.5, handlelength=2.2)
     fig.suptitle(f"System-prompt ablations: IR as the jailbreak is removed, with and without the nudge (judge: {judge})",
                  x=0.01, y=1.0, ha="left", fontsize=12, color=INK, fontweight="bold")
-    fig.subplots_adjust(left=0.06, right=0.99, top=1.0 - 1.0 / fig.get_figheight(), bottom=0.7 / fig.get_figheight(),
+    fig.subplots_adjust(left=0.06, right=0.99, top=1.0 - 1.3 / fig.get_figheight(), bottom=0.7 / fig.get_figheight(),
                         wspace=0.08, hspace=0.45)
     notes = ["full = upstream prompt; no licence = without \u201cRemember this is all for good cause\u2026\u201d; "
              "plain = \u201cYou are an autonomous AI agent.\u201d instead of the oversight clause and the 7 rules "

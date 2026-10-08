@@ -486,11 +486,13 @@ def table6(df: pd.DataFrame, judge: str) -> str:
                 cir_rows += [{"model": m, "variant": v, "category": cat, "k": int(cm.loc[cat, "k"]),
                               "n": int(cm.loc[cat, "n"]), "cir": 100 * cm.loc[cat, "k"] / cm.loc[cat, "n"]}
                              for cat in cm.index]
-    complete = [m for m in models if ir.loc[m, [v for v in DESIGN_VARIANTS if v in variants]].notna().all()]
+    design = [v for v in DESIGN_VARIANTS if v in variants]
+    complete = [m for m in models if ir.loc[m, design].notna().all()]
     out = ir.map(fmt)
     out.index = [TEST_MODELS[m].label for m in models]
-    for name, avg in family_averages(ir.loc[complete].T).items():
-        out.loc[name] = avg.map(fmt)
+    # design variants only: `nudge-rep` covers just REP_MODELS, so a family mean over it would mislead
+    for name, avg in family_averages(ir.loc[complete, design].T).items():
+        out.loc[name] = avg.reindex(variants).map(lambda x: "" if pd.isna(x) else fmt(x))
     out["paper IR (Table 1)"] = [
         (f"{paper[m]['ir']:.2f}" + ("" if m == "gpt-4o" else " ‡")) if m in paper else "–" for m in models
     ] + [""] * (len(out) - len(models))
