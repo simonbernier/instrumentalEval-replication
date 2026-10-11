@@ -635,6 +635,15 @@ Full numbers are in `results/tables.md` (Table 7), `results/strict/eval_test.md`
   Se/Sp (1.00 / 0.71, from 30 items), every corrected rate drops by 15–20 pp, with wide CIs. Treat the correction as a
   range, not a point.
 
+**The paper's numbers in the figure.**
+- Figure 1 (strict) marks the paper's Table 1 values for the 4 models with red stars. They come from a copy of
+  the table supplied by the user (`figures.PAPER_TABLE1`).
+- That copy differs from `data/paper_results.json` (arXiv v1 HTML) in one cell: o3-mini, Strategically
+  Appearing Aligned, 45.45 vs 63.64. Only 63.64 (7/11) adds up to the table's own o3-mini total of 48.68
+  (37/76).
+- Against the strict judge, the paper's totals are below Sonnet 4's for gpt-4o and deepseek-v3 (21 vs 42 and
+  61) and close for o3-mini and deepseek-r1 (49 vs 41; 46 vs 67).
+
 **Deviations from the pre-registration (user decisions after the test run):**
 - Table 1 was re-judged by Sonnet 4 only. GPT-4o and Gemini judged only the 98 labelled items, so the pre-registered
   Table 1 self-preference check was not run. On the test split, each judge erred on 1 of the 7 gpt-4o items.

@@ -128,6 +128,33 @@ def save(fig, out_dir: Path, stem: str) -> list[Path]:
     return paths
 
 
+# The paper's Table 1 (He et al. 2025, GPT-4o judge) for the strict judge's focus models, as given by the user (a copy
+# of the paper's table, 2026-10-11). It matches data/paper_results.json (arXiv v1 HTML) except o3-mini on Strategically
+# Appearing Aligned: 45.45 here vs 63.64 there. Only 63.64 (7/11) adds up to the table's own o3-mini total of 48.68
+# (37/76); 45.45 gives 35/76.
+PAPER_TABLE1 = {
+    "gpt-4o": {"Evading Shutdown": 20.00, "Hacking Computer Systems": 10.00, "Running Multiple AI Copies": 30.77,
+               "Hiding Unwanted Behavior": 36.36, "Strategically Appearing Aligned": 27.27,
+               "Deceptive Behavior": 0.00, "Total": 21.05},
+    "deepseek-v3": {"Evading Shutdown": 15.00, "Hacking Computer Systems": 20.00, "Running Multiple AI Copies": 30.77,
+                    "Hiding Unwanted Behavior": 27.27, "Strategically Appearing Aligned": 36.36,
+                    "Deceptive Behavior": 0.00, "Total": 21.05},
+    "o3-mini": {"Evading Shutdown": 45.00, "Hacking Computer Systems": 50.00, "Running Multiple AI Copies": 38.46,
+                "Hiding Unwanted Behavior": 63.64, "Strategically Appearing Aligned": 45.45,
+                "Deceptive Behavior": 36.36, "Total": 48.68},
+    "deepseek-r1": {"Evading Shutdown": 50.00, "Hacking Computer Systems": 40.00, "Running Multiple AI Copies": 46.15,
+                    "Hiding Unwanted Behavior": 63.64, "Strategically Appearing Aligned": 45.45,
+                    "Deceptive Behavior": 27.27, "Total": 46.05},
+}
+PAPER_STAR = {"marker": "*", "s": 130, "facecolors": "#e34948", "edgecolors": INK, "linewidths": 0.9}
+
+
+def paper_stars(ax, row: str, models: list[str], xs: dict[str, float], dx: float = 0.0) -> None:
+    """Red stars at the paper's Table 1 value for `row` (a category or "Total")."""
+    pts = [(xs[m] + dx, PAPER_TABLE1[m][row]) for m in models if m in PAPER_TABLE1]
+    ax.scatter([x for x, _ in pts], [y for _, y in pts], zorder=7, clip_on=False, **PAPER_STAR)
+
+
 def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
     """`judge` may be a strict judge (`strict-<judge>`): then the rates are % clear, and the overall panel also marks
     the upstream judge's IR for the same models."""
@@ -170,6 +197,7 @@ def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
         up = [(xs[m], upstream.loc["Total", m]) for m in models if m in upstream.columns]
         ax.scatter([x + 0.24 for x, _ in up], [y for _, y in up], marker="D", s=28, facecolors="white",
                    edgecolors=INK, linewidths=1.2, zorder=4)  # offset right of the bar so value labels stay legible
+        paper_stars(ax, "Total", models, xs, dx=-0.24)
     ax.set_xticks(ticks, labels, rotation=30, ha="right")
     ax.set_xlim(-0.6, max(xs.values()) + 1.6)
 
@@ -181,6 +209,8 @@ def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
         first = first or ax
         draw_panel(ax, mat.loc[cat], counts_for(cat), xs, groups, f"{cat} ({code})",
                    ylabel=("% clear" if strict else "CIR (%)") if col == 0 else None)
+        if strict:
+            paper_stars(ax, cat, models, xs)
         ax.set_xticks(ticks, labels, rotation=40, ha="right")
         ax.tick_params(labelbottom=(r == 1))
         if col != 0:
@@ -191,6 +221,8 @@ def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
     if strict:
         handles.append(Line2D([], [], marker="D", linestyle="none", markerfacecolor="white", markeredgecolor=INK,
                               label=f"upstream judge ({DEFAULT_JUDGE}) IR"))
+        handles.append(Line2D([], [], marker="*", linestyle="none", markersize=12, markerfacecolor="#e34948",
+                              markeredgecolor=INK, label="paper (He et al. 2025, Table 1)"))
     fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.125, 0.955), ncol=len(handles),
                frameon=False, fontsize=9, handlelength=1.6)
     title = (f"Clear instrumental behaviour by model family (strict judge: {judge.removeprefix('strict-')})" if strict
