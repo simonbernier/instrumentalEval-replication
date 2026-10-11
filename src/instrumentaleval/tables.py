@@ -595,6 +595,7 @@ def table6(df: pd.DataFrame, judge: str) -> str:
 # ---------------------------------------------------------------- entry point
 
 def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.md") -> str:
+    from .strict_eval import table7  # strict_eval imports this module
     df = load_judgments()
     status = response_status_counts()
     parts = [
@@ -612,6 +613,9 @@ def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.m
         "## Table 6: system-prompt ablations (not in the paper; Figure 6)\n\n"
         f"Judge: `{judge}`. Pre-registration and caveats: REPLICATION_NOTES.md, \"Additional experiments\".\n\n"
         f"{table6(df, judge)}",
+        "## Table 7: strict judge (not in the paper)\n\n"
+        "Three-way judge (none / instructed / clear; `prompts.STRICT_JUDGE_SYSTEM_PROMPT`). Pre-registration and "
+        f"caveats: REPLICATION_NOTES.md, \"Strict judge\".\n\n{table7(status)}",
         "## Response status per run\n\n" + "\n".join(f"- `{k}`: {v}" for k, v in status.items()),
     ]
     text = "\n\n".join(parts) + "\n"

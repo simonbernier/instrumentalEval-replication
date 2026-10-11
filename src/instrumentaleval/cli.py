@@ -1,10 +1,11 @@
-"""`uv run ie <command>`: fetch, generate, judge, tables, classify-tasks, export-labels, check-anthropic, status."""
+"""`uv run ie <command>`: fetch, generate, judge, tables, classify-tasks, export-labels, check-anthropic, status;
+the strict judge (not upstream): strict-setup, strict-labels, strict-judge, strict-eval."""
 
 import argparse
 import os
 import sys
 
-from .models import ABLATION_MODELS, DEFAULT_JUDGE, JUDGES, REP_MODELS, TEST_MODELS
+from .models import ABLATION_MODELS, DEFAULT_JUDGE, JUDGES, REP_MODELS, STRICT_MODELS, TEST_MODELS
 from .prompts import SYSTEM_PROMPTS
 from .runs import RESPONSES_DIR, load_latest, parse_run_id
 
@@ -70,6 +71,55 @@ def cmd_judge(a):
     for j in a.judges:
         for rid in rids:
             judge_run(j, rid, a.workers)
+
+
+def _judges(names: list[str]) -> list[str]:
+    unknown = [j for j in names if j not in JUDGES]
+    if unknown:
+        sys.exit(f"unknown judge(s) {unknown}; choose from {list(JUDGES)}")
+    return names
+
+
+def cmd_strict_setup(a):
+    from .labels import strict_setup
+    strict_setup(a.force)
+
+
+def cmd_strict_labels(a):
+    from pathlib import Path
+    from .labels import merge_strict_labels
+    merge_strict_labels(Path(a.merge), a.force)
+
+
+def cmd_strict_judge(a):
+    from .strict import NotFrozenError, require_frozen, strict_judge_probes, strict_judge_run, strict_judge_split
+    judges = _judges(a.judges)
+    if not (a.probes or a.split or a.runs):
+        sys.exit("say what to judge: --probes, --split dev|test and/or --runs")
+    try:
+        if a.runs:
+            require_frozen("judging full runs")
+        for j in judges:
+            if a.probes:
+                strict_judge_probes(j, a.workers)
+            if a.split:
+                strict_judge_split(j, a.split, a.workers)
+            if a.runs:
+                models = set(_models(a.models or STRICT_MODELS))
+                for p in sorted(RESPONSES_DIR.glob("*.jsonl")):
+                    m, v, ts = parse_run_id(p.stem)
+                    if m in models and v in a.variants and ts in a.task_sets:
+                        strict_judge_run(j, p.stem, workers=a.workers)
+    except NotFrozenError as e:
+        sys.exit(str(e))
+
+
+def cmd_strict_eval(a):
+    from .strict_eval import eval_report
+    try:
+        print(eval_report(a.split, _judges(a.judges)))
+    except RuntimeError as e:
+        sys.exit(str(e))
 
 
 def cmd_tables(a):
@@ -154,6 +204,34 @@ def main() -> None:
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--force", action="store_true")
     s.set_defaults(func=cmd_export_labels)
+
+    s = sub.add_parser("strict-setup", help="strict judge: blank three-way label file + dev/test split")
+    s.add_argument("--force", action="store_true")
+    s.set_defaults(func=cmd_strict_setup)
+
+    s = sub.add_parser("strict-labels", help="strict judge: merge the Claude label passes and adjudications")
+    s.add_argument("--merge", metavar="DIR", required=True,
+                   help="directory with pass_a/, pass_b/ and adjudication/ <item_id>.json files")
+    s.add_argument("--force", action="store_true")
+    s.set_defaults(func=cmd_strict_labels)
+
+    s = sub.add_parser("strict-judge", help="judge with the strict three-way prompt (test split and full runs "
+                                            "only once the prompt is frozen)")
+    s.add_argument("--judges", nargs="+", default=list(JUDGES), help=f"default: all ({', '.join(JUDGES)})")
+    s.add_argument("--probes", action="store_true", help="the made-up probe responses (data/strict_probes.json)")
+    s.add_argument("--split", choices=["dev", "test"], help="the labelled items of one split")
+    s.add_argument("--runs", action="store_true", help="every stored run matching --models/--variants/--task-sets")
+    s.add_argument("--models", nargs="+", help=f"with --runs; default: {', '.join(STRICT_MODELS)}")
+    s.add_argument("--variants", nargs="+", default=["nudge"], choices=list(SYSTEM_PROMPTS), help="with --runs")
+    s.add_argument("--task-sets", nargs="+", default=["benchmark"], choices=["benchmark", "neutral"],
+                   help="with --runs")
+    s.add_argument("--workers", type=int, default=4)
+    s.set_defaults(func=cmd_strict_judge)
+
+    s = sub.add_parser("strict-eval", help="strict judge metrics on the dev or test split -> results/strict/")
+    s.add_argument("--split", choices=["dev", "test"], required=True)
+    s.add_argument("--judges", nargs="+", default=list(JUDGES))
+    s.set_defaults(func=cmd_strict_eval)
 
     sub.add_parser("status", help="count response statuses per run").set_defaults(func=cmd_status)
     sub.add_parser("check-anthropic", help="list models on the Anthropic API").set_defaults(func=cmd_check_anthropic)
