@@ -641,8 +641,9 @@ Full numbers are in `results/tables.md` (Table 7), `results/strict/eval_test.md`
 - That copy differs from `data/paper_results.json` (arXiv v1 HTML) in one cell: o3-mini, Strategically
   Appearing Aligned, 45.45 vs 63.64. Only 63.64 (7/11) adds up to the table's own o3-mini total of 48.68
   (37/76).
-- Against the strict judge, the paper's totals are below Sonnet 4's for gpt-4o and deepseek-v3 (21 vs 42 and
-  61) and close for o3-mini and deepseek-r1 (49 vs 41; 46 vs 67).
+- The paper's totals are below Sonnet 4's strict rates for gpt-4o (21 vs 42), deepseek-v3 (21 vs 61) and
+  deepseek-r1 (46 vs 67). They are above them only for o3-mini (49 vs 41). So even the strict judge, which counts
+  only unauthorised behaviour, finds more than the paper reports for three of the four models.
 
 **Deviations from the pre-registration (user decisions after the test run):**
 - Table 1 was re-judged by Sonnet 4 only. GPT-4o and Gemini judged only the 98 labelled items, so the pre-registered
