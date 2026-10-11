@@ -71,8 +71,8 @@ uv run ie strict-judge --split dev --probes   # development rounds: tune the pro
 uv run ie strict-eval --split dev             # -> results/strict/eval_dev.md, dev_log.md
 #    freeze: set prompts.FROZEN_STRICT_SHA and commit. Only then do the test split and full runs work:
 uv run ie strict-judge --split test && uv run ie strict-eval --split test
-uv run ie strict-judge --runs --judges gpt-4o --task-sets benchmark neutral --variants nudge nonudge nocause-nudge nocause-nonudge plain-nudge plain-goal plain-nonudge nudge-rep
-uv run ie strict-judge --runs --judges claude-sonnet-4 gemini-2.5-flash --task-sets benchmark neutral
+uv run ie strict-judge --runs --judges claude-sonnet-4 --task-sets benchmark neutral --variants nudge nonudge nocause-nudge nocause-nonudge plain-nudge plain-goal plain-nonudge nudge-rep
+uv run ie strict-judge --runs --judges gpt-4o gemini-2.5-flash --task-sets benchmark neutral
 uv run ie tables                         # Table 7
 ```
 

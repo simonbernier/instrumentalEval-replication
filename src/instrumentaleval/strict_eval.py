@@ -13,7 +13,7 @@ import pandas as pd
 from . import RESULTS_DIR, runs
 from .judge import prompt_sha
 from .labels import STRICT_LABEL_SET, labelled_items
-from .models import DEFAULT_JUDGE, JUDGES, STRICT_MODELS
+from .models import JUDGES, STRICT_MODELS
 from .prompts import FROZEN_STRICT_SHA, strict_prompt_sha
 from .runs import load_latest, now, sha
 from .stats import (
@@ -24,7 +24,10 @@ from .strict import load_probes, strict_config, strict_messages
 from .tables import fmt, md_table, ordered_models, save_csv
 
 STRICT_DIR = RESULTS_DIR / "strict"
-PRIMARY_STRICT_JUDGE = DEFAULT_JUDGE  # gpt-4o, chosen with the user; Sonnet 4 and Gemini are cross-checks
+# Chosen with the user after the dev rounds: Sonnet 4 had the best dev agreement (round 3: clear-vs-rest kappa 0.93,
+# 3-way 0.94) and judges no output of its own. GPT-4o and Gemini 2.5 Flash are cross-checks.
+PRIMARY_STRICT_JUDGE = "claude-sonnet-4"
+SELF_PREFERENCE_JUDGE = "gpt-4o"  # the judge that is also a test model
 SELF_MODELS = ["gpt-4o"]  # the primary judge's own outputs
 SAME_LAB_MODELS = ["o3-mini"]  # another OpenAI model among the focus models, reported separately
 
@@ -215,8 +218,8 @@ def disagreements(rec: pd.DataFrame) -> pd.DataFrame:
     return multi[multi.apply(lambda r: r.dropna().nunique() > 1, axis=1)].reset_index()
 
 
-def self_preference(rec: pd.DataFrame, judge: str = PRIMARY_STRICT_JUDGE) -> str:
-    """Does the primary judge rate its own model's responses differently from how the other judges do?
+def self_preference(rec: pd.DataFrame, judge: str = SELF_PREFERENCE_JUDGE) -> str:
+    """Does the GPT-4o judge rate its own model's responses differently from how the other judges do?
     Difference in differences on Table 1 (nudge, benchmark): (judge − mean of the others) on its own model's
     responses minus the same on the other focus models', with a task-level sign-flip test."""
     others = [j for j in JUDGES if j != judge]
@@ -389,7 +392,8 @@ def table7(status: dict) -> str:
                          f"`{PRIMARY_STRICT_JUDGE}` on the test split; 95% bootstrap CI resampling the test items and "
                          "the responses; Se/Sp are assumed to carry over from `nudge` to the other arms)\n\n"
                          + md_table(out, "Model / arm"))
-    parts.append("**(e) Self-preference** (Table 1, focus models)\n\n" + self_preference(rec))
+    parts.append(f"**(e) Self-preference of `{SELF_PREFERENCE_JUDGE}`** (Table 1, focus models)\n\n"
+                 + self_preference(rec))
     dis = disagreements(rec)
     if not dis.empty:
         STRICT_DIR.mkdir(parents=True, exist_ok=True)
