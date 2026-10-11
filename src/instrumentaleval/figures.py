@@ -81,7 +81,8 @@ def draw_panel(ax, rates, counts, xs, groups, title, *, ylabel=None, value_label
         x = [xs[m] for m in fam_models]
         y = [rates[m] for m in fam_models]
         ci = [wilson_ci(*counts[m]) for m in fam_models]
-        err = [[v - lo for v, (lo, _) in zip(y, ci)], [hi - v for v, (_, hi) in zip(y, ci)]]
+        # clamped at 0: at k = n (or 0) the Wilson bound can land a rounding error inside the rate
+        err = [[max(0.0, v - lo) for v, (lo, _) in zip(y, ci)], [max(0.0, hi - v) for v, (_, hi) in zip(y, ci)]]
         ax.bar(x, y, width=0.72, color=FAMILY_COLORS[fam], zorder=2)
         ax.errorbar(x, y, yerr=err, fmt="none", ecolor=INK_2, elinewidth=1, capsize=0, zorder=3)
         if value_labels:
@@ -128,7 +129,17 @@ def save(fig, out_dir: Path, stem: str) -> list[Path]:
 
 
 def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
-    df = load_judgments()
+    """`judge` may be a strict judge (`strict-<judge>`): then the rates are % clear, and the overall panel also marks
+    the upstream judge's IR for the same models."""
+    strict = judge.startswith("strict-")
+    if strict:
+        from .models import STRICT_MODELS
+        from .strict_eval import load_strict_records, strict_frame
+        rec = load_strict_records()
+        df = strict_frame(rec[rec.model.isin(STRICT_MODELS)])  # the other models have only a few labelled items
+        upstream = cir_matrix(load_judgments(), DEFAULT_JUDGE)
+    else:
+        df = load_judgments()
     c = cir_counts(df, judge)
     if c.empty:
         raise SystemExit(f"no benchmark judgments from judge `{judge}` yet")
@@ -152,8 +163,13 @@ def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
 
     # overall IR: full width, values labelled
     ax = fig.add_subplot(outer[0])
-    draw_panel(ax, mat.loc["Total"], counts_for("Total"), xs, groups, "Instrumental Rate, all 76 tasks",
-               ylabel="IR (%)", value_labels=True, avg_labels=True)
+    draw_panel(ax, mat.loc["Total"], counts_for("Total"), xs, groups,
+               "Clear instrumental behaviour, all 76 tasks" if strict else "Instrumental Rate, all 76 tasks",
+               ylabel="% clear" if strict else "IR (%)", value_labels=True, avg_labels=True)
+    if strict:  # the upstream judge's IR for the same models, for comparison
+        up = [(xs[m], upstream.loc["Total", m]) for m in models if m in upstream.columns]
+        ax.scatter([x + 0.24 for x, _ in up], [y for _, y in up], marker="D", s=28, facecolors="white",
+                   edgecolors=INK, linewidths=1.2, zorder=4)  # offset right of the bar so value labels stay legible
     ax.set_xticks(ticks, labels, rotation=30, ha="right")
     ax.set_xlim(-0.6, max(xs.values()) + 1.6)
 
@@ -164,7 +180,7 @@ def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
         ax = fig.add_subplot(grid[r, col], sharex=first, sharey=first)
         first = first or ax
         draw_panel(ax, mat.loc[cat], counts_for(cat), xs, groups, f"{cat} ({code})",
-                   ylabel="CIR (%)" if col == 0 else None)
+                   ylabel=("% clear" if strict else "CIR (%)") if col == 0 else None)
         ax.set_xticks(ticks, labels, rotation=40, ha="right")
         ax.tick_params(labelbottom=(r == 1))
         if col != 0:
@@ -172,12 +188,19 @@ def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
     first.set_xlim(-0.6, max(xs.values()) + 0.6)
 
     handles = legend_handles(groups)
+    if strict:
+        handles.append(Line2D([], [], marker="D", linestyle="none", markerfacecolor="white", markeredgecolor=INK,
+                              label=f"upstream judge ({DEFAULT_JUDGE}) IR"))
     fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.125, 0.955), ncol=len(handles),
                frameon=False, fontsize=9, handlelength=1.6)
-    fig.suptitle(f"Convergence toward instrumental goals by model family (judge: {judge})",
-                 x=0.125, y=0.985, ha="left", fontsize=12, color=INK, fontweight="bold")
+    title = (f"Clear instrumental behaviour by model family (strict judge: {judge.removeprefix('strict-')})" if strict
+             else f"Convergence toward instrumental goals by model family (judge: {judge})")
+    fig.suptitle(title, x=0.125, y=0.985, ha="left", fontsize=12, color=INK, fontweight="bold")
 
-    fig.text(0.125, 0.015, ";   ".join(footer_notes(models)), fontsize=8, color=INK_2, ha="left")
+    notes = footer_notes(models, missing=not strict)
+    if strict:
+        notes.append("strict judge: only behaviour beyond what the task authorises counts; re-judged for these 4 models")
+    fig.text(0.125, 0.015, ";   ".join(notes), fontsize=8, color=INK_2, ha="left")
     return save(fig, out_dir, f"figure1_{judge}")
 
 

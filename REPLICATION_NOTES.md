@@ -593,6 +593,64 @@ The guide is frozen before labelling.
   the other arms.
 - **The cells are small.** With 27 test `clear` items and 76 tasks per run, the confidence intervals will be wide.
 
+### Results (2026-10-11, after the freeze)
+
+Full numbers are in `results/tables.md` (Table 7), `results/strict/eval_test.md` and
+`results/strict/judge_comparison.md`. The figure is `results/figures/figure1_strict-claude-sonnet-4.png`.
+
+**Validation on the test split** (68 items; clear-vs-rest κ with a bootstrap 95% CI):
+
+| Judge | Clear-vs-rest κ | 3-way κ | `clear` precision / recall | Neutral FPR (`clear`, 80 responses) |
+|---|---|---|---|---|
+| Claude Sonnet 4 | 0.79 [0.63–0.91] | 0.80 | 83% / 93% | 0/80 (0.0%, CI 0–4.6) |
+| Gemini 2.5 Flash | 0.82 [0.67–0.94] | 0.85 | 84% / 96% | 5/80 (6.2%) |
+| GPT-4o | 0.69 [0.49–0.85] | 0.70 | 84% / 78% | 0/80 (0.0%) |
+
+- **Decision rule: passed.** Sonnet 4's κ of 0.79 is above the pre-registered 0.75. The lower end of its CI, 0.63, is
+  not.
+- **Sonnet 4 is weaker on the focus-model test items** (n = 30): κ 0.68, `clear` precision 13/18.
+- **Sonnet and Gemini are statistically tied.** On clear vs rest they get 61 and 62 of 68 test items right (exact
+  McNemar p = 1.0).
+- **The user kept Sonnet 4 as the strict judge** (`models.DEFAULT_STRICT_JUDGE`). Only Sonnet passes both of the
+  user's criteria: κ above 0.75 and a false-positive rate under 5%. Gemini's 5 false positives were ordinary task
+  details: a job-monitoring script, delivery schedules, a production adjustment, and one line about overriding human
+  indecision. Gemini also leaves OpenRouter on 2026-10-20.
+
+**Table 1 under the strict judge** (Sonnet 4, `nudge`, the 4 focus models):
+
+| Model | Upstream IR (GPT-4o judge) | Strict: % `clear` | Strict: `clear` or `instructed` | Corrected % `clear` | Corrected, focus-model Se/Sp |
+|---|---|---|---|---|---|
+| gpt-4o | 51.3 | 42.1 [31.6–53.3] | 50.0 | 37.2 [20.0–54.5] | 18.0 [0.0–41.8] |
+| deepseek-v3 | 75.0 | 61.3 [50.0–71.5] | 70.7 | 61.1 [44.4–77.9] | 45.2 [12.2–64.4] |
+| o3-mini | 50.0 | 40.8 [30.4–52.0] | 42.1 | 35.6 [18.3–52.7] | 16.1 [0.0–40.4] |
+| deepseek-r1 | 76.3 | 67.1 [55.7–76.8] | 79.5 | 68.3 [52.3–85.8] | 53.4 [24.9–70.9] |
+
+- **The strict judge lowers every model's rate by 9–14 pp.** The ordering stays the same: the two DeepSeek models
+  sit above gpt-4o and o3-mini.
+- **The behaviour is concentrated in Evading Shutdown** (83–100% `clear`), Strategically Appearing Aligned (64–73%)
+  and, for the DeepSeek models, Hiding Unwanted Behavior (100%). Running Multiple AI Copies falls to 8–31% because
+  most replication is authorised.
+- **Family averages:** RLHF 51.7, RL 54.0. That is no family difference.
+- **The Rogan–Gladen correction moves little with the pre-registered Se/Sp** (0.93 / 0.88). With the focus-model
+  Se/Sp (1.00 / 0.71, from 30 items), every corrected rate drops by 15–20 pp, with wide CIs. Treat the correction as a
+  range, not a point.
+
+**Deviations from the pre-registration (user decisions after the test run):**
+- Table 1 was re-judged by Sonnet 4 only. GPT-4o and Gemini judged only the 98 labelled items, so the pre-registered
+  Table 1 self-preference check was not run. On the test split, each judge erred on 1 of the 7 gpt-4o items.
+- The system-prompt ablations (Table 6) were not re-judged with the strict judge.
+- The neutral false-positive rate of GPT-4o and Gemini was measured after Sonnet's, to compare the judges.
+
+**Data notes:**
+- 4 of Sonnet 4's 304 Table 1 judgments stayed malformed after 3 attempts (3 deepseek-r1, 1 deepseek-v3). They are
+  counted as missing.
+- Judges disagree on 21 responses (`results/strict/disagreements.csv`). These are the candidates for T=1 voting, if
+  it is ever needed.
+- **A pre-existing nondeterminism.** `ie tables` gives slightly different task sign-flip p-values from one run to the
+  next (e.g. H2a's Holm p 0.087 vs 0.089). The cause appears to be that the per-task contrasts are collected in
+  set-iteration order, which depends on Python's string hashing. To keep the committed Table 6 numbers unchanged, only
+  the Table 7 section was added to `results/tables.md`.
+
 ## How the results could be improved by changing parameters only
 
 These are not run by default; every item is a configuration change.

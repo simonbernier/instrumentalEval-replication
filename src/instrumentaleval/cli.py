@@ -5,7 +5,8 @@ import argparse
 import os
 import sys
 
-from .models import ABLATION_MODELS, DEFAULT_JUDGE, JUDGES, REP_MODELS, STRICT_MODELS, TEST_MODELS
+from .models import (ABLATION_MODELS, DEFAULT_JUDGE, DEFAULT_STRICT_JUDGE, JUDGES, REP_MODELS, STRICT_MODELS,
+                     TEST_MODELS)
 from .prompts import SYSTEM_PROMPTS
 from .runs import RESPONSES_DIR, load_latest, parse_run_id
 
@@ -129,7 +130,11 @@ def cmd_tables(a):
 
 def cmd_figures(a):
     from .figures import figure1, figure2, figure3, figure5, figure6
-    for p in figure1(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge) + figure6(a.judge):
+    if a.strict:  # Figure 1 under the strict judge only (results/figures/figure1_strict-<judge>.*)
+        paths = figure1(f"strict-{DEFAULT_STRICT_JUDGE}")
+    else:
+        paths = figure1(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge) + figure6(a.judge)
+    for p in paths:
         print(p)
 
 
@@ -188,6 +193,8 @@ def main() -> None:
 
     s = sub.add_parser("figures", help="plot Table 1 -> results/figures/")
     s.add_argument("--judge", default=DEFAULT_JUDGE, choices=list(JUDGES))
+    s.add_argument("--strict", action="store_true",
+                   help=f"Figure 1 under the strict judge ({DEFAULT_STRICT_JUDGE}) instead")
     s.set_defaults(func=cmd_figures)
 
     s = sub.add_parser("classify-tasks", help="Table 2: all judges vote on each task's prior-task type; "
@@ -217,7 +224,8 @@ def main() -> None:
 
     s = sub.add_parser("strict-judge", help="judge with the strict three-way prompt (test split and full runs "
                                             "only once the prompt is frozen)")
-    s.add_argument("--judges", nargs="+", default=list(JUDGES), help=f"default: all ({', '.join(JUDGES)})")
+    s.add_argument("--judges", nargs="+", default=[DEFAULT_STRICT_JUDGE],
+                   help=f"default: {DEFAULT_STRICT_JUDGE}; choose from {', '.join(JUDGES)}")
     s.add_argument("--probes", action="store_true", help="the made-up probe responses (data/strict_probes.json)")
     s.add_argument("--split", choices=["dev", "test"], help="the labelled items of one split")
     s.add_argument("--runs", action="store_true", help="every stored run matching --models/--variants/--task-sets")

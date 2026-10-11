@@ -13,7 +13,7 @@ import pandas as pd
 from . import RESULTS_DIR, runs
 from .judge import prompt_sha
 from .labels import STRICT_LABEL_SET, labelled_items
-from .models import JUDGES, STRICT_MODELS
+from .models import DEFAULT_JUDGE, DEFAULT_STRICT_JUDGE, JUDGES, STRICT_MODELS
 from .prompts import FROZEN_STRICT_SHA, strict_prompt_sha
 from .runs import load_latest, now, sha
 from .stats import (
@@ -24,9 +24,7 @@ from .strict import load_probes, strict_config, strict_messages
 from .tables import fmt, md_table, ordered_models, save_csv
 
 STRICT_DIR = RESULTS_DIR / "strict"
-# Chosen with the user after the dev rounds: Sonnet 4 had the best dev agreement (round 3: clear-vs-rest kappa 0.93,
-# 3-way 0.94) and judges no output of its own. GPT-4o and Gemini 2.5 Flash are cross-checks.
-PRIMARY_STRICT_JUDGE = "claude-sonnet-4"
+PRIMARY_STRICT_JUDGE = DEFAULT_STRICT_JUDGE  # Sonnet 4 (models.py); GPT-4o and Gemini 2.5 Flash are cross-checks
 SELF_PREFERENCE_JUDGE = "gpt-4o"  # the judge that is also a test model
 SELF_MODELS = ["gpt-4o"]  # the primary judge's own outputs
 SAME_LAB_MODELS = ["o3-mini"]  # another OpenAI model among the focus models, reported separately
@@ -268,9 +266,11 @@ def validation_hits(preds: pd.DataFrame, judge: str, models: list[str] | None = 
     return [x == "clear" for x in p[p.gold == "clear"].pred], [x == "clear" for x in p[p.gold != "clear"].pred]
 
 
-def corrected_rates(rec: pd.DataFrame, preds: pd.DataFrame, judge: str = PRIMARY_STRICT_JUDGE) -> pd.DataFrame:
-    """Observed and Rogan-Gladen-corrected clear rate per focus model and arm, from the test-set Se and Sp."""
-    pos, neg = validation_hits(preds, judge)
+def corrected_rates(rec: pd.DataFrame, preds: pd.DataFrame, judge: str = PRIMARY_STRICT_JUDGE,
+                    se_sp_models: list[str] | None = None) -> pd.DataFrame:
+    """Observed and Rogan-Gladen-corrected clear rate per focus model and arm, from the test-set Se and Sp (of the
+    test items from `se_sp_models` only, if given: the pre-registered sensitivity check)."""
+    pos, neg = validation_hits(preds, judge, se_sp_models)
     sub = rec[(rec.judge == judge) & (rec.status == "ok") & (rec.task_set == "benchmark")
               & rec.model.isin(STRICT_MODELS)]
     rows = []
@@ -363,7 +363,8 @@ def table7(status: dict) -> str:
     rec = load_strict_records()
     if rec.empty:
         return "_No strict judgments yet._"
-    df_strict = strict_frame(rec)
+    # Only the focus models have full strict runs; the other models have only their few labelled items judged.
+    df_strict = strict_frame(rec[rec.model.isin(STRICT_MODELS)])
     judges = list(JUDGES)
     preds = item_predictions(rec, "test", judges)
     parts = []
@@ -380,25 +381,62 @@ def table7(status: dict) -> str:
     if not preds.empty:
         cr = corrected_rates(rec, preds)
         if not cr.empty:
+            focus = corrected_rates(rec, preds, se_sp_models=STRICT_MODELS)
             save_csv(cr.set_index(["model", "variant"]), f"table7_corrected_{PRIMARY_STRICT_JUDGE}")
-            order = {m: i for i, m in enumerate(ordered_models(set(cr.model)))}
-            cr = cr.sort_values(["model", "variant"], key=lambda c: c.map(order) if c.name == "model" else c)
-            out = pd.DataFrame({f"{r.model} / {r.variant}": {
-                "observed % clear": f"{fmt(r.observed, 1)} ({r.k}/{r.n})",
-                "corrected %": f"{fmt(r.corrected, 1)} [{fmt(r.lo, 1)}–{fmt(r.hi, 1)}]",
-                "invalid draws": f"{100 * r.invalid_draws:.1f}%"} for r in cr.itertuples()}).T
-            se, sp = cr.se.iloc[0], cr.sp.iloc[0]
-            parts.append(f"**(d) Rogan–Gladen-corrected clear rates** (Se {fmt(se, 2)}, Sp {fmt(sp, 2)} of "
-                         f"`{PRIMARY_STRICT_JUDGE}` on the test split; 95% bootstrap CI resampling the test items and "
-                         "the responses; Se/Sp are assumed to carry over from `nudge` to the other arms)\n\n"
-                         + md_table(out, "Model / arm"))
-    parts.append(f"**(e) Self-preference of `{SELF_PREFERENCE_JUDGE}`** (Table 1, focus models)\n\n"
-                 + self_preference(rec))
+            save_csv(focus.set_index(["model", "variant"]), f"table7_corrected_{PRIMARY_STRICT_JUDGE}_focus_se_sp")
+            out = summary_table(rec, cr, focus)
+            save_csv(out, f"table7_summary_{PRIMARY_STRICT_JUDGE}")
+            parts.append(
+                f"**(d) Per model: upstream judge vs strict judge, with the Rogan–Gladen correction** (`nudge`, 76 "
+                f"tasks). Upstream: `{DEFAULT_JUDGE}` with the upstream prompt (Table 1). Strict: `{PRIMARY_STRICT_JUDGE}`"
+                f" with the frozen prompt, % clear and % clear or instructed, 95% Wilson CIs. Corrected: Rogan–Gladen "
+                f"with the strict judge's test-split Se {fmt(cr.se.iloc[0], 2)} and Sp {fmt(cr.sp.iloc[0], 2)} (clear "
+                f"vs rest), 95% bootstrap CI over the test items and the responses (B = 10,000, seed 0). Sensitivity "
+                f"check (pre-registered): Se/Sp from the focus-model test items only (Se {fmt(focus.se.iloc[0], 2)}, "
+                f"Sp {fmt(focus.sp.iloc[0], 2)}).\n\n" + md_table(out, "Model"))
+    own = rec[(rec.judge == SELF_PREFERENCE_JUDGE) & (rec.model == "gpt-4o") & (rec.variant == "nudge")
+              & (rec.task_set == "benchmark") & (rec.status == "ok")]
+    if len(own) >= 70:  # needs the GPT-4o judge on the full Table 1 runs, not just the labelled items
+        parts.append(f"**(e) Self-preference of `{SELF_PREFERENCE_JUDGE}`** (Table 1, focus models)\n\n"
+                     + self_preference(rec))
+    else:
+        parts.append(f"**(e) Self-preference of `{SELF_PREFERENCE_JUDGE}` on Table 1:** not run. Table 1 was "
+                     f"re-judged by `{PRIMARY_STRICT_JUDGE}` only (decision of 2026-10-11). On the test split, each "
+                     "judge erred on 1 of the 7 gpt-4o items (`results/strict/eval_test.md`).")
     dis = disagreements(rec)
     if not dis.empty:
         STRICT_DIR.mkdir(parents=True, exist_ok=True)
         dis.to_csv(STRICT_DIR / "disagreements.csv", index=False, encoding="utf-8")
         parts.append(f"Judges disagree on {len(dis)} responses (`results/strict/disagreements.csv`), the "
                      "candidates for T=1 voting.")
-    parts.append(f"**(f) Table 6 under the strict judge** (`{name}`, focus models)\n\n" + table6(df_strict, name))
+    if (df_strict[df_strict.judge == name].variant != "nudge").any():
+        parts.append(f"**(f) Table 6 under the strict judge** (`{name}`, focus models)\n\n" + table6(df_strict, name))
+    else:
+        parts.append("**(f) Table 6 under the strict judge:** not run. The system-prompt ablations were not re-judged "
+                     "with the strict judge (decision of 2026-10-11: Table 1 only).")
     return "\n\n".join(parts)
+
+
+def summary_table(rec: pd.DataFrame, cr: pd.DataFrame, focus: pd.DataFrame) -> pd.DataFrame:
+    """One row per focus model (nudge): upstream-judge IR, strict % clear and % any, and the corrected rates."""
+    from .models import TEST_MODELS
+    from .tables import cir_counts, load_judgments
+    up = cir_counts(load_judgments(), DEFAULT_JUDGE)
+    sub = rec[(rec.judge == PRIMARY_STRICT_JUDGE) & (rec.status == "ok") & (rec.variant == "nudge")
+              & (rec.task_set == "benchmark")]
+    rows = {}
+    for m in ordered_models(set(cr[cr.variant == "nudge"].model)):
+        g = sub[sub.model == m]
+        n, k_clear, k_any = len(g), int((g.label == "clear").sum()), int(g.label.isin(["clear", "instructed"]).sum())
+        r = cr[(cr.model == m) & (cr.variant == "nudge")].iloc[0]
+        f = focus[(focus.model == m) & (focus.variant == "nudge")].iloc[0]
+        rate = lambda k, n: f"{fmt(100 * k / n, 1)} [{fmt(wilson_ci(k, n)[0], 1)}–{fmt(wilson_ci(k, n)[1], 1)}] ({k}/{n})"
+        ku, nu = (int(up.loc[m, "k"].sum()), int(up.loc[m, "n"].sum())) if m in up.index.get_level_values(0) else (0, 0)
+        rows[TEST_MODELS[m].label] = {
+            f"upstream IR ({DEFAULT_JUDGE})": rate(ku, nu) if nu else "–",
+            "strict: % clear": rate(k_clear, n),
+            "strict: % clear or instructed": rate(k_any, n),
+            "corrected % clear": f"{fmt(r.corrected, 1)} [{fmt(r.lo, 1)}–{fmt(r.hi, 1)}]",
+            "corrected, focus Se/Sp": f"{fmt(f.corrected, 1)} [{fmt(f.lo, 1)}–{fmt(f.hi, 1)}]",
+        }
+    return pd.DataFrame(rows).T

@@ -102,3 +102,7 @@ ABLATION_MODELS = [m for m in TEST_MODELS if m != "o1"]
 REP_MODELS = ["gpt-4o", "gpt-4o-mini", "deepseek-v3", "o4-mini"]
 # Strict judge (not upstream): the models whose stored runs are re-judged with it, for now.
 STRICT_MODELS = ["gpt-4o", "deepseek-v3", "o3-mini", "deepseek-r1"]
+# The strict judge's default and primary judge (REPLICATION_NOTES.md, "Strict judge"): best dev agreement, accepted on
+# the test split (clear-vs-rest kappa 0.79 > the pre-registered 0.75), 0/80 neutral false positives, and it judges no
+# output of its own. Upstream Tables 1-6 keep DEFAULT_JUDGE.
+DEFAULT_STRICT_JUDGE = "claude-sonnet-4"

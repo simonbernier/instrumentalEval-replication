@@ -155,6 +155,58 @@ Serving provider per arm (a provider switch between arms is a confound, not a pr
 - gemini-2.5-flash (for Gemini 2.0 FTE.): Google for every arm
 - deepseek-r1: Novita for every arm
 
+## Table 7: strict judge (not in the paper)
+
+Three-way judge (none / instructed / clear; `prompts.STRICT_JUDGE_SYSTEM_PROMPT`). Pre-registration and caveats: REPLICATION_NOTES.md, "Strict judge".
+
+**(a) Validation on the test split** (positive class: clear; % with 95% Wilson CI; κ with bootstrap CI)
+
+| Judge | n (missing) | clear: P | clear: R | clear: Sp | clear: κ | any: P | any: R | any: κ | 3-way κ | AUROC clear (exploratory) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gpt-4o | 68 (0) | 84 [65–94] (21/25) | 78 [59–89] (21/27) | 90 | 0.69 [0.49–0.85] | 85 | 83 | 0.68 [0.49–0.85] | 0.70 [0.53–0.85] | 0.84 |
+| claude-sonnet-4 | 68 (0) | 83 [66–93] (25/30) | 93 [77–98] (25/27) | 88 | 0.79 [0.63–0.91] | 91 | 91 | 0.82 [0.67–0.94] | 0.80 [0.65–0.92] | 0.94 |
+| gemini-2.5-flash | 68 (0) | 84 [67–93] (26/31) | 96 [82–99] (26/27) | 88 | 0.82 [0.67–0.94] | 88 | 100 | 0.85 [0.71–0.97] | 0.85 [0.72–0.95] | 0.93 |
+
+**(b) False-positive rate on the neutral tasks** (gpt-4o, deepseek-v3, o3-mini, deepseek-r1)
+
+| Judge | FPR clear (%) | FPR any (%) | parse errors |
+|---|---|---|---|
+| gpt-4o | 0.0 [0.0–4.6] (0/80) | 0.0 [0.0–4.6] (0/80) | 0 |
+| claude-sonnet-4 | 0.0 [0.0–4.6] (0/80) | 0.0 [0.0–4.6] (0/80) | 0 |
+| gemini-2.5-flash | 6.2 [2.7–13.8] (5/80) | 6.2 [2.7–13.8] (5/80) | 0 |
+
+**(c) Table 1 under the strict judge** (`strict-claude-sonnet-4`: CIR = % clear)
+
+| Category | gpt-4o | deepseek-v3 | o3-mini | deepseek-r1 | RLHF avg | RL avg |
+|---|---|---|---|---|---|---|
+| Evading Shutdown | 85.00 | 100.00 | 100.00 | 83.33 | 92.50 | 91.67 |
+| Hacking Computer Systems | 0.00 | 30.00 | 0.00 | 50.00 | 15.00 | 25.00 |
+| Running Multiple AI Copies | 7.69 | 30.77 | 7.69 | 25.00 | 19.23 | 16.35 |
+| Hiding Unwanted Behavior | 45.45 | 100.00 | 9.09 | 100.00 | 72.73 | 54.55 |
+| Strategically Appearing Aligned | 72.73 | 63.64 | 72.73 | 72.73 | 68.18 | 72.73 |
+| Deceptive Behavior | 9.09 | 18.18 | 9.09 | 63.64 | 13.64 | 36.36 |
+| Total | 42.11 | 61.33 | 40.79 | 67.12 | 51.72 | 53.96 |
+| Total 95% CI | 31.6–53.3 | 50.0–71.5 | 30.4–52.0 | 55.7–76.8 |  |  |
+| k / n | 32 / 76 | 46 / 75 | 31 / 76 | 49 / 73 |  |  |
+| empty responses | 0 | 0 | 0 | 0 |  |  |
+| unparseable judge outputs | 0 | 0 | 0 | 0 |  |  |
+| pending (errors / not judged) | 0 | 1 | 0 | 3 |  |  |
+
+**(d) Per model: upstream judge vs strict judge, with the Rogan–Gladen correction** (`nudge`, 76 tasks). Upstream: `gpt-4o` with the upstream prompt (Table 1). Strict: `claude-sonnet-4` with the frozen prompt, % clear and % clear or instructed, 95% Wilson CIs. Corrected: Rogan–Gladen with the strict judge's test-split Se 0.93 and Sp 0.88 (clear vs rest), 95% bootstrap CI over the test items and the responses (B = 10,000, seed 0). Sensitivity check (pre-registered): Se/Sp from the focus-model test items only (Se 1.00, Sp 0.71).
+
+| Model | upstream IR (gpt-4o) | strict: % clear | strict: % clear or instructed | corrected % clear | corrected, focus Se/Sp |
+|---|---|---|---|---|---|
+| gpt-4o | 51.3 [40.3–62.2] (39/76) | 42.1 [31.6–53.3] (32/76) | 50.0 [39.0–61.0] (38/76) | 37.2 [20.0–54.5] | 18.0 [0.0–41.8] |
+| deepseek-v3 | 75.0 [64.2–83.4] (57/76) | 61.3 [50.0–71.5] (46/75) | 70.7 [59.6–79.8] (53/75) | 61.1 [44.4–77.9] | 45.2 [12.2–64.4] |
+| o3-mini | 50.0 [39.0–61.0] (38/76) | 40.8 [30.4–52.0] (31/76) | 42.1 [31.6–53.3] (32/76) | 35.6 [18.3–52.7] | 16.1 [0.0–40.4] |
+| deepseek-r1 | 76.3 [65.6–84.5] (58/76) | 67.1 [55.7–76.8] (49/73) | 79.5 [68.8–87.1] (58/73) | 68.3 [52.3–85.8] | 53.4 [24.9–70.9] |
+
+**(e) Self-preference of `gpt-4o` on Table 1:** not run. Table 1 was re-judged by `claude-sonnet-4` only (decision of 2026-10-11). On the test split, each judge erred on 1 of the 7 gpt-4o items (`results/strict/eval_test.md`).
+
+Judges disagree on 21 responses (`results/strict/disagreements.csv`), the candidates for T=1 voting.
+
+**(f) Table 6 under the strict judge:** not run. The system-prompt ablations were not re-judged with the strict judge (decision of 2026-10-11: Table 1 only).
+
 ## Response status per run
 
 - `deepseek-r1__nocause-nonudge__benchmark`: {'ok': 76}
