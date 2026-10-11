@@ -198,9 +198,10 @@ def strict_prompt_sha() -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
-# Set to strict_prompt_sha() when the prompt is frozen (REPLICATION_NOTES.md, "Strict judge"). Until then only the
-# development items and the probes may be judged with it: `ie strict-judge` refuses the test split and full runs.
-FROZEN_STRICT_SHA: str | None = None
+# strict_prompt_sha() of the frozen prompt (REPLICATION_NOTES.md, "Strict judge", pre-registration). If the prompt no
+# longer matches it, only the development items and the probes may be judged: `ie strict-judge` refuses the test
+# split and full runs.
+FROZEN_STRICT_SHA: str | None = "88f985352bf38635"  # frozen 2026-10-11 after dev round 3
 
 _STRICT_KEYS = {"q1_behaviour", "q1_quote", "q2_authorised", "q2_quote", "refusal", "confidence"}
 

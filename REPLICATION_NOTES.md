@@ -433,9 +433,8 @@ The judges differ in level (Sonnet is the strictest and Gemini the most lenient)
 
 ## Additional experiments (not in the paper): a strict judge (Table 7)
 
-**Status:** in development since 2026-10-11. The prompt is not frozen yet (`prompts.FROZEN_STRICT_SHA` is unset).
-The pre-registered analysis will be added here, and committed, at the freeze, before the test split or any full run
-is judged.
+**Status:** developed on 2026-10-11 and frozen the same day: prompt `88f985352bf38635`, pre-registration below. It was
+committed before the test split or any full run was judged.
 
 **Why.** The upstream judge scores behaviour the task authorized or instructed as convergence. In the spot-read
 above, only 38% of its positives were *clear*. Against the Fable labels, GPT-4o's precision was 0.74, and 9 of its 14
@@ -532,25 +531,67 @@ The guide is frozen before labelling.
   action, the "Sure" commits to that action.
 - Whoever tunes the prompt reads dev items only; the test items' adjudications are done by fresh subagents.
 
-**After the freeze** (to be pre-registered in detail):
-- **The primary strict judge is Claude Sonnet 4.** The user chose GPT-4o at the start and set the rule "Sonnet if it is
-  still best after the last dev round". It was, and it judges no output of its own. GPT-4o and Gemini 2.5 Flash are
-  cross-checks.
-- The test split is judged once, by all three judges.
-  Reported per judge, for clear vs rest:
-  - precision and recall, with Wilson CIs;
-  - κ, with a bootstrap CI;
-  - three-way κ;
-  - an exploratory AUROC from the verdict's confidence.
-- The false-positive rate on the neutral tasks.
-- Re-judging is limited for now to gpt-4o, deepseek-v3, o3-mini and deepseek-r1 (`models.STRICT_MODELS`):
-  - Sonnet 4 judges all their runs;
-  - GPT-4o and Gemini judge their Table 1 and neutral runs.
-- Self-preference: GPT-4o's clear rate on its own responses relative to the other two judges, compared with the
-  same on the other focus models.
-- Rogan–Gladen-corrected clear rates use Sonnet 4's test-set sensitivity and specificity, with bootstrap CIs.
+### Pre-registration (frozen 2026-10-11, before the test split or any full run was judged)
+
+**The frozen judge.**
+- **Prompt:** `prompts.strict_prompt_sha()` = `88f985352bf38635`, which covers both templates and every category
+  definition. It is pinned in `prompts.FROZEN_STRICT_SHA` and by `tests/test_prompts.py`.
+- **Request:** `max_tokens` 1500, temperature 0, one sample. A malformed or cut-off verdict is asked for again, up
+  to 3 calls in all. If it still fails, it is stored as `parse_error` and reported as missing.
+- **Gold labels:** `results/strict_labels.csv` as committed with this freeze. The test split is the 68 items marked
+  `test` in `data/strict_split.json`.
+
+**Judges.**
+- **Primary: Claude Sonnet 4** (`anthropic/claude-sonnet-4`, reasoning off). The user chose GPT-4o at the start and
+  set the rule "Sonnet if it is still best after the last dev round". It was, and it judges no output of its own.
+- **Cross-checks: GPT-4o and Gemini 2.5 Flash.**
 - **Gemini 2.5 Flash leaves OpenRouter on 2026-10-20.** If its runs aren't finished by then, it is replaced by
   `google/gemini-3-flash-preview`, and the replacement is logged here.
+
+**Test-set evaluation.** Each judge judges the test split once. Reported per judge:
+- **Positive class `clear`:** precision and recall (95% Wilson CIs), specificity, and Cohen's κ (bootstrap CI,
+  2,000 resamples, seed 0).
+- **Any behaviour (`clear` + `instructed`) vs `none`:** the same metrics.
+- **Three-way:** κ and the confusion matrix.
+- **Exploratory:** AUROC of the confidence-signed verdict.
+- **Focus-model subset:** the same metrics for the items from gpt-4o, deepseek-v3, o3-mini and deepseek-r1.
+
+**Decision rule (set by the user before the test run).**
+- If Sonnet 4's test clear-vs-rest κ (point estimate) is **above 0.75**, the strict judge is accepted.
+  Its rates and the Rogan–Gladen correction below are then reported as the strict results.
+- Otherwise the strict rates are still reported, but marked unreliable, and no conclusions are drawn from them.
+- The CI is reported alongside the point estimate.
+
+**After the test split.** These follow only if the decision rule passes.
+- **Neutral false-positive rate:** the share of the 80 neutral responses (20 tasks × the 4 focus models) labelled
+  `clear`, and labelled `clear` or `instructed`, per judge, with Wilson CIs.
+- **Re-judging,** limited to the four focus models (`models.STRICT_MODELS`):
+  - Sonnet 4 judges every stored run of theirs: Table 1, every Table 6 arm, and the neutral runs.
+  - GPT-4o and Gemini judge their Table 1 and neutral runs.
+- **Table 7 (`ie tables`):**
+  - Table 1 under Sonnet 4, where CIR = % `clear`;
+  - Rogan–Gladen-corrected clear rates per model and arm, using Sonnet 4's test-set sensitivity and specificity
+    (clear vs rest). The 95% percentile bootstrap uses B = 10,000 and seed 0. It resamples the test items within each
+    gold class, and redraws each cell's count binomially. The share of draws with Se + Sp ≤ 1 is reported. As a
+    sensitivity check, the correction is repeated with Se/Sp from the focus-model test items only;
+  - the Table 6 contrasts under Sonnet 4 for the 4 focus models. These are exploratory: the pre-registered H1/H2
+    tests above stay with the upstream judge;
+  - GPT-4o's self-preference, as a difference in differences on Table 1. The measure is GPT-4o's clear rate minus
+    the mean of the other two judges, on gpt-4o's own responses versus deepseek-v3's and deepseek-r1's. o3-mini is
+    reported separately as a same-lab check. The test is a task-level sign flip. On the test set, the judges' error
+    rates on gpt-4o items versus other items are reported descriptively;
+  - the responses where judges disagree (`results/strict/disagreements.csv`), as candidates for T=1 voting later.
+
+**Caveats, stated in advance.**
+- **The dev metrics are optimistic.** The prompt and some gold labels were revised around the 30 dev items.
+- **The labelling guide was revised three times, each time with the user.** Most gold labels come from LLM
+  labellers. Haiku agrees with the user on 13 of 14 and 14 of 14 items, but that was measured after the guide was
+  revised on those same items.
+- **The tuner saw a little of the test set.** The tuner (Claude) never read test responses while tuning. It did see
+  the labels, and the subagents' short reasons, for some test items during labelling.
+- **The correction assumes Se and Sp carry over.** They are measured on `nudge` responses, and assumed to hold for
+  the other arms.
+- **The cells are small.** With 27 test `clear` items and 76 tasks per run, the confidence intervals will be wide.
 
 ## How the results could be improved by changing parameters only
 

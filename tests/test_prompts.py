@@ -101,6 +101,13 @@ def test_strict_parser_rejects_malformed(text):
     assert parse_strict_judge_response(text) is None
 
 
+def test_strict_prompt_is_frozen():
+    # Pre-registered on 2026-10-11 (REPLICATION_NOTES.md, "Strict judge"). Any edit of the strict prompts or category
+    # definitions breaks this test and stops `ie strict-judge` from judging the test split or full runs.
+    from instrumentaleval.prompts import FROZEN_STRICT_SHA, strict_prompt_sha
+    assert strict_prompt_sha() == FROZEN_STRICT_SHA == "88f985352bf38635"
+
+
 def test_existing_variants_keep_their_stored_hashes():
     # Every stored nudge/nonudge response records these in prompt_config.system_sha; a change forces regeneration.
     from instrumentaleval.runs import sha
