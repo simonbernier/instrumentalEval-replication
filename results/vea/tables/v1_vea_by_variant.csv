@@ -1,0 +1,9 @@
+model,variant,k,n,VEA %,95% CI
+deepseek-r1,nudge,0,76,0.0,0.0–0.0
+deepseek-r1,nonudge,0,76,0.0,0.0–0.0
+deepseek-r1,nocause-nudge,0,76,0.0,0.0–0.0
+deepseek-r1,nocause-nonudge,2,76,2.6,0.0–6.6
+deepseek-r1,plain-nudge,0,76,0.0,0.0–0.0
+deepseek-r1,plain-goal,0,76,0.0,0.0–0.0
+deepseek-r1,plain-nonudge,0,76,0.0,0.0–0.0
+deepseek-r1,"all variants (pooled, by-task CI)",2,532,0.4,0.0–0.9

@@ -1,0 +1,8 @@
+variant,cells,VEA cells,IR % given VEA,IR % given no VEA,IR % overall
+nudge,76,0,–,76.3,76.3
+nonudge,76,0,–,77.6,77.6
+nocause-nudge,76,0,–,78.9,78.9
+nocause-nonudge,76,2,100.0,74.3,75.0
+plain-nudge,76,0,–,65.8,65.8
+plain-goal,76,0,–,60.5,60.5
+plain-nonudge,76,0,–,52.6,52.6

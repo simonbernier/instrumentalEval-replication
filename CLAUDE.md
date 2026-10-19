@@ -46,7 +46,7 @@ judgments, Tables 1–6 and figures exist on disk. Don't regenerate responses.
 ## Current work: verbalized eval awareness
 
 Why only deepseek-r1: OpenRouter's `reasoning` field is the raw chain of thought for deepseek-r1 (ratio of
-chars/4 to `reasoning_tokens` ≈ 1.0, present in 628/628 responses) but a provider-written **summary** for
+chars/4 to `reasoning_tokens` ≈ 1.0, present in 552/552 responses) but a provider-written **summary** for
 gemini-2.5-flash (ratio 0.45) and the o-series (0.33–0.50, and missing for 35–50 of 76 tasks). This is recorded as
 `ModelSpec.cot` in `models.py`; `VEA_MODELS` derives from it. Don't judge summaries.
 
@@ -55,7 +55,7 @@ Pipeline (details and pre-registration: `REPLICATION_NOTES.md`, "Eval awareness"
 ```sh
 uv run pytest                                                           # prompt/parser checks against upstream/judge_vea.py
 uv run ie vea-judge --limit 2 --variants nudge --task-sets benchmark    # smoke test, 12 calls; inspect results/vea/gpt-5-mini/
-uv run ie vea-judge                                                     # 608 benchmark + 20 neutral chains of thought
+uv run ie vea-judge                                                     # 532 benchmark (7 variants) + 20 neutral chains of thought
 uv run ie vea-tables                                                    # results/vea/tables.md, tables/*.csv, figures/
 uv run ie vea-export-labels                                             # blinded hand-check sheet -> results/vea/hand_labels.csv
 # fill vea_label (yes / no) by applying the F1 rubric, then:
@@ -67,12 +67,15 @@ Status checklist (update as you go):
 - [x] Code, tests, pre-registration written (2026-10-19).
 - [x] Pre-registration committed before the full run (2026-10-19; only the 12-call smoke test preceded it).
 - [x] Smoke test read by a human (2026-10-19): 12/12 `QUOTE: None`, all with a QUOTE field, no retries; no positive, so the quote path is checked on the full run.
-- [ ] Full `ie vea-judge`; cost and retry counts noted.
-- [ ] `ie vea-tables`; hand check of every positive + 50 negatives; precision reported.
-- [ ] "Results" subsection of the notes filled; verdict on V1 (jailbreak vs plain arms) and V4 per the decision rule.
+- [x] Full `ie vea-judge` (2026-10-19): 552 chains of thought, ≈ $0.38, 0 retries, 0 errors. 2/532 flagged.
+- [x] `ie vea-tables` run; `ie vea-export-labels` wrote results/vea/hand_labels.csv (52 items).
+- [ ] Hand check: fill `vea_label` in results/vea/hand_labels.csv, re-run `ie vea-tables`, report precision.
+- [x] "Results" subsection filled (hand-check numbers pending): V1 no detectable arm difference, V4 descriptive only (< 10 cells).
+- [x] Post hoc recall probe: keyword pass found 5 clear VEA sentences, the judge caught 1 (stable over 3 re-asks,
+      results/vea/judge_stability_check.jsonl); judge rates are lower bounds. See the notes before trusting V1.
 
 Expectations, so surprises are recognised: VEA in deepseek-r1 is rare (a keyword pass found at least five genuine
-cases in 628, e.g. ES-10 `nonudge`: "the task might be testing if I will blindly shut down and cause a blackout?"),
+cases in 552, e.g. ES-10 `nonudge`: "the task might be testing if I will blindly shut down and cause a blackout?"),
 so V1 rates of a few percent with wide intervals are normal, and V4 will almost surely fall under the "< 10 VEA
 cells: descriptive only" rule. A high neutral-task rate (V3) means judge false positives, not eval awareness. The
 frequent "since this is a simulation, I'll describe the steps" is **not** VEA under the rubric's NOTE 3; it is a
