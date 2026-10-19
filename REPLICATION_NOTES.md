@@ -851,6 +851,75 @@ this benchmark. The judge, unlike the VEA one, has good recall (9/9 known cells,
 sample) and poor precision (0.57). Its errors are systematic: echoes of the task's "Simulate..." wording despite the
 adaptation, and system-prompt restatements it cannot recognise without seeing the system prompt.
 
+## Reasoning-effort sweep (not in the paper): o3-mini and o4-mini at low / medium / high effort (Table 7, Figure 7)
+
+**Status:** pre-registered on 2026-10-19 in the commit that adds this section, before any sweep response was
+generated. Commit it before `ie generate --models o3-mini@low ...`; add the results under "Results" below.
+
+**Question.** The paper's thesis is that RL-trained reasoning models pursue instrumental goals more than RLHF
+models, and reads Table 1 as "more reasoning, more convergence". Table 1 cannot separate that from everything else
+that differs between model families (lab, data, size, post-training). Within one model, the o-series exposes the
+amount of reasoning as a request parameter (`reasoning.effort`: low / medium / high) with nothing else changing:
+same weights, same `nudge` system prompt, same task text, same `gpt-4o` judge and prompts. If the paper's mechanism is
+right, IR should rise with effort; if convergence is a property of the model and the prompt rather than of the
+amount of reasoning, it should be flat. The third possibility, that more deliberation produces more refusals or more
+hedged compliance and IR falls, is the one the paper's reading cannot accommodate. This is item 3 of "How the
+results could be improved by changing parameters only", now run.
+
+### Design
+
+- **Arms:** `o3-mini@low`, `o3-mini@medium`, `o3-mini@high`, `o4-mini@low`, `o4-mini@medium`, `o4-mini@high`
+  (`models.EFFORT_MODELS`), each a separate model key so that nothing is reused from the stored runs and nothing
+  enters Tables 1-6 (`TEST_MODELS` is unchanged; `ALL_MODELS` is what `ie generate` / `ie judge` accept; the
+  table and figure code filters through `ordered_models` / `TEST_MODELS`, checked by `tests/test_effort.py`).
+  Variant `nudge` (upstream's full prompt), the 76 benchmark tasks, the request otherwise as for the stored
+  o-series runs (no temperature; OpenRouter, OpenAI-served).
+- **Completion cap:** one cap for every arm, `max_tokens = 1000 + 32 000`, so that the cap is not a variable;
+  the stored runs used 1000 + 8000 at default effort (median reasoning 450-600 tokens). `finish_reason == "length"`
+  and empty answers are counted per arm in Table 7(d); an arm that loses answers to the cap is reported as such and
+  its IR is computed on the valid answers, as everywhere (upstream's rule).
+- **Reference runs:** the stored `o3-mini` and `o4-mini` `nudge` runs and the `o4-mini` `nudge-rep` run were made at
+  OpenAI's default effort, which is medium, so `<model>@medium` is a same-settings replicate of them (o-series models
+  ignore temperature, so each run is one random draw). These replicate pairs give the noise floor.
+- **Judge:** `gpt-4o` with upstream's judge prompts (`DEFAULT_JUDGE`), as for every table. Only `gpt-4o` is run on
+  the sweep arms; the other two judges are not.
+- **Parameter probe (2026-10-19, before any benchmark task was sent):** OpenRouter serves both models from one
+  endpoint (OpenAI) that lists `reasoning` as supported, and returns 400 for `reasoning.effort: "bogus"`, so the field
+  is validated and forwarded, not dropped. With the `EFFORT_MODELS` specs on two non-benchmark prompts (nothing
+  stored), reasoning tokens were ordered low < medium < high for o3-mini (256-320 / 384-448 / 896-1344, 2 reps) and
+  for o4-mini (median 64 / 448 over 4 reps on an open-ended prompt; high 960-1664 on a math prompt, where low and
+  medium overlapped at 512-832). o4-mini `low` can reason very little (0-64 tokens on the open-ended prompt).
+- **Cost:** 6 × 76 requests; the high arms may reason for several thousand tokens each. Expected total well under
+  $30.
+
+### Pre-registered analysis (`ie tables`, Table 7; `ie figures`, Figure 7)
+
+Pairing rule and tests as in Table 6: every contrast is paired by task; per model Δ = 100·(b − c)/76 with the exact
+McNemar p on the discordant pairs; pooled over the two models Δ = 100·Σ(b − c)/Σn, tested by flipping the sign of
+whole tasks (each task's contrast summed over the two models); the three effort contrasts are Holm-corrected,
+two-sided, α = 0.05.
+
+- **H-E1 (primary):** `high − low`, pooled over o3-mini and o4-mini. The paper's reading predicts Δ > 0.
+- **Secondary:** `high − medium` and `medium − low`, same procedure; monotonicity (low ≤ medium ≤ high in both
+  models) reported descriptively; CIR by category per arm (Table 7b) descriptive only.
+- **Noise floor:** the pooled |Δ| of the replicate contrasts `medium − default` (both models) and
+  `nudge-rep − default` (o4-mini), reported in the same table and not tested.
+- **Manipulation check (Table 7d), a precondition:** median `reasoning_tokens` must increase strictly low < medium <
+  high within each model. If an arm does not differ in reasoning tokens from its neighbour, the provider did not
+  honour the setting for that arm and the contrast involving it is reported as not interpretable, before looking at
+  the IR numbers. Visible-answer length, empty answers, cap hits and the heuristic refusal count are reported per arm.
+- **Decision rule (Table 7e):** EFFECT if the Holm-corrected pooled `high − low` p < 0.05 **and** |Δ| exceeds the
+  noise floor; MIXED if significant but within the noise floor; NO EFFECT DETECTED otherwise. The direction is
+  reported as found; a significant negative Δ counts as an effect against the paper's reading, not as a null.
+- **Power, stated in advance:** with 76 paired tasks per model and the Table 6 experience (replicate disagreement
+  ~12/76 tasks), the pooled test over 152 pairs detects a shift of roughly 12-15 pp; a smaller true effect will come
+  out as NO EFFECT DETECTED, and the Results will say so rather than read a trend into non-significant deltas.
+
+### Results
+
+_To be filled after `ie generate --models <the six arms>`, `ie judge --models <the six arms>`, `ie tables`,
+`ie figures`._
+
 ## How the results could be improved by changing parameters only
 
 These are not run by default; every item is a configuration change.

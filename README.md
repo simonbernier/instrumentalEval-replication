@@ -77,6 +77,14 @@ uv run ie frame-judge --cells nonudge:ES-10 nudge:HC-01 ...   # known-cell check
 uv run ie frame-judge                   # same 552 chains of thought as vea-judge (openai/gpt-5, medium effort)
 uv run ie frame-tables                  # -> results/frame/tables.md, tables/*.csv, figures/
 uv run ie frame-export-labels           # then fill results/frame/hand_labels.csv and re-run `ie frame-tables`
+
+# 11. Reasoning-effort sweep (not in the paper): o3-mini and o4-mini at explicit low / medium / high effort, full
+#     nudge prompt, gpt-4o judge. Pre-registered in REPLICATION_NOTES.md, "Reasoning-effort sweep": commit it first.
+E="o3-mini@low o3-mini@medium o3-mini@high o4-mini@low o4-mini@medium o4-mini@high"
+uv run ie generate --models $E --limit 1    # smoke test: 6 tasks per arm; check `ie status` for empty / cut answers
+uv run ie generate --models $E
+uv run ie judge --models $E
+uv run ie tables                            # Table 7 (+ CSVs); `ie figures` adds Figure 7
 ```
 
 Once `DEFAULT_JUDGE` is set in step 4, `ie judge`, `ie tables` and `ie figures` all default to the chosen judge, so
@@ -89,7 +97,7 @@ steps 6 and 7 need no `--judge` flags.
 | `src/instrumentaleval/prompts.py` | upstream prompts (verbatim), the system-prompt variants for Table 6 (deletions of upstream text only) and the judge-output parser |
 | `src/instrumentaleval/models.py` | test models and judges, with their OpenRouter IDs and request parameters |
 | `src/instrumentaleval/{generate,judge}.py` | the two passes; results go to `results/responses/` and `results/judgments/<judge>/` as JSONL, plus an upstream-format `*_evaluation_results.txt` per run |
-| `src/instrumentaleval/tables.py` | Tables 1–5, and Table 6 (system-prompt ablations, not in the paper) |
+| `src/instrumentaleval/tables.py` | Tables 1–5, Table 6 (system-prompt ablations) and Table 7 (reasoning-effort sweep), the last two not in the paper |
 | `src/instrumentaleval/vea.py`, `vea_tables.py` | verbalized-eval-awareness judge pass (upstream/judge_vea.py's prompt and settings, verbatim; GPT-5-mini on the chain of thought only) and Tables V1–V5 in `results/vea/` |
 | `upstream/judge_vea.py` | Bharadwaj & Kirk's VEA judge (vendored; the tests check our prompt and parser against it) |
 | `src/instrumentaleval/frame.py`, `frame_tables.py` | frame-awareness judge pass (Rajamanoharan & Nanda's rubric, `upstream/frame_awareness_prompt.txt`, plus `frame.ADAPTATION`) and Tables F1–F5 in `results/frame/` |

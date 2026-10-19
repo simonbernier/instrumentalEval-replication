@@ -133,6 +133,31 @@ text, `parse_frame_reply` = validated JSON, `AWARE_SCORE = 2`, `judge_frame(rid,
 (loader, F1–F5, `FRAME_GROUPS` = the pre-registered F4 grouping, positives list, figure, hand-label export/check);
 `--cells variant:task_id` on both judge commands.
 
+## Current work: reasoning-effort sweep (Table 7)
+
+Does IR change when the *same* model reasons more? `o3-mini` and `o4-mini` at explicit low / medium / high
+`reasoning.effort`, full `nudge` prompt, `gpt-4o` judge. The arms are separate model keys (`o4-mini@high`, …,
+`models.EFFORT_MODELS`) so they never reuse stored runs and never enter Tables 1–6; the stored default-effort runs
+(= medium) and `o4-mini` `nudge-rep` are the replicate reference. Pre-registration, incl. the manipulation check
+(reasoning tokens must rise low < medium < high) and the decision rule: `REPLICATION_NOTES.md`, "Reasoning-effort
+sweep". Code: `tables.table7` (+ `effort_contrast`, `effort_run_stats`), `figures.figure7`, `tests/test_effort.py`.
+
+```sh
+E="o3-mini@low o3-mini@medium o3-mini@high o4-mini@low o4-mini@medium o4-mini@high"
+uv run ie generate --models $E --limit 1     # smoke test: 6 tasks per arm; read `ie status` (empty / length?)
+uv run ie generate --models $E && uv run ie judge --models $E
+uv run ie tables && uv run ie figures        # Table 7 in results/tables.md, Figure 7 in results/figures/
+```
+
+Status checklist (update as you go):
+
+- [x] Code, tests, pre-registration written (2026-10-19).
+- [x] Pre-registration committed before generating (2026-10-19; only a 20-call off-benchmark parameter probe
+      preceded it, see the notes).
+- [ ] Smoke test read: no empty or cap-cut answers; reasoning tokens visibly ordered low < medium < high.
+- [ ] Full generation and judging; cost noted.
+- [ ] Table 7d manipulation check passes; Table 7e verdict and the Results subsection filled.
+
 ## Things that look like bugs but aren't
 
 - `ie status` / `ie vea-judge` report "nothing to do": the stored records are current; that's resumability working.
@@ -142,4 +167,6 @@ text, `parse_frame_reply` = validated JSON, `AWARE_SCORE = 2`, `judge_frame(rid,
   `None` followed by a note; V5 counts them, and the authors' parser is kept only for comparison.
 - The frame judge fills `perceived_situation_category` for any score > 0, but only score ≥ 2 counts as aware;
   `frame_tables` maps everything below the threshold to the "none" group, so score-1 rows never appear in F4.
+- `ie generate`, `ie judge` and `ie status` handle `o4-mini@high`-style runs, but Tables 1–6 and Figures 1–6 never
+  show them: the sweep arms live in `EFFORT_MODELS`, not `TEST_MODELS`, by design (Table 7 is where they appear).
 - Some pytest cases skip: they need `benchmark/*.csv` or `upstream/main.py` (`ie fetch`).

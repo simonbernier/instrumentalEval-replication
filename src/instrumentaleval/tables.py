@@ -12,7 +12,7 @@ import pandas as pd
 
 from . import DATA_DIR, RESULTS_DIR
 from .benchmark import CATEGORIES
-from .models import DEFAULT_JUDGE, JUDGES, TABLE3_MODELS, TEST_MODELS
+from .models import DEFAULT_JUDGE, EFFORT_BASE_MODELS, EFFORT_LEVELS, EFFORT_MODELS, JUDGES, TABLE3_MODELS, TEST_MODELS
 from .prompts import SYSTEM_PROMPTS
 from .runs import JUDGMENTS_DIR, RESPONSES_DIR, load_latest, parse_run_id, sha
 from .stats import agreement, cohen_kappa, holm, mcnemar_exact, pairwise, sign_flip_test, wilson_ci
@@ -240,7 +240,7 @@ def table3(df: pd.DataFrame) -> str:
 # ---------------------------------------------------------------- Table 4
 
 def _decisions(df: pd.DataFrame, task_set: str) -> dict[str, dict[str, str]]:
-    sub = df[(df.task_set == task_set) & (df.variant == "nudge")]
+    sub = df[(df.task_set == task_set) & (df.variant == "nudge") & df.model.isin(TEST_MODELS)]
     out = {}
     for judge, g in sub.groupby("judge"):
         out[judge] = {f"{m}|{t}": ("convergence" if c else "no_convergence")
@@ -594,6 +594,182 @@ def table6(df: pd.DataFrame, judge: str) -> str:
 
 # ---------------------------------------------------------------- entry point
 
+# ---------------------------------------------------------------- Table 7: reasoning-effort sweep (not in the paper)
+
+EFFORT_ARMS = ("default", "nudge-rep") + EFFORT_LEVELS  # column order; the first two are the stored reference runs
+
+
+def effort_arm_key(base: str, arm: str) -> tuple[str, str]:
+    """(model key, variant) of one arm of the sweep for `base`."""
+    if arm == "default":
+        return base, "nudge"
+    if arm == "nudge-rep":
+        return base, "nudge-rep"
+    return f"{base}@{arm}", "nudge"
+
+
+def arm_decisions(df: pd.DataFrame, judge: str, base: str, arm: str) -> dict[str, int]:
+    model, variant = effort_arm_key(base, arm)
+    sub = df[(df.judge == judge) & (df.model == model) & (df.variant == variant) & (df.task_set == "benchmark")]
+    return {t: int(c) for t, c in zip(sub.task_id, sub.conv)}
+
+
+def _pair(da: dict[str, int], db: dict[str, int]) -> dict | None:
+    """a − b on the shared tasks: Δ (pp), discordant counts b/c, exact McNemar p, and the per-task differences."""
+    tasks = da.keys() & db.keys()
+    if not tasks:
+        return None
+    diffs = {t: da[t] - db[t] for t in tasks}
+    nb, nc = sum(d == 1 for d in diffs.values()), sum(d == -1 for d in diffs.values())
+    return {"delta": 100 * (nb - nc) / len(tasks), "b": nb, "c": nc, "n": len(tasks), "p": mcnemar_exact(nb, nc),
+            "diffs": diffs}
+
+
+def effort_contrast(df: pd.DataFrame, judge: str, a: str, b: str) -> dict:
+    """Arm a − arm b per base model, and pooled over the base models with both arms (sign flip over tasks)."""
+    per_model, task_sum, n_total = {}, Counter(), 0
+    for base in EFFORT_BASE_MODELS:
+        pair = _pair(arm_decisions(df, judge, base, a), arm_decisions(df, judge, base, b))
+        if pair:
+            per_model[base] = {k: v for k, v in pair.items() if k != "diffs"}
+            for t, d in pair["diffs"].items():
+                task_sum[t] += d
+            n_total += pair["n"]
+    return {"per_model": per_model, "pooled": _pooled(per_model, task_sum, n_total)}
+
+
+def effort_run_stats() -> dict[tuple[str, str], dict]:
+    """(base, arm) -> token and status statistics of the stored responses (the manipulation check)."""
+    out = {}
+    for base in EFFORT_BASE_MODELS:
+        for arm in EFFORT_ARMS:
+            model, variant = effort_arm_key(base, arm)
+            recs = list(load_latest(RESPONSES_DIR / f"{model}__{variant}__benchmark.jsonl").values())
+            if not recs:
+                continue
+            ok = [r for r in recs if r["status"] == "ok"]
+            rt = [r["reasoning_tokens"] for r in ok if r.get("reasoning_tokens") is not None]
+            vis = [r["completion_tokens"] - (r.get("reasoning_tokens") or 0) for r in ok
+                   if r.get("completion_tokens") is not None]
+            out[(base, arm)] = {
+                "n": len(recs), "ok": len(ok), "empty": sum(r["status"] == "empty" for r in recs),
+                "error": sum(r["status"] == "error" for r in recs),
+                "length": sum(r.get("finish_reason") == "length" for r in recs),
+                "reasoning_tokens_median": float(np.median(rt)) if rt else math.nan,
+                "visible_tokens_median": float(np.median(vis)) if vis else math.nan,
+                "refusals": sum(is_refusal(r["test_llm_response"]) for r in ok),
+            }
+    return out
+
+
+def table7(df: pd.DataFrame, judge: str) -> str:
+    present = {(base, arm) for base in EFFORT_BASE_MODELS for arm in EFFORT_LEVELS
+               if arm_decisions(df, judge, base, arm)}
+    if not present:
+        return ("_No reasoning-effort runs judged yet: `ie generate --models " + " ".join(EFFORT_MODELS)
+                + "` then `ie judge --models ...`._")
+    sections = []
+
+    # (a) IR per arm
+    rows = {}
+    for base in EFFORT_BASE_MODELS:
+        row = {}
+        for arm in EFFORT_ARMS:
+            d = arm_decisions(df, judge, base, arm)
+            if d:
+                k, n = sum(d.values()), len(d)
+                lo, hi = wilson_ci(k, n)
+                row[arm] = f"{fmt(100 * k / n)} ({k}/{n}) [{fmt(lo, 1)}–{fmt(hi, 1)}]"
+            else:
+                row[arm] = "–"
+        rows[base] = row
+    ir = pd.DataFrame(rows).T
+    save_csv(ir, f"table7_ir_{judge}")
+    sections.append("**(a) IR (%) per arm** (k/n, 95% Wilson CI). `default` and `nudge-rep` are the stored runs at "
+                    "OpenAI's default effort (medium); `low`/`medium`/`high` are the explicit-effort runs.\n\n"
+                    + md_table(ir, "model"))
+
+    # (b) CIR by category per arm
+    for base in EFFORT_BASE_MODELS:
+        arms = [arm for arm in EFFORT_ARMS if arm_decisions(df, judge, base, arm)]
+        if not arms:
+            continue
+        mat = pd.DataFrame(index=list(CATEGORIES) + ["Total"], columns=arms, dtype=object)
+        for arm in arms:
+            model, variant = effort_arm_key(base, arm)
+            sub = df[(df.judge == judge) & (df.model == model) & (df.variant == variant) & (df.task_set == "benchmark")]
+            for cat in CATEGORIES:
+                c = sub[sub.category == cat]
+                mat.loc[cat, arm] = fmt(100 * c.conv.mean()) if len(c) else "–"
+            mat.loc["Total", arm] = fmt(100 * sub.conv.mean())
+        save_csv(mat, f"table7_cir_{base}_{judge}")
+        sections.append(f"**(b) CIR (%) by category, {base}**\n\n" + md_table(mat, "Category"))
+
+    # (c) paired contrasts, primary first; Holm over the three pooled effort contrasts
+    contrasts = [("high", "low"), ("high", "medium"), ("medium", "low")]
+    results = {f"{a} − {b}": effort_contrast(df, judge, a, b) for a, b in contrasts}
+    pooled_p = [r["pooled"]["p"] if r["pooled"] else math.nan for r in results.values()]
+    valid = [p for p in pooled_p if not math.isnan(p)]
+    holm_p = iter(holm(valid)) if valid else iter([])
+    adj = [next(holm_p) if not math.isnan(p) else math.nan for p in pooled_p]
+    replicates = {"medium − default": effort_contrast(df, judge, "medium", "default"),
+                  "nudge-rep − default": effort_contrast(df, judge, "nudge-rep", "default")}
+    rows = {}
+    for (name, r), p_adj in list(zip(results.items(), adj)) + [(kv, None) for kv in replicates.items()]:
+        row = {}
+        for base in EFFORT_BASE_MODELS:
+            v = r["per_model"].get(base)
+            row[base] = f"{_signed(v['delta'])} ({v['b']}/{v['c']}), p = {_p(v['p'])}" if v else "–"
+        pooled = r["pooled"]
+        row["pooled Δ (pp)"] = _signed(pooled["delta"]) if pooled else "–"
+        row["pooled n"] = pooled["n"] if pooled else "–"
+        row["sign-flip p"] = _p(pooled["p"]) if pooled else "–"
+        row["Holm p"] = _p(p_adj) if p_adj is not None else "– (replicate, not tested)"
+        rows[name] = row
+    con = pd.DataFrame(rows).T
+    save_csv(con, f"table7_contrasts_{judge}")
+    floor = max((abs(r["pooled"]["delta"]) for r in replicates.values() if r["pooled"]), default=math.nan)
+    sections.append("**(c) Paired contrasts** (per model: Δ pp with discordant counts b/c and exact McNemar p; "
+                    "pooled over the models with both arms, tested by flipping the sign of whole tasks; Holm over "
+                    "the three effort contrasts). The two replicate rows compare runs at the same settings: their "
+                    f"pooled |Δ| is the noise floor, here {fmt(floor, 1)} pp.\n\n" + md_table(con, "contrast"))
+
+    # (d) manipulation check
+    stats = effort_run_stats()
+    if stats:
+        rows = {}
+        for (base, arm), st in stats.items():
+            rows[f"{base} {arm}"] = {
+                "responses": st["n"], "empty": st["empty"], "errors": st["error"], "cut at cap": st["length"],
+                "median reasoning tokens": fmt(st["reasoning_tokens_median"], 0),
+                "median visible tokens": fmt(st["visible_tokens_median"], 0),
+                "refusals (heuristic)": st["refusals"],
+            }
+        man = pd.DataFrame(rows).T
+        save_csv(man, "table7_manipulation")
+        sections.append("**(d) Manipulation check** from the stored responses: reasoning tokens must rise low < "
+                        "medium < high within each model, and no arm may lose answers to the cap.\n\n"
+                        + md_table(man, "run"))
+
+    # (e) the pre-registered verdict
+    primary = results["high − low"]["pooled"]
+    if primary and not math.isnan(adj[0]):
+        sig = adj[0] < 0.05
+        beyond = abs(primary["delta"]) > floor if not math.isnan(floor) else True
+        if sig and beyond:
+            verdict = ("**EFFECT**: IR " + ("rises" if primary["delta"] > 0 else "falls") + " with reasoning effort "
+                       f"({_signed(primary['delta'])} pp high − low, Holm p = {_p(adj[0])}, beyond the "
+                       f"{fmt(floor, 1)} pp noise floor).")
+        elif sig:
+            verdict = (f"**MIXED**: high − low = {_signed(primary['delta'])} pp is significant (Holm p = {_p(adj[0])}) "
+                       f"but within the {fmt(floor, 1)} pp replicate noise floor.")
+        else:
+            verdict = (f"**NO EFFECT DETECTED**: high − low = {_signed(primary['delta'])} pp, Holm p = {_p(adj[0])} "
+                       f"(noise floor {fmt(floor, 1)} pp).")
+        sections.append("**(e) Pre-registered decision (H-E1, high − low pooled over the two models).** " + verdict)
+    return "\n\n".join(sections)
+
+
 def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.md") -> str:
     df = load_judgments()
     status = response_status_counts()
@@ -612,6 +788,9 @@ def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.m
         "## Table 6: system-prompt ablations (not in the paper; Figure 6)\n\n"
         f"Judge: `{judge}`. Pre-registration and caveats: REPLICATION_NOTES.md, \"Additional experiments\".\n\n"
         f"{table6(df, judge)}",
+        "## Table 7: reasoning-effort sweep, o3-mini and o4-mini (not in the paper; Figure 7)\n\n"
+        f"Judge: `{judge}`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_NOTES.md, "
+        f"\"Reasoning-effort sweep\".\n\n{table7(df, judge)}",
         "## Response status per run\n\n" + "\n".join(f"- `{k}`: {v}" for k, v in status.items()),
     ]
     text = "\n\n".join(parts) + "\n"

@@ -5,7 +5,7 @@ import argparse
 import os
 import sys
 
-from .models import ABLATION_MODELS, DEFAULT_JUDGE, JUDGES, REP_MODELS, TEST_MODELS, VEA_MODELS
+from .models import ABLATION_MODELS, ALL_MODELS, DEFAULT_JUDGE, EFFORT_MODELS, JUDGES, REP_MODELS, TEST_MODELS, VEA_MODELS
 from .prompts import SYSTEM_PROMPTS
 from .runs import RESPONSES_DIR, load_latest, parse_run_id
 
@@ -19,9 +19,9 @@ def default_models(variant: str) -> list[str]:
 
 def _models(names: list[str] | None) -> list[str]:
     names = names or list(TEST_MODELS)
-    unknown = [n for n in names if n not in TEST_MODELS]
+    unknown = [n for n in names if n not in ALL_MODELS]
     if unknown:
-        sys.exit(f"unknown model(s) {unknown}; choose from {list(TEST_MODELS)}")
+        sys.exit(f"unknown model(s) {unknown}; choose from {list(ALL_MODELS)}")
     return names
 
 
@@ -79,8 +79,9 @@ def cmd_tables(a):
 
 
 def cmd_figures(a):
-    from .figures import figure1, figure2, figure3, figure5, figure6
-    for p in figure1(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge) + figure6(a.judge):
+    from .figures import figure1, figure2, figure3, figure5, figure6, figure7
+    for p in (figure1(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge) + figure6(a.judge)
+              + figure7(a.judge)):
         print(p)
 
 
@@ -177,7 +178,8 @@ def main() -> None:
     s = sub.add_parser("generate", help="get test-model responses")
     s.add_argument("--models", nargs="+",
                    help=f"default: all for nudge; {', '.join(REP_MODELS)} for nudge-rep; "
-                        f"{', '.join(ABLATION_MODELS)} for the other variants")
+                        f"{', '.join(ABLATION_MODELS)} for the other variants; the reasoning-effort arms "
+                        f"({', '.join(EFFORT_MODELS)}) only when named")
     s.add_argument("--variants", nargs="+", default=["nudge"], choices=list(SYSTEM_PROMPTS),
                    help="system-prompt variants (prompts.SYSTEM_PROMPTS); default: nudge, the upstream prompt")
     s.add_argument("--no-nudge", action="store_true", help="same as --variants nonudge (Table 3)")

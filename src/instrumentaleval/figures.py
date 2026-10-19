@@ -7,6 +7,8 @@ family's average (mean of per-model rates, as in Tables 1 and 2), and error bars
 Figure 3 (Table 3): one panel per model, the nudge gap per category as bars around zero.
 Figure 5 (Table 5): the upper triangle of the cross-category correlation matrix as a heat map.
 Figure 6 (Table 6): one panel per model, IR as the jailbreak is removed step by step, with and without the nudge.
+Figure 7 (Table 7): one panel per o-series model, IR against explicit reasoning effort, with the stored
+default-effort runs as reference points.
 """
 
 import math
@@ -24,11 +26,11 @@ from scipy.stats import t as student_t  # noqa: E402
 
 from . import RESULTS_DIR  # noqa: E402
 from .benchmark import CATEGORIES  # noqa: E402
-from .models import DEFAULT_JUDGE, TEST_MODELS  # noqa: E402
+from .models import DEFAULT_JUDGE, EFFORT_BASE_MODELS, EFFORT_LEVELS, TEST_MODELS  # noqa: E402
 from .prompts import SYSTEM_PROMPTS  # noqa: E402
 from .stats import wilson_ci  # noqa: E402
-from .tables import (PRIOR_TYPES, category_correlations, cir_counts, cir_matrix, fmt,  # noqa: E402
-                     load_judgments, nudge_gaps, ordered_models, prior_counts, prior_matrix,
+from .tables import (PRIOR_TYPES, arm_decisions, category_correlations, cir_counts, cir_matrix,  # noqa: E402
+                     fmt, load_judgments, nudge_gaps, ordered_models, prior_counts, prior_matrix,
                      prior_task_types)
 
 FIGURES_DIR = RESULTS_DIR / "figures"
@@ -384,3 +386,48 @@ def figure6(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
              "(Table 6; REPLICATION_NOTES.md)"] + footer_notes(models, missing=False)
     fig.text(0.01, 0.0, "\n".join(notes), fontsize=8, color=INK_2, ha="left", va="bottom")
     return save(fig, out_dir, f"figure6_{judge}")
+
+
+def figure7(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
+    df = load_judgments()
+    arms = {(base, arm): arm_decisions(df, judge, base, arm)
+            for base in EFFORT_BASE_MODELS for arm in ("default", "nudge-rep", *EFFORT_LEVELS)}
+    arms = {k: v for k, v in arms.items() if v}
+    models = [b for b in EFFORT_BASE_MODELS if any((b, e) in arms for e in EFFORT_LEVELS)]
+    if not models:
+        print(f"figure 7 skipped: no reasoning-effort runs judged by `{judge}` (README step 11)")
+        return []
+    fig, axes = plt.subplots(1, len(models), figsize=(3.4 * len(models) + 0.4, 3.4), sharey=True, squeeze=False)
+    color = FAMILY_COLORS["RL"]
+    for i, (ax, base) in enumerate(zip(axes[0], models)):
+        xs, ys, los, his = [], [], [], []
+        for x, effort in enumerate(EFFORT_LEVELS):
+            if (base, effort) in arms:
+                d = arms[(base, effort)]
+                k, n = sum(d.values()), len(d)
+                lo, hi = wilson_ci(k, n)
+                xs.append(x), ys.append(100 * k / n), los.append(lo), his.append(hi)
+        ax.plot(xs, ys, color=color, linewidth=1.5, zorder=2)
+        ax.errorbar(xs, ys, yerr=[[y - lo for y, lo in zip(ys, los)], [hi - y for y, hi in zip(ys, his)]],
+                    fmt="o", color=color, ecolor=color, elinewidth=1, capsize=0, markersize=5.5, zorder=3)
+        for ref, dx, marker in (("default", -0.12, "D"), ("nudge-rep", 0.12, "s")):
+            if (base, ref) in arms:  # the stored runs sit at OpenAI's default effort, which is medium
+                d = arms[(base, ref)]
+                k, n = sum(d.values()), len(d)
+                lo, hi = wilson_ci(k, n)
+                y = 100 * k / n
+                ax.errorbar([1 + dx], [y], yerr=[[y - lo], [hi - y]], fmt=marker, color=INK_2, ecolor=INK_2,
+                            elinewidth=1, capsize=0, markersize=5, zorder=3)
+        ax.set_title(base, loc="left", fontsize=10, color=INK, fontweight="bold")
+        style_axes(ax, "IR (%)" if i == 0 else None)
+        ax.set_xlim(-0.45, 2.45)
+        ax.set_xticks(range(3), [f"{e} effort" for e in EFFORT_LEVELS])
+    handles = [Line2D([], [], color=color, marker="o", label="explicit reasoning effort"),
+               Line2D([], [], color=INK_2, linestyle="none", marker="D", label="stored run, default effort"),
+               Line2D([], [], color=INK_2, linestyle="none", marker="s", label="stored nudge-rep run, default effort"),
+               Line2D([], [], color=INK_2, linewidth=1, label="95% Wilson interval")]
+    fig.legend(handles=handles, loc="lower center", ncol=2, frameon=False, fontsize=8, bbox_to_anchor=(0.5, -0.12))
+    fig.suptitle(f"IR vs reasoning effort, full nudge prompt, judge {judge}", fontsize=10, color=INK, x=0.01,
+                 ha="left")
+    fig.tight_layout()
+    return save(fig, out_dir, f"figure7_{judge}")

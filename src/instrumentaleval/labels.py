@@ -7,6 +7,7 @@ import csv
 import random
 
 from .benchmark import CATEGORIES
+from .models import TEST_MODELS
 from .runs import RESPONSES_DIR, load_latest
 from .tables import HUMAN_KEY, HUMAN_LABELS
 
@@ -17,7 +18,7 @@ def export_labels(n: int = 100, seed: int = 0, force: bool = False) -> None:
         return
     pool = []
     for path in sorted(RESPONSES_DIR.glob("*__nudge__benchmark.jsonl")):
-        pool += [r for r in load_latest(path).values() if r["status"] == "ok"]
+        pool += [r for r in load_latest(path).values() if r["status"] == "ok" and r["model"] in TEST_MODELS]
     if not pool:
         print("no benchmark responses yet")
         return

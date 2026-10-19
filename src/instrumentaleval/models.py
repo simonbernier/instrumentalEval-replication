@@ -79,6 +79,30 @@ TEST_MODELS: dict[str, ModelSpec] = {
     ]
 }
 
+# Reasoning-effort sweep (Table 7, not in the paper; REPLICATION_NOTES.md, "Reasoning-effort sweep"): the same two
+# o-series models at explicit low / medium / high effort, full `nudge` prompt, same judge. Kept out of TEST_MODELS so
+# Tables 1-6 and the figures never see them; `ALL_MODELS` is what `ie generate` / `ie judge` accept. The stored
+# default-effort runs (`o3-mini`, `o4-mini`, `o4-mini` nudge-rep) are the reference: OpenAI's default effort is
+# medium, so `<model>@medium` is a same-settings replicate of them. One generous completion cap for every arm, so
+# that the cap is not a variable; `finish_reason == "length"` is counted in Table 7.
+EFFORT_LEVELS = ("low", "medium", "high")
+EFFORT_BASE_MODELS = ("o3-mini", "o4-mini")
+SWEEP_REASONING_BUDGET = 32000
+EFFORT_MODELS: dict[str, ModelSpec] = {
+    f"{base}@{effort}": ModelSpec(f"{base}@{effort}", TEST_MODELS[base].openrouter_id, "", "RL", added=True,
+                                  send_temperature=False, max_tokens=MAX_TOKENS_TEST + SWEEP_REASONING_BUDGET,
+                                  extra_body={"reasoning": {"effort": effort}})
+    for base in EFFORT_BASE_MODELS for effort in EFFORT_LEVELS
+}
+ALL_MODELS = TEST_MODELS | EFFORT_MODELS
+
+
+def effort_of(key: str) -> tuple[str, str | None]:
+    """("o4-mini", "high") for a sweep key, (key, None) otherwise."""
+    base, _, effort = key.partition("@")
+    return (base, effort) if effort in EFFORT_LEVELS else (key, None)
+
+
 _NO_REASONING = {"reasoning": {"enabled": False}}
 
 JUDGES: dict[str, ModelSpec] = {

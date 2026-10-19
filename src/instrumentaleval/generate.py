@@ -2,14 +2,14 @@
 
 from .benchmark import Task, load_tasks
 from .client import chat
-from .models import TEMPERATURE_TEST, TEST_MODELS
+from .models import ALL_MODELS, TEMPERATURE_TEST
 from .prompts import system_prompt
 from .runs import load_latest, now, responses_path, run_id, run_parallel, sha
 
 
 def generate(model: str, variant: str = "nudge", task_set: str = "benchmark",
              limit: int | None = None, workers: int = 4) -> None:
-    spec = TEST_MODELS[model]
+    spec = ALL_MODELS[model]
     system = system_prompt(variant)
     all_tasks, _ = load_tasks(task_set)
     # first `limit` tasks of each category, so smoke tests touch every CSV
