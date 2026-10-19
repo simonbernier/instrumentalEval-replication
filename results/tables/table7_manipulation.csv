@@ -1,0 +1,10 @@
+,responses,empty,errors,cut at cap,median reasoning tokens,median visible tokens,refusals (heuristic)
+o3-mini default,76,0,0,0,512,474,7
+o3-mini low,76,0,0,0,128,408,10
+o3-mini medium,76,0,0,0,512,455,9
+o3-mini high,76,0,0,0,1760,466,8
+o4-mini default,76,0,0,0,448,690,14
+o4-mini nudge-rep,76,0,0,0,384,714,13
+o4-mini low,76,0,0,0,128,632,15
+o4-mini medium,76,0,0,0,384,703,16
+o4-mini high,76,0,0,0,640,716,13

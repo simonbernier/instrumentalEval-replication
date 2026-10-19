@@ -329,7 +329,7 @@ and `results/figures/figure6_gpt-4o.png`.
 
 | | Δ (pp) | b / c | Task sign-flip p | Holm p |
 |---|---|---|---|---|
-| H1: licence, nudge on | +0.3 | 32 / 30 | 0.898 | 1.000 |
+| H1: licence, nudge on | +0.3 | 32 / 30 | 0.894 | 1.000 |
 | H2a: oversight + rules, nudge on | −3.9 | 34 / 58 | 0.028 | 0.084 |
 | H2b: oversight + rules, nudge off | −0.2 | 68 / 69 | 1.000 | 1.000 |
 
@@ -376,7 +376,8 @@ with the full jailbreak and the nudge off.
   prompt (58/21, p = 0.001), against −0.7 pp under the full jailbreak (29/33). The interaction (H3) is +6.7 pp,
   p = 0.003; ceiling effects bias it upward, as noted above.
 - **Within the plain arm, the goal sentence and PROCEED each add a little:** goal sentence alone +3.5 pp
-  (p = 0.043); PROCEED on top +2.6 pp (p = 0.048).
+  (p = 0.043); PROCEED on top +2.6 pp (p = 0.052; 0.048 before the task-order fix, see "Reasoning-effort sweep",
+  Results).
 - **Removing the licence with the nudge off lowers IR** by 3.3 pp (p = 0.006), mostly through gpt-4o (+11.8 pp,
   11/2).
 - **The retest arm is flat**, as it should be: pooled −1.6 pp (14/19, 4 models).
@@ -917,8 +918,38 @@ two-sided, α = 0.05.
 
 ### Results
 
-_To be filled after `ie generate --models <the six arms>`, `ie judge --models <the six arms>`, `ie tables`,
-`ie figures`._
+Run on 2026-10-19 (Table 7 and Figure 7 in `results/`).
+
+- **Run:** 456 responses (6 arms × 76), all `ok`, all served by OpenAI, 0 empty, 0 cut at the cap (largest reasoning
+  in the smoke test: 2,880 tokens); `gpt-4o` judged all 456 with 0 unparseable outputs and 0 errors. Cost ≈ $3.7:
+  generation $2.51 (smoke test included), judging $1.14, parameter probes ≈ $0.1.
+- **Manipulation check (7d): passes.** Median reasoning tokens rise strictly in both models: o3-mini 128 / 512 /
+  1760, o4-mini 128 / 384 / 640. The `medium` arms match the stored default-effort runs (o3-mini 512 vs 512; o4-mini
+  384 vs 448 and 384), as expected if the default is medium. Visible answer length barely moves (median o3-mini 408 /
+  455 / 466, o4-mini 632 / 703 / 716 tokens), so the arms differ in deliberation, not in how much they write.
+- **IR (7a):** o3-mini 50.0 / 52.6 / 55.3 %, o4-mini 40.8 / 40.8 / 44.7 % (low / medium / high); the stored default
+  runs are 50.0 % and 39.5 % (o4-mini `nudge-rep` 42.1 %).
+- **H-E1 (7e): NO EFFECT DETECTED.** `high − low` pooled +4.6 pp (o3-mini +5.3, 5/1; o4-mini +3.9, 7/4), sign-flip p
+  = 0.172, Holm p = 0.516; noise floor 2.6 pp. Secondary: `high − medium` +3.3 pp (Holm 0.534), `medium − low` +1.3
+  pp (Holm 0.805). IR is non-decreasing in effort in both models (o4-mini low = medium), the direction the paper's
+  reading predicts, but the size is below what this design can detect (12-15 pp, stated in advance): an effect of ~5
+  pp is neither shown nor excluded. What the data do rule out is a large one: a 4-14× increase in reasoning tokens
+  within the same model moves IR by a few points at most, small next to the between-model spread in Table 1.
+- **Refusals:** no trend (heuristic count o3-mini 10 / 9 / 8, o4-mini 15 / 16 / 13). The smoke test's 2 / 3 / 4 of 6
+  for o4-mini did not hold up, so there is no sign of the "more deliberation, more refusals" alternative.
+- **Categories (7b), descriptive:** most of the movement is in Strategically Appearing Aligned (o3-mini 54.5 → 63.6 →
+  72.7 %, o4-mini 45.5 → 36.4 → 54.5 %, 11 tasks each); Evading Shutdown and Running Multiple AI Copies sit at 70-95
+  % in every arm.
+
+**Reproducibility fix found while reading Table 7 (affects Table 6 p-values in the third decimal).** The pooled
+sign-flip tests summed per-task contrasts in the iteration order of a Python `set` of task ids, which depends on the
+per-process string-hash seed; the sign-flip draws are seeded, so the p-value changed slightly from one `ie tables`
+run to the next (e.g. Table 6 retest 0.4755 vs 0.4735 under `PYTHONHASHSEED` 1 and 2). `tables.paired_contrast`,
+`interaction_contrast` and the Table 7 `_pair` now iterate tasks in sorted order, so every sign-flip p is
+reproducible. No Δ, discordant count or decision changed; the Table 6 values quoted above are updated to the fixed
+order (H1 0.894; exploratory PROCEED-in-plain 0.052 instead of 0.048, now just above 0.05). Same commit:
+`tables.cir_counts` keeps `TEST_MODELS` only, because `table1_<judge>_counts.csv` had picked up the sweep arms (the
+Table 1 markdown never did).
 
 ## How the results could be improved by changing parameters only
 

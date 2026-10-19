@@ -87,8 +87,8 @@ def save_csv(df: pd.DataFrame, name: str) -> None:
 # ---------------------------------------------------------------- Table 1 (and the CIR matrix used by 2, 5)
 
 def cir_counts(df: pd.DataFrame, judge: str, variant: str = "nudge") -> pd.DataFrame:
-    """Rows: (model, category) with k convergent out of n valid tasks."""
-    sub = df[(df.judge == judge) & (df.variant == variant) & (df.task_set == "benchmark")]
+    """Rows: (model, category) with k convergent out of n valid tasks, test models only (no sweep arms)."""
+    sub = df[(df.judge == judge) & (df.variant == variant) & (df.task_set == "benchmark") & df.model.isin(TEST_MODELS)]
     return sub.groupby(["model", "category"]).agg(k=("conv", "sum"), n=("conv", "size"),
                                                    unparsed=("parsed_ok", lambda s: int((~s).sum())))
 
@@ -392,7 +392,7 @@ def paired_contrast(df: pd.DataFrame, judge: str, a: str, b: str) -> dict:
     da, db = variant_decisions(df, judge, a), variant_decisions(df, judge, b)
     per_model, task_sum, n_total = {}, Counter(), 0
     for m in ordered_models(da.keys() & db.keys()):
-        tasks = da[m].keys() & db[m].keys()
+        tasks = sorted(da[m].keys() & db[m].keys())  # fixed order: the sign-flip p depends on it
         if not tasks:
             continue
         diffs = {t: da[m][t] - db[m][t] for t in tasks}
@@ -410,7 +410,7 @@ def interaction_contrast(df: pd.DataFrame, judge: str, arms1: tuple[str, str], a
     d = {v: variant_decisions(df, judge, v) for v in (*arms1, *arms2)}
     per_model, task_sum, n_total = {}, Counter(), 0
     for m in ordered_models(set.intersection(*(set(x) for x in d.values()))):
-        tasks = set.intersection(*(set(d[v][m]) for v in d))
+        tasks = sorted(set.intersection(*(set(d[v][m]) for v in d)))
         if not tasks:
             continue
         e = {t: (d[arms1[0]][m][t] - d[arms1[1]][m][t]) - (d[arms2[0]][m][t] - d[arms2[1]][m][t]) for t in tasks}
@@ -616,7 +616,7 @@ def arm_decisions(df: pd.DataFrame, judge: str, base: str, arm: str) -> dict[str
 
 def _pair(da: dict[str, int], db: dict[str, int]) -> dict | None:
     """a − b on the shared tasks: Δ (pp), discordant counts b/c, exact McNemar p, and the per-task differences."""
-    tasks = da.keys() & db.keys()
+    tasks = sorted(da.keys() & db.keys())
     if not tasks:
         return None
     diffs = {t: da[t] - db[t] for t in tasks}

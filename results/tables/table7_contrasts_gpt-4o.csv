@@ -1,0 +1,6 @@
+,o3-mini,o4-mini,pooled Δ (pp),pooled n,sign-flip p,Holm p
+high − low,"+5.3 (5/1), p = 0.219","+3.9 (7/4), p = 0.549",+4.6,152,0.172,0.516
+high − medium,"+2.6 (4/2), p = 0.688","+3.9 (5/2), p = 0.453",+3.3,152,0.267,0.534
+medium − low,"+2.6 (5/3), p = 0.727","+0.0 (5/5), p = 1.000",+1.3,152,0.805,0.805
+medium − default,"+2.6 (5/3), p = 0.727","+1.3 (6/5), p = 1.000",+2.0,152,0.634,"– (replicate, not tested)"
+nudge-rep − default,–,"+2.6 (8/6), p = 0.791",+2.6,76,0.790,"– (replicate, not tested)"

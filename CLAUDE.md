@@ -154,9 +154,11 @@ Status checklist (update as you go):
 - [x] Code, tests, pre-registration written (2026-10-19).
 - [x] Pre-registration committed before generating (2026-10-19; only a 20-call off-benchmark parameter probe
       preceded it, see the notes).
-- [ ] Smoke test read: no empty or cap-cut answers; reasoning tokens visibly ordered low < medium < high.
-- [ ] Full generation and judging; cost noted.
-- [ ] Table 7d manipulation check passes; Table 7e verdict and the Results subsection filled.
+- [x] Smoke test read (2026-10-19, 36 calls, all OpenAI, ~$0.18): 0 empty, 0 `length`; median reasoning tokens
+      o3-mini 160 / 768 / 1984, o4-mini 96 / 320 / 576. 38-40-char answers are one-line refusals, as in the stored runs.
+- [x] Full generation and judging (2026-10-19): 456/456 ok, 0 empty, 0 cap hits, 0 judge errors; ≈ $3.7 total.
+- [x] Table 7d passes (o3-mini 128 / 512 / 1760, o4-mini 128 / 384 / 640 reasoning tokens); 7e NO EFFECT DETECTED
+      (high − low +4.6 pp, Holm p = 0.516); Results filled. Sign-flip p now uses sorted task order (was hash-order).
 
 ## Things that look like bugs but aren't
 
