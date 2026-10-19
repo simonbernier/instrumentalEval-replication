@@ -82,3 +82,58 @@ def holm(pvals: list[float]) -> list[float]:
         running = max(running, min(1.0, (len(pvals) - rank) * pvals[i]))
         out[i] = running
     return out
+
+
+def cluster_bootstrap_ci(groups: dict, b: int = 5000, seed: int = 0) -> tuple[float, float, float]:
+    """(rate, lo, hi) in %, a 95% percentile bootstrap that resamples clusters (tasks) with replacement.
+
+    groups: cluster -> list of 0/1 outcomes. Cells of one task are not independent (the same task under several
+    system prompts), so the by-task resample replaces the Wald/Wilson interval. The VEA-through-training authors'
+    `scripts/_stats.py::cluster_ci` (numpy, B=5000, seed 0), in pure Python; it returns bounds, not distances.
+    """
+    cells = [(sum(v), len(v)) for v in groups.values() if len(v)]
+    if not cells:
+        return (math.nan, math.nan, math.nan)
+    rate = 100 * sum(k for k, _ in cells) / sum(n for _, n in cells)
+    rng = random.Random(seed)
+    m = len(cells)
+    ests = []
+    for _ in range(b):
+        k = n = 0
+        for _ in range(m):
+            kk, nn = cells[rng.randrange(m)]
+            k += kk
+            n += nn
+        ests.append(100 * k / n)
+    ests.sort()
+    return (rate, ests[int(0.025 * (b - 1))], ests[int(0.975 * (b - 1))])
+
+
+def cluster_bootstrap_rd(groups: dict, b: int = 5000, seed: int = 0) -> dict:
+    """Risk difference P(outcome | exposed) − P(outcome | unexposed), in pp, pooled over all cells, with a 95%
+    percentile CI from resampling clusters (tasks). groups: cluster -> list of (exposed 0/1, outcome 0/1).
+    Resamples where one arm is empty are dropped; `b_used` says how many remained (few exposed cells -> wide CI)."""
+    cl = [v for v in groups.values() if v]
+
+    def rd(cells) -> float | None:
+        e = [o for x, o in cells if x]
+        u = [o for x, o in cells if not x]
+        if not e or not u:
+            return None
+        return 100 * (sum(e) / len(e) - sum(u) / len(u))
+
+    point = rd([c for v in cl for c in v])
+    if point is None:
+        return {"rd": math.nan, "lo": math.nan, "hi": math.nan, "b_used": 0}
+    rng = random.Random(seed)
+    m = len(cl)
+    ests = []
+    for _ in range(b):
+        x = rd([c for _ in range(m) for c in cl[rng.randrange(m)]])
+        if x is not None:
+            ests.append(x)
+    ests.sort()
+    if len(ests) < 100:
+        return {"rd": point, "lo": math.nan, "hi": math.nan, "b_used": len(ests)}
+    return {"rd": point, "lo": ests[int(0.025 * (len(ests) - 1))], "hi": ests[int(0.975 * (len(ests) - 1))],
+            "b_used": len(ests)}

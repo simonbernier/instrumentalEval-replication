@@ -61,6 +61,14 @@ uv run ie generate --variants $V
 uv run ie judge --variants $V
 uv run ie tables
 uv run ie figures
+
+# 9. Verbalized eval awareness (not in the paper): GPT-5-mini reads the stored chains of thought (deepseek-r1 only,
+#    the one model whose `reasoning` field is its own CoT) under the Goodfire F1 rubric, then VEA is crossed with the
+#    convergence verdicts. Pre-registered in REPLICATION_NOTES.md, "Eval awareness": commit that section first.
+uv run ie vea-judge --limit 2 --variants nudge --task-sets benchmark   # smoke test: 12 calls; read results/vea/gpt-5-mini/
+uv run ie vea-judge                     # all variants + neutral tasks (~630 calls, well under $1)
+uv run ie vea-tables                    # -> results/vea/tables.md, results/vea/tables/*.csv, results/vea/figures/
+uv run ie vea-export-labels             # then fill results/vea/hand_labels.csv (yes / no) and re-run `ie vea-tables`
 ```
 
 Once `DEFAULT_JUDGE` is set in step 4, `ie judge`, `ie tables` and `ie figures` all default to the chosen judge, so
@@ -74,6 +82,8 @@ steps 6 and 7 need no `--judge` flags.
 | `src/instrumentaleval/models.py` | test models and judges, with their OpenRouter IDs and request parameters |
 | `src/instrumentaleval/{generate,judge}.py` | the two passes; results go to `results/responses/` and `results/judgments/<judge>/` as JSONL, plus an upstream-format `*_evaluation_results.txt` per run |
 | `src/instrumentaleval/tables.py` | Tables 1–5, and Table 6 (system-prompt ablations, not in the paper) |
+| `src/instrumentaleval/vea.py`, `vea_tables.py` | verbalized-eval-awareness judge pass (upstream/judge_vea.py's prompt and settings, verbatim; GPT-5-mini on the chain of thought only) and Tables V1–V5 in `results/vea/` |
+| `upstream/judge_vea.py` | Bharadwaj & Kirk's VEA judge (vendored; the tests check our prompt and parser against it) |
 | `src/instrumentaleval/figures.py` | Tables 1, 2, 3, 5 and 6 as figures (bar charts with models grouped by RLHF / RL family; Table 5 as a heat map; Table 6 as one panel per model) |
 | `data/neutral_tasks.csv`, `data/neutral_task_rubric.md` | control tasks for the false-positive check, and the rubric they were selected with |
 | `data/task_classification_votes.{json,md}` | the three judges' prior-task-type votes and rationales for every benchmark task, side by side |

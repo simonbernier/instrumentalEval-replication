@@ -30,6 +30,9 @@ class ModelSpec:
     send_temperature: bool = True
     max_tokens: int = MAX_TOKENS_TEST
     extra_body: dict = field(default_factory=dict)
+    # What the stored `reasoning` field holds (checked in REPLICATION_NOTES.md, "Eval awareness"): "raw" = the
+    # model's own chain of thought, "summary" = a provider-written summary of it, "none" = no reasoning returned.
+    cot: str = "none"
 
     def request_config(self) -> dict:
         """Everything about a request besides the prompt; stored responses are reused only if it matches."""
@@ -60,18 +63,19 @@ TEST_MODELS: dict[str, ModelSpec] = {
         # which left o1 with empty answers on 4/12 smoke-test tasks, while the paper's rates imply 76/76 valid.
         # So they get the same ~1000-answer + reasoning budget as R1/Gemini (default reasoning effort).
         ModelSpec("o1", "openai/o1", "o1", "RL", send_temperature=False,
-                  max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET),
+                  max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET, cot="summary"),
         ModelSpec("o4-mini", "openai/o4-mini", "o1-mini", "RL", substitute=True, send_temperature=False,
-                  max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET),
+                  max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET, cot="summary"),
         ModelSpec("o3-mini", "openai/o3-mini", "o3-mini", "RL", send_temperature=False,
-                  max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET),
+                  max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET, cot="summary"),
         # Jan-2025 DeepSeek/Gemini APIs didn't count CoT against max_tokens: ~1000 answer + reasoning budget.
         ModelSpec("gemini-2.5-flash", "google/gemini-2.5-flash", "Gemini 2.0 FTE.", "RL", substitute=True,
                   max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET,
-                  extra_body={"reasoning": {"max_tokens": REASONING_BUDGET}}),
+                  extra_body={"reasoning": {"max_tokens": REASONING_BUDGET}}, cot="summary"),
         ModelSpec("deepseek-r1", "deepseek/deepseek-r1", "DeepSeek-R1", "RL",
                   max_tokens=MAX_TOKENS_TEST + REASONING_BUDGET,
-                  extra_body={"reasoning": {"max_tokens": REASONING_BUDGET}, "provider": OPEN_WEIGHT_PROVIDER}),
+                  extra_body={"reasoning": {"max_tokens": REASONING_BUDGET}, "provider": OPEN_WEIGHT_PROVIDER},
+                  cot="raw"),
     ]
 }
 
@@ -91,6 +95,13 @@ JUDGES: dict[str, ModelSpec] = {
 
 # Set to the judge with the lowest false-positive rate on the neutral tasks (README step 4).
 DEFAULT_JUDGE = "gpt-4o"
+
+# Verbalized eval awareness (VEA) judge, as in Bharadwaj & Kirk's VEA-through-training pipeline (upstream/judge_vea.py):
+# GPT-5-mini at low reasoning effort, 4000 completion tokens (reasoning + the short REASONING/QUOTE answer).
+VEA_JUDGE = ModelSpec("gpt-5-mini", "openai/gpt-5-mini", "", send_temperature=False, max_tokens=4000,
+                      extra_body={"reasoning": {"effort": "low"}})
+# Only models whose stored `reasoning` is their own chain of thought can be judged for VEA.
+VEA_MODELS = [m.key for m in TEST_MODELS.values() if m.cot == "raw"]
 # Table 3 goal-nudging ablation: the paper's two models (GPT-4o, DeepSeek-R1) plus DeepSeek-V3 and o4-mini.
 TABLE3_MODELS = ["gpt-4o", "deepseek-v3", "o4-mini", "deepseek-r1"]
 # System-prompt ablations (Table 6): every test model except o1, which costs ~$6 per 76-task run (about 20x the

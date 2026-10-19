@@ -1,10 +1,11 @@
-"""`uv run ie <command>`: fetch, generate, judge, tables, classify-tasks, export-labels, check-anthropic, status."""
+"""`uv run ie <command>`: fetch, generate, judge, tables, figures, classify-tasks, export-labels, vea-judge, vea-tables,
+vea-export-labels, check-anthropic, status."""
 
 import argparse
 import os
 import sys
 
-from .models import ABLATION_MODELS, DEFAULT_JUDGE, JUDGES, REP_MODELS, TEST_MODELS
+from .models import ABLATION_MODELS, DEFAULT_JUDGE, JUDGES, REP_MODELS, TEST_MODELS, VEA_MODELS
 from .prompts import SYSTEM_PROMPTS
 from .runs import RESPONSES_DIR, load_latest, parse_run_id
 
@@ -83,6 +84,33 @@ def cmd_figures(a):
         print(p)
 
 
+def cmd_vea_judge(a):
+    from .vea import judge_vea
+    models = set(a.models or VEA_MODELS)
+    unknown = sorted(models - set(VEA_MODELS))
+    if unknown:
+        sys.exit(f"{unknown}: stored reasoning is not the model's raw chain of thought; VEA models: {VEA_MODELS}")
+    rids = []
+    for p in sorted(RESPONSES_DIR.glob("*.jsonl")):
+        m, v, ts = parse_run_id(p.stem)
+        if m in models and v in a.variants and ts in a.task_sets:
+            rids.append(p.stem)
+    if not rids:
+        sys.exit("no matching response files; run `ie generate` first")
+    for rid in rids:
+        judge_vea(rid, a.limit, a.workers)
+
+
+def cmd_vea_tables(a):
+    from .vea_tables import build_vea_tables
+    print(build_vea_tables(a.judge))
+
+
+def cmd_vea_export_labels(a):
+    from .vea_tables import export_vea_labels
+    export_vea_labels(a.n_neg, a.seed, a.force)
+
+
 def cmd_status(a):
     for p in sorted(RESPONSES_DIR.glob("*.jsonl")):
         counts: dict[str, int] = {}
@@ -154,6 +182,27 @@ def main() -> None:
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--force", action="store_true")
     s.set_defaults(func=cmd_export_labels)
+
+    s = sub.add_parser("vea-judge", help="judge stored chains of thought for verbalized eval awareness "
+                                         "(GPT-5-mini, Goodfire F1 rubric) -> results/vea/<judge>/")
+    s.add_argument("--models", nargs="+", help=f"default: every model with a raw chain of thought ({', '.join(VEA_MODELS)})")
+    s.add_argument("--variants", nargs="+", default=list(SYSTEM_PROMPTS), choices=list(SYSTEM_PROMPTS),
+                   help="default: all variants")
+    s.add_argument("--task-sets", nargs="+", default=["benchmark", "neutral"], choices=["benchmark", "neutral"])
+    s.add_argument("--limit", type=int, help="only the first N tasks of each category (smoke test)")
+    s.add_argument("--workers", type=int, default=8)
+    s.set_defaults(func=cmd_vea_judge)
+
+    s = sub.add_parser("vea-tables", help="build results/vea/tables.md and results/vea/figures/")
+    s.add_argument("--judge", default=DEFAULT_JUDGE, choices=list(JUDGES),
+                   help="whose convergence verdicts to cross with VEA (V4)")
+    s.set_defaults(func=cmd_vea_tables)
+
+    s = sub.add_parser("vea-export-labels", help="blinded sheet of all VEA positives + sampled negatives for a hand check")
+    s.add_argument("--n-neg", type=int, default=50)
+    s.add_argument("--seed", type=int, default=0)
+    s.add_argument("--force", action="store_true")
+    s.set_defaults(func=cmd_vea_export_labels)
 
     sub.add_parser("status", help="count response statuses per run").set_defaults(func=cmd_status)
     sub.add_parser("check-anthropic", help="list models on the Anthropic API").set_defaults(func=cmd_check_anthropic)

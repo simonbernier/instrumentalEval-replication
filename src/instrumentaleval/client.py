@@ -29,13 +29,13 @@ class EmptyChoiceError(RuntimeError):
     """OpenRouter returned 200 with no usable choice (upstream provider error)."""
 
 
-def chat(spec: ModelSpec, system: str, user: str, temperature: float) -> dict:
-    """Send one system+user request. Retries transient failures; raises after MAX_ATTEMPTS."""
-    kwargs = dict(
-        model=spec.openrouter_id,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        max_tokens=spec.max_tokens,
-    )
+def chat(spec: ModelSpec, system: str | None, user: str, temperature: float | None) -> dict:
+    """Send one system+user request (user only when `system` is None). Retries transient failures; raises after
+    MAX_ATTEMPTS."""
+    messages = [{"role": "user", "content": user}]
+    if system is not None:
+        messages.insert(0, {"role": "system", "content": system})
+    kwargs = dict(model=spec.openrouter_id, messages=messages, max_tokens=spec.max_tokens)
     if spec.send_temperature:
         kwargs["temperature"] = temperature
     if spec.extra_body:
