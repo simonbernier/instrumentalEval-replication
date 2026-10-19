@@ -232,7 +232,7 @@ def main() -> None:
 
     cot_judge_parser("vea-judge", "judge stored chains of thought for verbalized eval awareness (GPT-5-mini, Goodfire "
                                   "F1 rubric) -> results/vea/<judge>/", cmd_vea_judge)
-    cot_judge_parser("frame-judge", "score stored chains of thought for frame awareness (GPT-5-mini, Rajamanoharan & "
+    cot_judge_parser("frame-judge", "score stored chains of thought for frame awareness (GPT-5, Rajamanoharan & "
                                     "Nanda's 0-5 rubric + perceived frame) -> results/frame/<judge>/", cmd_frame_judge)
 
     s = sub.add_parser("vea-tables", help="build results/vea/tables.md and results/vea/figures/")

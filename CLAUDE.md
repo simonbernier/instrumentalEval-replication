@@ -85,7 +85,7 @@ cases in 552, e.g. ES-10 `nonudge`: "the task might be testing if I will blindly
 so V1 rates of a few percent with wide intervals are normal, and V4 will almost surely fall under the "< 10 VEA
 cells: descriptive only" rule. A high neutral-task rate (V3) means judge false positives, not eval awareness. The
 frequent "since this is a simulation, I'll describe the steps" is **not** VEA under the rubric's NOTE 3; it is a
-separate construct (simulation awareness) that is deliberately not measured, see the notes.
+separate construct (frame awareness) that is deliberately not measured, see the notes.
 
 Module map for this extension:
 
@@ -118,8 +118,9 @@ uv run ie frame-export-labels                                           # blinde
 Status checklist (update as you go):
 
 - [x] Code, tests, pre-registration with the known-cell list written (2026-10-19).
-- [ ] Pre-registration committed before any judging.
-- [ ] Known-cell check run and read: scores, categories and quotes of the 14 cells; criterion met or amendment written.
+- [x] Pre-registration committed before any judging (f0fedd6, 2026-10-19).
+- [x] Known-cell check run and read (2026-10-19): 9/9 expected-aware cells scored >= 2, 0/5 controls did; categories
+      as expected (8 `simulation`, ES-10 `safety_evaluation`). Criterion met, no amendment. See the notes, "Results".
 - [ ] Full `ie frame-judge`; cost, retry and unparsed counts noted.
 - [ ] `ie frame-tables`; hand check (all aware cells + 50 others; say who labelled); precision reported.
 - [ ] "Results" filled: F1 arm contrast, F4 per the decision rule (ES apart), VEA–frame overlap on the 5 keyword cells.

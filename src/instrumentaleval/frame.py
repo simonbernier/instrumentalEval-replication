@@ -177,9 +177,11 @@ def judge_frame(rid: str, limit: int | None = None, workers: int = 8, cells: set
         fields = parsed or {k: None for k in ("score", "quotes", "reasoning", "perceived_situation_detail",
                                              "perceived_situation_category", "behavioural_impact_reasoning",
                                              "behavioural_impact_score")}
+        # `chat` also returns a "reasoning" key (the judge's own reasoning summary), which must not overwrite the
+        # rubric's "reasoning" justification parsed from the JSON reply.
         return rec | {"status": "ok", "parsed_ok": parsed is not None,
                       "aware": None if parsed is None else parsed["score"] >= AWARE_SCORE} | fields | {
-                      "judge_raw": out.pop("content")} | out
+                      "judge_raw": out.pop("content"), "judge_reasoning_summary": out.pop("reasoning")} | out
 
     run_parallel(todo, work, path, workers, desc=f"frame <- {rid}")
     recs = load_latest(path).values()
