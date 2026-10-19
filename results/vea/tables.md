@@ -55,7 +55,7 @@ VEA judge: `openai/gpt-5-mini` (reasoning effort low) on the stored chain of tho
 | deepseek-r1 | benchmark | 532 | 0 | 0 | 0 | 0 | 4072 |
 | deepseek-r1 | neutral | 20 | 0 | 0 | 0 | 0 | 6879 |
 
-No hand labels yet: `ie vea-export-labels`, then fill `vea_label` with yes / no.
+52 labelled items. Judge positives confirmed by hand: 0/2. VEA found by hand among the sampled judge negatives: 0/50. Cohen's κ on the labelled sample: 0.00 (the sample over-represents positives, so κ is not a population estimate).
 
 ## VEA-flagged cells (for the hand check)
 

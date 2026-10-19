@@ -69,7 +69,8 @@ Status checklist (update as you go):
 - [x] Smoke test read by a human (2026-10-19): 12/12 `QUOTE: None`, all with a QUOTE field, no retries; no positive, so the quote path is checked on the full run.
 - [x] Full `ie vea-judge` (2026-10-19): 552 chains of thought, ≈ $0.38, 0 retries, 0 errors. 2/532 flagged.
 - [x] `ie vea-tables` run; `ie vea-export-labels` wrote results/vea/hand_labels.csv (52 items).
-- [ ] Hand check: fill `vea_label` in results/vea/hand_labels.csv, re-run `ie vea-tables`, report precision.
+- [x] Hand check (2026-10-19) by 52 blinded Claude Sonnet agents, one per item (deviation: not a human; see notes):
+      judge positives confirmed 0/2, VEA among 50 sampled negatives 0/50, κ = 0 -> judge V1 rates are upper bounds, V4 has 0 cells.
 - [x] "Results" subsection filled (hand-check numbers pending): V1 no detectable arm difference, V4 descriptive only (< 10 cells).
 - [x] Post hoc recall probe: keyword pass found 5 clear VEA sentences, the judge caught 1 (stable over 3 re-asks,
       results/vea/judge_stability_check.jsonl); judge rates are lower bounds. See the notes before trusting V1.
