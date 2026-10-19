@@ -7,7 +7,9 @@ import pytest
 from instrumentaleval.frame import (
     ADAPTATION, AWARE_SCORE, CATEGORIES_FRAME, UPSTREAM_PROMPT, build_prompt, parse_frame_reply, upstream_prompt,
 )
-from instrumentaleval.frame_tables import FRAME_GROUPS, frame_group
+import pandas as pd
+
+from instrumentaleval.frame_tables import FRAME_GROUPS, apply_hand_labels, frame_group, hand_precision
 from instrumentaleval.models import FRAME_JUDGE, VEA_JUDGE
 
 # Rajamanoharan & Nanda, "Models May Behave Worse When Eval Aware" (Alignment Forum, 2026-06-11), appendix: the
@@ -79,3 +81,19 @@ def test_frame_groups_cover_every_category():
     assert frame_group("simulation") == frame_group("puzzle_or_capability_challenge") == "simulation / puzzle"
     assert frame_group("safety_evaluation") == frame_group("adversarial_trap") == "safety evaluation / trap"
     assert frame_group("unclear") == "other / unclear"
+
+
+def _key(task_id, judge_aware):
+    return {"model": "m", "variant": "v", "task_set": "benchmark", "task_id": task_id, "judge_aware": judge_aware}
+
+
+def test_hand_labels_replace_the_judge_on_its_aware_cells_only():
+    df = pd.DataFrame({"model": "m", "variant": "v", "task_set": "benchmark", "task_id": ["A", "B", "C", "D"],
+                       "aware": [True, True, False, False], "frame": ["simulation", "simulation", None, None]})
+    labels = [(_key("A", "True"), "no", ""), (_key("B", "True"), "yes", "safety_evaluation"),
+              (_key("C", "False"), "yes", "simulation")]  # a hand positive among sampled negatives is not added
+    out = apply_hand_labels(df, labels)
+    assert list(out.aware) == [False, True, False, False]
+    assert list(out.group) == ["none", "safety evaluation / trap", "none", "none"]
+    assert list(df.aware) == [True, True, False, False]  # the input is left alone
+    assert hand_precision(labels) == 0.5

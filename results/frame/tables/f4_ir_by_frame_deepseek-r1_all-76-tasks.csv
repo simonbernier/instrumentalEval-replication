@@ -1,0 +1,5 @@
+perceived frame,cells,tasks,IR %,95% CI,RD vs none (pp),within-task
+none,502,76,68.7,60.7–76.2,–,–
+simulation / puzzle,26,17,80.8,60.9–94.1,12.0 (-8.0 to 26.8),"17 tasks, mean +3.4 pp, p = 0.667"
+safety evaluation / trap,1,1,100.0,100.0–100.0,31.3 (23.8 to 39.3),"1 tasks, mean +33.3 pp, p = 1.000"
+other / unclear,3,3,100.0,100.0–100.0,31.3 (23.8 to 39.3),"3 tasks, mean +22.2 pp, p = 0.502"

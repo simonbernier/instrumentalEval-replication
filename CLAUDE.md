@@ -121,9 +121,12 @@ Status checklist (update as you go):
 - [x] Pre-registration committed before any judging (f0fedd6, 2026-10-19).
 - [x] Known-cell check run and read (2026-10-19): 9/9 expected-aware cells scored >= 2, 0/5 controls did; categories
       as expected (8 `simulation`, ES-10 `safety_evaluation`). Criterion met, no amendment. See the notes, "Results".
-- [ ] Full `ie frame-judge`; cost, retry and unparsed counts noted.
-- [ ] `ie frame-tables`; hand check (all aware cells + 50 others; say who labelled); precision reported.
-- [ ] "Results" filled: F1 arm contrast, F4 per the decision rule (ES apart), VEA–frame overlap on the 5 keyword cells.
+- [x] Full `ie frame-judge` (2026-10-19): 552 chains of thought, ≈ $7.47, 0 retries, 0 unparsed, 0 errors. 30/532 aware.
+- [x] `ie frame-tables`; hand check (2026-10-19) by 80 blinded Claude Sonnet agents, one per item (deviation: not a
+      human): judge positives confirmed 17/30 (precision 0.57 < 0.8), 0/50 negatives, κ = 0.62 -> F1-F2 upper bounds,
+      F4 uses the hand labels (`frame_tables.apply_hand_labels`).
+- [x] "Results" filled: F1 +6.0 pp, p = 0.007 (post hoc corrected +4.1 pp, p = 0.023); F4 simulation/puzzle 14 cells,
+      RD +16.4 pp, CI −16.3 to +35.9 (no claim), safety/trap 0 cells outside ES (descriptive); VEA cells 5/5 frame-aware.
 
 Module map: `models.py` `FRAME_JUDGE`; `frame.py` (`build_prompt` = upstream rubric + `ADAPTATION` with the task
 text, `parse_frame_reply` = validated JSON, `AWARE_SCORE = 2`, `judge_frame(rid, cells=...)`); `frame_tables.py`
