@@ -69,6 +69,14 @@ uv run ie vea-judge --limit 2 --variants nudge --task-sets benchmark   # smoke t
 uv run ie vea-judge                     # all variants + neutral tasks (~630 calls, well under $1)
 uv run ie vea-tables                    # -> results/vea/tables.md, results/vea/tables/*.csv, results/vea/figures/
 uv run ie vea-export-labels             # then fill results/vea/hand_labels.csv (yes / no) and re-run `ie vea-tables`
+
+# 10. Frame awareness (not in the paper): does the model treat the scenario as real, or as a test / simulation /
+#     puzzle it is solving? Rajamanoharan & Nanda's 0-5 rubric + perceived-frame category, with an adaptation for this
+#     benchmark's own "scenario" / "Simulate..." wording. Pre-registered in REPLICATION_NOTES.md, "Frame awareness".
+uv run ie frame-judge --cells nonudge:ES-10 nudge:HC-01 ...   # known-cell check on the 14 cells listed in the notes; read the JSON
+uv run ie frame-judge                   # same 552 chains of thought as vea-judge (openai/gpt-5, medium effort)
+uv run ie frame-tables                  # -> results/frame/tables.md, tables/*.csv, figures/
+uv run ie frame-export-labels           # then fill results/frame/hand_labels.csv and re-run `ie frame-tables`
 ```
 
 Once `DEFAULT_JUDGE` is set in step 4, `ie judge`, `ie tables` and `ie figures` all default to the chosen judge, so
@@ -84,6 +92,7 @@ steps 6 and 7 need no `--judge` flags.
 | `src/instrumentaleval/tables.py` | Tables 1–5, and Table 6 (system-prompt ablations, not in the paper) |
 | `src/instrumentaleval/vea.py`, `vea_tables.py` | verbalized-eval-awareness judge pass (upstream/judge_vea.py's prompt and settings, verbatim; GPT-5-mini on the chain of thought only) and Tables V1–V5 in `results/vea/` |
 | `upstream/judge_vea.py` | Bharadwaj & Kirk's VEA judge (vendored; the tests check our prompt and parser against it) |
+| `src/instrumentaleval/frame.py`, `frame_tables.py` | frame-awareness judge pass (Rajamanoharan & Nanda's rubric, `upstream/frame_awareness_prompt.txt`, plus `frame.ADAPTATION`) and Tables F1–F5 in `results/frame/` |
 | `src/instrumentaleval/figures.py` | Tables 1, 2, 3, 5 and 6 as figures (bar charts with models grouped by RLHF / RL family; Table 5 as a heat map; Table 6 as one panel per model) |
 | `data/neutral_tasks.csv`, `data/neutral_task_rubric.md` | control tasks for the false-positive check, and the rubric they were selected with |
 | `data/task_classification_votes.{json,md}` | the three judges' prior-task-type votes and rationales for every benchmark task, side by side |

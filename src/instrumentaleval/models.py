@@ -100,8 +100,15 @@ DEFAULT_JUDGE = "gpt-4o"
 # GPT-5-mini at low reasoning effort, 4000 completion tokens (reasoning + the short REASONING/QUOTE answer).
 VEA_JUDGE = ModelSpec("gpt-5-mini", "openai/gpt-5-mini", "", send_temperature=False, max_tokens=4000,
                       extra_body={"reasoning": {"effort": "low"}})
-# Only models whose stored `reasoning` is their own chain of thought can be judged for VEA.
+# Only models whose stored `reasoning` is their own chain of thought can be judged for VEA (or frame awareness).
 VEA_MODELS = [m.key for m in TEST_MODELS.values() if m.cot == "raw"]
+
+# Frame-awareness judge (Rajamanoharan & Nanda's rubric, upstream/frame_awareness_prompt.txt). The post used Gemini 3
+# Flash Preview. Not gpt-5-mini at low effort: on the VEA pass it missed 4 of 5 single-sentence asides inside long
+# chains of thought (REPLICATION_NOTES.md, "Eval awareness", Results), and frame awareness shows up the same way.
+# 8000 tokens: reasoning at medium effort + a JSON answer with up to 5 quotes.
+FRAME_JUDGE = ModelSpec("gpt-5", "openai/gpt-5", "", send_temperature=False, max_tokens=8000,
+                        extra_body={"reasoning": {"effort": "medium"}})
 # Table 3 goal-nudging ablation: the paper's two models (GPT-4o, DeepSeek-R1) plus DeepSeek-V3 and o4-mini.
 TABLE3_MODELS = ["gpt-4o", "deepseek-v3", "o4-mini", "deepseek-r1"]
 # System-prompt ablations (Table 6): every test model except o1, which costs ~$6 per 76-task run (about 20x the

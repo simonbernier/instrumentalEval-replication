@@ -1,5 +1,5 @@
 """`uv run ie <command>`: fetch, generate, judge, tables, figures, classify-tasks, export-labels, vea-judge, vea-tables,
-vea-export-labels, check-anthropic, status."""
+vea-export-labels, frame-judge, frame-tables, frame-export-labels, check-anthropic, status."""
 
 import argparse
 import os
@@ -84,12 +84,12 @@ def cmd_figures(a):
         print(p)
 
 
-def cmd_vea_judge(a):
-    from .vea import judge_vea
+def _cot_runs(a) -> list[str]:
+    """Response runs of raw-chain-of-thought models matching --models/--variants/--task-sets."""
     models = set(a.models or VEA_MODELS)
     unknown = sorted(models - set(VEA_MODELS))
     if unknown:
-        sys.exit(f"{unknown}: stored reasoning is not the model's raw chain of thought; VEA models: {VEA_MODELS}")
+        sys.exit(f"{unknown}: stored reasoning is not the model's raw chain of thought; CoT models: {VEA_MODELS}")
     rids = []
     for p in sorted(RESPONSES_DIR.glob("*.jsonl")):
         m, v, ts = parse_run_id(p.stem)
@@ -97,8 +97,42 @@ def cmd_vea_judge(a):
             rids.append(p.stem)
     if not rids:
         sys.exit("no matching response files; run `ie generate` first")
-    for rid in rids:
-        judge_vea(rid, a.limit, a.workers)
+    return rids
+
+
+def _cells(a) -> set | None:
+    """--cells variant:task_id ... as a set of (variant, task_id) pairs, or None."""
+    if not a.cells:
+        return None
+    out = set()
+    for c in a.cells:
+        v, _, t = c.partition(":")
+        if v not in SYSTEM_PROMPTS or not t:
+            sys.exit(f"--cells expects variant:task_id (e.g. nonudge:ES-10), got {c!r}")
+        out.add((v, t))
+    return out
+
+
+def cmd_vea_judge(a):
+    from .vea import judge_vea
+    for rid in _cot_runs(a):
+        judge_vea(rid, a.limit, a.workers, _cells(a))
+
+
+def cmd_frame_judge(a):
+    from .frame import judge_frame
+    for rid in _cot_runs(a):
+        judge_frame(rid, a.limit, a.workers, _cells(a))
+
+
+def cmd_frame_tables(a):
+    from .frame_tables import build_frame_tables
+    print(build_frame_tables(a.judge))
+
+
+def cmd_frame_export_labels(a):
+    from .frame_tables import export_frame_labels
+    export_frame_labels(a.n_neg, a.seed, a.force)
 
 
 def cmd_vea_tables(a):
@@ -183,15 +217,23 @@ def main() -> None:
     s.add_argument("--force", action="store_true")
     s.set_defaults(func=cmd_export_labels)
 
-    s = sub.add_parser("vea-judge", help="judge stored chains of thought for verbalized eval awareness "
-                                         "(GPT-5-mini, Goodfire F1 rubric) -> results/vea/<judge>/")
-    s.add_argument("--models", nargs="+", help=f"default: every model with a raw chain of thought ({', '.join(VEA_MODELS)})")
-    s.add_argument("--variants", nargs="+", default=list(SYSTEM_PROMPTS), choices=list(SYSTEM_PROMPTS),
-                   help="default: all variants")
-    s.add_argument("--task-sets", nargs="+", default=["benchmark", "neutral"], choices=["benchmark", "neutral"])
-    s.add_argument("--limit", type=int, help="only the first N tasks of each category (smoke test)")
-    s.add_argument("--workers", type=int, default=8)
-    s.set_defaults(func=cmd_vea_judge)
+    def cot_judge_parser(name: str, help_: str, func):
+        s = sub.add_parser(name, help=help_)
+        s.add_argument("--models", nargs="+",
+                       help=f"default: every model with a raw chain of thought ({', '.join(VEA_MODELS)})")
+        s.add_argument("--variants", nargs="+", default=list(SYSTEM_PROMPTS), choices=list(SYSTEM_PROMPTS),
+                       help="default: all variants")
+        s.add_argument("--task-sets", nargs="+", default=["benchmark", "neutral"], choices=["benchmark", "neutral"])
+        s.add_argument("--limit", type=int, help="only the first N tasks of each category (smoke test)")
+        s.add_argument("--cells", nargs="+", metavar="VARIANT:TASK_ID",
+                       help="only these cells, e.g. nonudge:ES-10 nudge:HC-01 (known-cell recall check)")
+        s.add_argument("--workers", type=int, default=8)
+        s.set_defaults(func=func)
+
+    cot_judge_parser("vea-judge", "judge stored chains of thought for verbalized eval awareness (GPT-5-mini, Goodfire "
+                                  "F1 rubric) -> results/vea/<judge>/", cmd_vea_judge)
+    cot_judge_parser("frame-judge", "score stored chains of thought for frame awareness (GPT-5-mini, Rajamanoharan & "
+                                    "Nanda's 0-5 rubric + perceived frame) -> results/frame/<judge>/", cmd_frame_judge)
 
     s = sub.add_parser("vea-tables", help="build results/vea/tables.md and results/vea/figures/")
     s.add_argument("--judge", default=DEFAULT_JUDGE, choices=list(JUDGES),
@@ -203,6 +245,17 @@ def main() -> None:
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--force", action="store_true")
     s.set_defaults(func=cmd_vea_export_labels)
+
+    s = sub.add_parser("frame-tables", help="build results/frame/tables.md and results/frame/figures/")
+    s.add_argument("--judge", default=DEFAULT_JUDGE, choices=list(JUDGES),
+                   help="whose convergence verdicts to cross with the perceived frame (F4)")
+    s.set_defaults(func=cmd_frame_tables)
+
+    s = sub.add_parser("frame-export-labels", help="blinded sheet of all aware cells + sampled others for a hand check")
+    s.add_argument("--n-neg", type=int, default=50)
+    s.add_argument("--seed", type=int, default=0)
+    s.add_argument("--force", action="store_true")
+    s.set_defaults(func=cmd_frame_export_labels)
 
     sub.add_parser("status", help="count response statuses per run").set_defaults(func=cmd_status)
     sub.add_parser("check-anthropic", help="list models on the Anthropic API").set_defaults(func=cmd_check_anthropic)

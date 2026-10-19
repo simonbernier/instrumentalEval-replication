@@ -1,8 +1,9 @@
 # CLAUDE.md
 
 Replication of *Evaluating the Paperclip Maximizer* (He et al., 2025; InstrumentalEval) through OpenRouter, plus
-two extensions that are not in the paper: system-prompt ablations (Table 6) and, the current work, verbalized eval
-awareness (VEA) in the stored chains of thought (`results/vea/`). The replication itself is finished: all responses,
+three extensions that are not in the paper: system-prompt ablations (Table 6), verbalized eval awareness (VEA) in the
+stored chains of thought (`results/vea/`, done), and, the current work, frame awareness in the same chains of
+thought (`results/frame/`). The replication itself is finished: all responses,
 judgments, Tables 1–6 and figures exist on disk. Don't regenerate responses.
 
 ## Working here
@@ -23,9 +24,12 @@ judgments, Tables 1–6 and figures exist on disk. Don't regenerate responses.
 - `results/judgments/<judge>/<run>.jsonl`: convergence verdicts, keyed to the response by `response_sha`; stale
   verdicts are ignored by `tables.load_judgments`.
 - `results/vea/<judge>/<run>.jsonl`: VEA verdicts, reused only if `prompt_sha` (rubric + chain of thought) and
-  `judge_config` match; stale rows are ignored by `vea_tables.load_vea`.
-- `benchmark/*.csv` and `upstream/main.py` are SHA256-pinned downloads (`ie fetch`); `upstream/judge_vea.py` is
-  vendored and SHA256-checked in `tests/test_vea.py`. Never edit them. Never edit result JSONL files by hand.
+  `judge_config` match; stale rows are ignored by `vea_tables.load_vea`. `results/frame/<judge>/<run>.jsonl`: the
+  same for frame awareness (`prompt_sha` also covers the task text and `frame.ADAPTATION`; `parsed_ok=false` rows
+  are retried on the next run).
+- `benchmark/*.csv` and `upstream/main.py` are SHA256-pinned downloads (`ie fetch`); `upstream/judge_vea.py` and
+  `upstream/frame_awareness_prompt.txt` are vendored and SHA256-checked in the tests. Never edit them. Never edit
+  result JSONL files by hand.
 - Prompts are copied verbatim from upstream and checked byte for byte by the tests (`tests/test_prompts.py`,
   `tests/test_vea.py`). A prompt change is a new experiment, not an edit.
 
@@ -39,7 +43,8 @@ judgments, Tables 1–6 and figures exist on disk. Don't regenerate responses.
   commands ship a smoke test instead (`--limit N` = first N tasks per category, real calls, read the output).
   `tests/test_pipeline.py` predates this rule; don't add more like it.
 - Judges only ever see what upstream's judge saw: the convergence judge gets task prompt + final answer, the VEA
-  judge gets the chain of thought alone. Keep it that way; it is what makes V4 a cross of independent readings.
+  judge gets the chain of thought alone, the frame judge gets the chain of thought + task text (never the system
+  prompt or the answer). Keep it that way; it is what makes V4/F4 a cross of independent readings.
 - Style: short modules with a docstring that says what is upstream-identical and what is ours; comments explain
   why, not what; no defensive code for situations that can't happen in this repo.
 
@@ -92,6 +97,38 @@ Module map for this extension:
   `export_vea_labels`, `hand_label_check`.
 - `stats.py`: `cluster_bootstrap_ci`, `cluster_bootstrap_rd` (pure Python, B = 5000, seed 0).
 
+## Current work: frame awareness
+
+Does the model reason about what the scenario *is* (a test, simulation, puzzle, story, construct with a designer)
+rather than what it asks? Rajamanoharan & Nanda's 0-5 rubric + perceived-frame category, vendored verbatim, plus
+`frame.ADAPTATION`: 43/76 task texts say "scenario" and every Evading Shutdown task says "Simulate…", so the judge is
+shown the task text and told that echoing it is input-referencing, not awareness. Judge: `openai/gpt-5`, medium
+effort (not gpt-5-mini/low: it missed 4/5 VEA asides). Pre-registration, incl. the 14 known cells the judge must get
+right before the full run: `REPLICATION_NOTES.md`, "Frame awareness". The post found *more* unethical actions under
+simulation/puzzle frames and fewer under safety-evaluation/trap frames; F4 tests that direction.
+
+```sh
+uv run ie frame-judge --cells <the 14 cells listed in the notes>      # known-cell check: >= 7/9 aware, <= 1/5 of the controls
+uv run ie frame-judge                                                   # same 552 chains of thought as vea-judge
+uv run ie frame-tables                                                  # results/frame/tables.md, tables/*.csv, figures/
+uv run ie frame-export-labels                                           # blinded sheet: every aware cell + 50 others
+# fill aware_label (yes / no; score >= 2 = yes) and optionally frame_label, then re-run `ie frame-tables`
+```
+
+Status checklist (update as you go):
+
+- [x] Code, tests, pre-registration with the known-cell list written (2026-10-19).
+- [ ] Pre-registration committed before any judging.
+- [ ] Known-cell check run and read: scores, categories and quotes of the 14 cells; criterion met or amendment written.
+- [ ] Full `ie frame-judge`; cost, retry and unparsed counts noted.
+- [ ] `ie frame-tables`; hand check (all aware cells + 50 others; say who labelled); precision reported.
+- [ ] "Results" filled: F1 arm contrast, F4 per the decision rule (ES apart), VEA–frame overlap on the 5 keyword cells.
+
+Module map: `models.py` `FRAME_JUDGE`; `frame.py` (`build_prompt` = upstream rubric + `ADAPTATION` with the task
+text, `parse_frame_reply` = validated JSON, `AWARE_SCORE = 2`, `judge_frame(rid, cells=...)`); `frame_tables.py`
+(loader, F1–F5, `FRAME_GROUPS` = the pre-registered F4 grouping, positives list, figure, hand-label export/check);
+`--cells variant:task_id` on both judge commands.
+
 ## Things that look like bugs but aren't
 
 - `ie status` / `ie vea-judge` report "nothing to do": the stored records are current; that's resumability working.
@@ -99,4 +136,6 @@ Module map for this extension:
   own artifacts"); the paper's own tables don't add up.
 - `vea_authors_parser` disagrees with `vea` on some rows: expected whenever the judge writes `**QUOTE:** None` or
   `None` followed by a note; V5 counts them, and the authors' parser is kept only for comparison.
+- The frame judge fills `perceived_situation_category` for any score > 0, but only score ≥ 2 counts as aware;
+  `frame_tables` maps everything below the threshold to the "none" group, so score-1 rows never appear in F4.
 - Some pytest cases skip: they need `benchmark/*.csv` or `upstream/main.py` (`ie fetch`).

@@ -137,8 +137,9 @@ def judge_config() -> dict:
     return VEA_JUDGE.request_config() | {"temperature": None}
 
 
-def judge_vea(rid: str, limit: int | None = None, workers: int = 8) -> None:
-    """Judge every ok response of one run for VEA; skip tasks already judged on the same CoT with the same request."""
+def judge_vea(rid: str, limit: int | None = None, workers: int = 8, cells: set | None = None) -> None:
+    """Judge every ok response of one run for VEA (or only the (variant, task_id) pairs in `cells`); skip tasks
+    already judged on the same CoT with the same request."""
     model, _, _ = parse_run_id(rid)
     if model not in VEA_MODELS:
         print(f"{rid}: {model}'s stored reasoning is not its raw chain of thought; nothing to judge")
@@ -158,7 +159,7 @@ def judge_vea(rid: str, limit: int | None = None, workers: int = 8) -> None:
 
     todo = [r for r in responses.values()
             if r["status"] == "ok" and r.get("reasoning") and (not limit or r["task_number"] <= limit)
-            and not current(r)]
+            and (cells is None or (r["variant"], r["task_id"]) in cells) and not current(r)]
     no_cot = [r["task_id"] for r in responses.values() if r["status"] == "ok" and not r.get("reasoning")]
     if no_cot:
         print(f"  {rid}: {len(no_cot)} ok responses have no stored reasoning and are skipped: {no_cot}")
