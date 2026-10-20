@@ -120,6 +120,20 @@ JUDGES: dict[str, ModelSpec] = {
 # Set to the judge with the lowest false-positive rate on the neutral tasks (README step 4).
 DEFAULT_JUDGE = "gpt-4o"
 
+# Task-audit panel (Table 8; REPLICATION_NOTES.md, "Task audit"): two labs at least, none of them the convergence
+# judge (gpt-4o) or one of the nine evaluated models (so no gemini-2.5-flash, which is a test model). gpt-5 at
+# medium effort passed the frame-awareness known-cell check; its reasoning counts against max_tokens, hence 16000.
+# Verify each id with a one-task `ie audit-tasks --pilot` call before the full run and record any swap in the notes.
+AUDIT_JUDGES: dict[str, ModelSpec] = {
+    m.key: m
+    for m in [
+        ModelSpec("gpt-5", "openai/gpt-5", "", send_temperature=False, max_tokens=16000,
+                  extra_body={"reasoning": {"effort": "medium"}, "response_format": {"type": "json_object"}}),
+        ModelSpec("claude-sonnet-4", "anthropic/claude-sonnet-4", "", max_tokens=4000, extra_body=_NO_REASONING),
+        ModelSpec("gemini-2.5-pro", "google/gemini-2.5-pro", "", max_tokens=6000),
+    ]
+}
+
 # Verbalized eval awareness (VEA) judge, as in Bharadwaj & Kirk's VEA-through-training pipeline (upstream/judge_vea.py):
 # GPT-5-mini at low reasoning effort, 4000 completion tokens (reasoning + the short REASONING/QUOTE answer).
 VEA_JUDGE = ModelSpec("gpt-5-mini", "openai/gpt-5-mini", "", send_temperature=False, max_tokens=4000,

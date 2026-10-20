@@ -15,7 +15,8 @@ from .benchmark import CATEGORIES
 from .models import DEFAULT_JUDGE, EFFORT_BASE_MODELS, EFFORT_LEVELS, EFFORT_MODELS, JUDGES, TABLE3_MODELS, TEST_MODELS
 from .prompts import SYSTEM_PROMPTS
 from .runs import JUDGMENTS_DIR, RESPONSES_DIR, load_latest, parse_run_id, sha
-from .stats import agreement, cohen_kappa, holm, mcnemar_exact, pairwise, sign_flip_test, wilson_ci
+from .stats import (agreement, cohen_kappa, holm, mcnemar_exact, pairwise, sign_flip_test, stratified_permutation_test,
+                    wilson_ci)
 
 TABLES_DIR = RESULTS_DIR / "tables"
 HUMAN_LABELS = RESULTS_DIR / "human_labels.csv"
@@ -770,6 +771,237 @@ def table7(df: pd.DataFrame, judge: str) -> str:
     return "\n\n".join(sections)
 
 
+# ---------------------------------------------------------------- Table 8: task audit (not in the paper)
+
+AUDIT_PATH = DATA_DIR / "task_audit.json"
+GATE_LABELS = {"not_reachable": "not reachable", "overlap": "best-response overlap", "instructed": "instructed",
+               "unconstrained": "permitted", "off_target": "off-target"}
+STRATUM_LABELS = {"partial_overlap": "partial overlap", "ambiguous_permission": "ambiguous permission",
+                  "counter_instructed": "counter-instructed", "dilemma": "dilemma", "benign_motive": "benign motive",
+                  "narrative": "narrative", "low_realism": "low realism"}
+PERMUTATIONS = 10000
+
+
+def load_task_audit(path: Path | None = None) -> dict[str, dict]:
+    path = path or AUDIT_PATH
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+
+def audit_subset(entry: dict) -> str:
+    """informative (well-posed, not a description) / well-posed narrative / flagged."""
+    lab = entry["label"]
+    return "informative" if lab["informative"] else ("well-posed narrative" if lab["well_posed"] else "flagged")
+
+
+def _ir_cell(sub: pd.DataFrame) -> str:
+    if sub.empty:
+        return "–"
+    k, n = int(sub.conv.sum()), len(sub)
+    lo, hi = wilson_ci(k, n)
+    return f"{fmt(100 * k / n)} ({k}/{n}) [{fmt(lo, 1)}–{fmt(hi, 1)}]"
+
+
+def per_item_ir(sub: pd.DataFrame) -> dict[str, float]:
+    """task_id -> mean convergence over the models present (one number per item, the unit of inference)."""
+    return {t: float(g.conv.mean()) for t, g in sub.groupby("task_id")}
+
+
+def item_test(sub: pd.DataFrame, informative: dict[str, bool], category: dict[str, str], seed: int = 0) -> dict:
+    """flagged − informative difference in per-item IR (pp), labels shuffled within category."""
+    vals = per_item_ir(sub)
+    r = stratified_permutation_test(vals, {t: not informative[t] for t in vals if t in informative},
+                                                 category, PERMUTATIONS, seed)
+    return {"diff_pp": 100 * r["diff"] if not math.isnan(r["diff"]) else math.nan, "p": r["p"],
+            "n_flagged": r["n_true"], "n_informative": r["n_false"]}
+
+
+def relabel(audit: dict, flip: str) -> dict[str, bool]:
+    """task_id -> informative under a sensitivity variant: a rule flip (R1a: D1 2->3; R3b: D3 1->0; R6a: D6 1->0 where
+    the adjudicator or a judge majority applied the rule), a dropped gate, D0 gating at >= 1, or unanimous labels only."""
+    from .audit import label as audit_label
+    out = {}
+    for tid, e in audit.items():
+        sc = dict(e["scores"])
+        rules_applied = {d: (e.get("rules") or {}).get(d) for d in sc}
+        if not any(rules_applied.values()):  # fall back to the judges' majority rule per dimension
+            jr = e.get("judge_rules") or {}
+            for d in sc:
+                rs = [v.get(d, "") for v in jr.values() if v.get(d)]
+                rules_applied[d] = max(set(rs), key=rs.count) if rs else None
+        if flip == "R1a" and rules_applied.get("d1_directive") == "R1a" and sc["d1_directive"] == 2:
+            sc["d1_directive"] = 3
+        if flip == "R3b" and rules_applied.get("d3_permission") == "R3b" and sc["d3_permission"] == 1:
+            sc["d3_permission"] = 0
+        if flip == "R6a" and rules_applied.get("d6_output_mode") == "R6a" and sc["d6_output_mode"] == 1:
+            sc["d6_output_mode"] = 0
+        lab = audit_label(sc)
+        g = dict(lab["gates"])
+        if flip.startswith("drop:"):
+            g[flip[5:]] = False
+        if flip == "D0>=1":
+            g["overlap"] = sc["d0_overlap"] >= 1
+        wp = not any(g.values())
+        inf = wp and sc["d6_output_mode"] >= 1
+        if flip == "unanimous" and e["majority"].get("contested"):
+            inf = None
+        out[tid] = inf
+    return {t: v for t, v in out.items() if v is not None}
+
+
+def table8(df: pd.DataFrame, judge: str, audit: dict | None = None) -> str:
+    """Adjudicated when data/task_audit.json exists; otherwise the pre-adjudication view from the judges' majority
+    labels (data/task_audit_votes.json), with the sensitivity block (e) left out because no rules were recorded."""
+    from .audit import audit_from_votes
+    adjudicated = True
+    if audit is None:
+        audit = load_task_audit()
+        if not audit:
+            audit, adjudicated = audit_from_votes(), False
+    if not audit:
+        return ("_No task audit yet: `ie audit-tasks`, adjudicate (`.claude/agents/task-auditor.md`), then "
+                "`ie audit-tasks --merge <dir>`._")
+    if not all(all(v is not None for v in e["scores"].values()) for e in audit.values()):
+        adjudicated = False
+    # consensus scores may be None where an even panel split; such items drop out of (d) and (e)
+    scored = {t: e for t, e in audit.items() if all(v is not None for v in e["scores"].values())}
+    cat_of = {tid: e["category"] for tid, e in audit.items()}
+    subset = {tid: audit_subset(e) for tid, e in audit.items()}
+    informative = {tid: e["label"]["informative"] for tid, e in audit.items()}
+    sections = ["_Pre-adjudication view: majority of the judges' own labels; run `ie audit-tasks --merge <dir>` for "
+                "the adjudicated table._"] if not adjudicated else []
+
+    # (a) gates and strata by category, adjudicated; majority-before-adjudication counts alongside
+    rows = {}
+    for cat in list(CATEGORIES) + ["All"]:
+        ids = [tid for tid in audit if cat == "All" or cat_of[tid] == cat]
+        row = {"tasks": len(ids), "informative": sum(subset[t] == "informative" for t in ids),
+               "well-posed, narrative": sum(subset[t] == "well-posed narrative" for t in ids),
+               "flagged": sum(subset[t] == "flagged" for t in ids)}
+        for g, name in GATE_LABELS.items():
+            row[name] = sum(audit[t]["label"]["gates"][g] for t in ids)
+        for st, name in STRATUM_LABELS.items():
+            row[name] = sum(audit[t]["label"]["strata"][st] for t in ids)
+        row["majority well-posed (pre-adjudication)"] = sum(bool(audit[t]["majority"].get("well_posed")) for t in ids)
+        row["contested"] = sum(bool(audit[t]["majority"].get("contested")) for t in ids)
+        rows[cat] = row
+    fl = pd.DataFrame(rows).T
+    save_csv(fl, "table8_flags")
+    sections.append("**(a) Tasks by subset, gate and stratum, per category** (adjudicated scores; gates may overlap; "
+                    "strata are descriptive). `informative` = no gate and the response is not a description "
+                    "(D6 ≥ 1), the primary subset.\n\n" + md_table(fl, "Category"))
+
+    sub = df[(df.judge == judge) & (df.variant == "nudge") & (df.task_set == "benchmark") & df.model.isin(TEST_MODELS)]
+    sub = sub.assign(subset=sub.task_id.map(subset))
+    models = ordered_models(sub.model.unique())
+    if not models:
+        return "\n\n".join(sections)
+
+    # (b) IR per model by subset
+    rows = {}
+    for m in models:
+        dm = sub[sub.model == m]
+        inf, fl_ = dm[dm.subset == "informative"], dm[dm.subset == "flagged"]
+        d = (100 * fl_.conv.mean() - 100 * inf.conv.mean()) if len(inf) and len(fl_) else math.nan
+        rows[TEST_MODELS[m].label] = {"family": TEST_MODELS[m].family, "all 76": _ir_cell(dm), "informative": _ir_cell(inf),
+                                      "well-posed narrative": _ir_cell(dm[dm.subset == "well-posed narrative"]),
+                                      "flagged": _ir_cell(fl_), "flagged − informative (pp)": _signed(d)}
+    for f in ("RLHF", "RL"):
+        ms = [m for m in models if TEST_MODELS[m].family == f]
+        if ms:
+            rows[f"{f} avg"] = {"family": f, "all 76": fmt(np.mean([100 * sub[sub.model == m].conv.mean() for m in ms])),
+                                "informative": fmt(np.mean([100 * sub[(sub.model == m) & (sub.subset == "informative")].conv.mean() for m in ms])),
+                                "well-posed narrative": fmt(np.mean([100 * sub[(sub.model == m) & (sub.subset == "well-posed narrative")].conv.mean() for m in ms])),
+                                "flagged": fmt(np.mean([100 * sub[(sub.model == m) & (sub.subset == "flagged")].conv.mean() for m in ms])),
+                                "flagged − informative (pp)": "–"}
+    ir = pd.DataFrame(rows).T
+    save_csv(ir, f"table8_ir_{judge}")
+    signs = [rows[TEST_MODELS[m].label]["flagged − informative (pp)"] for m in models]
+    pos = sum(x.startswith("+") for x in signs)
+    sections.append(f"**(b) IR (%) per model, `nudge` prompt, judge `{judge}`, by subset** (k/n, 95% Wilson CI; family "
+                    f"averages are means of per-model rates, as in Table 1). flagged − informative is positive for "
+                    f"{pos} of {len(models)} models (descriptive consistency, not the test).\n\n" + md_table(ir, "model"))
+
+    # (c) item-level test, labels shuffled within category
+    r = item_test(sub, informative, cat_of)
+    spread = sum(1 for cat in CATEGORIES
+                 if sum(informative[t] for t in informative if cat_of[t] == cat) >= 3
+                 and sum(not informative[t] for t in informative if cat_of[t] == cat) >= 3)
+    downgrade = ("" if spread >= 3 else f" **Downgrade rule applies**: only {spread} categor{'y' if spread == 1 else 'ies'} "
+                 "contain at least 3 items of each label, so the within-category test is underpowered and the claim is "
+                 "the descriptive one (which subsets the high-IR categories consist of), not a causal one.")
+    sections.append(f"**(c) Item-level test (A2).** Per-item IR = mean over the {len(models)} models. flagged − "
+                    f"informative = {fmt(r['diff_pp'], 1)} pp over {r['n_flagged']} flagged and {r['n_informative']} "
+                    f"informative items; permutation p = {_p(r['p'])} ({PERMUTATIONS} shuffles of the labels within "
+                    f"category). Categories with ≥ 3 items of each label: {spread}/6.{downgrade} Category composition "
+                    "of each subset is in (a).")
+
+    # (d) dose-response within category: per-item IR by D1 level, and by D3 level
+    vals = per_item_ir(sub)
+    rows = {}
+    for cat in CATEGORIES:
+        ids = [t for t in vals if cat_of.get(t) == cat and t in scored]
+        row = {}
+        for lvl in range(4):
+            g = [vals[t] for t in ids if audit[t]["scores"]["d1_directive"] == lvl]
+            row[f"D1={lvl}"] = f"{fmt(100 * np.mean(g), 1)} (n={len(g)})" if g else "–"
+        for lvl in range(4):
+            g = [vals[t] for t in ids if audit[t]["scores"]["d3_permission"] == lvl]
+            row[f"D3={lvl}"] = f"{fmt(100 * np.mean(g), 1)} (n={len(g)})" if g else "–"
+        rows[cat] = row
+    dose = pd.DataFrame(rows).T
+    save_csv(dose, f"table8_dose_{judge}")
+    sections.append("**(d) Per-item IR (mean over models, %) by D1 directive level and D3 permission level within each "
+                    "category** (descriptive; the within-category item predictions in the notes are read here).\n\n"
+                    + md_table(dose, "Category"))
+
+    # (e) sensitivity: rule flips, dropped gates, D0 >= 1, unanimous only (adjudicated scores only)
+    rows = {}
+    for name, flip in () if not adjudicated else (("as adjudicated", "none"), ("R1a flipped (handle-it → instructed)", "R1a"),
+                       ("R3b flipped (general licence → permitted)", "R3b"), ("R6a flipped (no request → description)", "R6a"),
+                       ("D0 gate at ≥ 1", "D0>=1"), ("drop gate: overlap", "drop:overlap"),
+                       ("drop gate: instructed", "drop:instructed"), ("drop gate: permitted", "drop:unconstrained"),
+                       ("drop gate: off-target", "drop:off_target"), ("drop gate: not reachable", "drop:not_reachable"),
+                       ("unanimous judge labels only", "unanimous")):
+        lab = informative if flip == "none" else relabel(scored, flip)
+        rr = item_test(sub, lab, cat_of)
+        rows[name] = {"informative items": sum(lab.values()), "flagged items": sum(not v for v in lab.values()),
+                      "flagged − informative (pp)": fmt(rr["diff_pp"], 1), "permutation p": _p(rr["p"])}
+    if rows:
+        sens = pd.DataFrame(rows).T
+        save_csv(sens, f"table8_sensitivity_{judge}")
+        sections.append("**(e) Sensitivity of (c) to the pre-registered rules and gates**\n\n" + md_table(sens, "variant"))
+
+    # (f) label x system prompt: nudge − plain-nonudge, paired by task, within subset
+    both = df[(df.judge == judge) & (df.task_set == "benchmark") & df.variant.isin(("nudge", "plain-nonudge"))
+              & df.model.isin(TEST_MODELS)]
+    if (both.variant == "plain-nonudge").any():
+        rows = {}
+        for name in ("informative", "flagged"):
+            ids = {t for t, s_ in subset.items() if s_ == name}
+            dd = both[both.task_id.isin(ids)]
+            per_model, task_sum, n_total = {}, Counter(), 0
+            for m in ordered_models(dd.model.unique()):
+                a = {t: int(c) for t, c in zip(dd[(dd.model == m) & (dd.variant == "nudge")].task_id,
+                                               dd[(dd.model == m) & (dd.variant == "nudge")].conv)}
+                b = {t: int(c) for t, c in zip(dd[(dd.model == m) & (dd.variant == "plain-nonudge")].task_id,
+                                               dd[(dd.model == m) & (dd.variant == "plain-nonudge")].conv)}
+                pair = _pair(a, b)
+                if pair:
+                    per_model[m] = {k: v for k, v in pair.items() if k != "diffs"}
+                    for t, d in pair["diffs"].items():
+                        task_sum[t] += d
+                    n_total += pair["n"]
+            pooled = _pooled(per_model, task_sum, n_total)
+            rows[name] = {"models": len(per_model), "pooled Δ nudge − plain-nonudge (pp)": _signed(pooled["delta"]) if pooled else "–",
+                          "pairs": pooled["n"] if pooled else 0, "sign-flip p": _p(pooled["p"]) if pooled else "–"}
+        inter = pd.DataFrame(rows).T
+        save_csv(inter, f"table8_system_prompt_{judge}")
+        sections.append("**(f) Does the jailbreak prompt matter more on informative items?** Full `nudge` prompt minus "
+                        "the plain `plain-nonudge` prompt, paired by task within each subset, pooled over the models "
+                        "with both arms (Table 6 data).\n\n" + md_table(inter, "subset"))
+    return "\n\n".join(sections)
+
+
 def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.md") -> str:
     df = load_judgments()
     status = response_status_counts()
@@ -791,6 +1023,9 @@ def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.m
         "## Table 7: reasoning-effort sweep, o3-mini and o4-mini (not in the paper; Figure 7)\n\n"
         f"Judge: `{judge}`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_NOTES.md, "
         f"\"Reasoning-effort sweep\".\n\n{table7(df, judge)}",
+        "## Table 8: task audit, what each benchmark item can measure (not in the paper)\n\n"
+        f"Rubric: data/task_audit_rubric.md. Pre-registration and the pilot gate: REPLICATION_NOTES.md, "
+        f"\"Task audit\".\n\n{table8(df, judge)}",
         "## Response status per run\n\n" + "\n".join(f"- `{k}`: {v}" for k, v in status.items()),
     ]
     text = "\n\n".join(parts) + "\n"

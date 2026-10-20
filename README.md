@@ -85,6 +85,18 @@ uv run ie generate --models $E --limit 1    # smoke test: 6 tasks per arm; check
 uv run ie generate --models $E
 uv run ie judge --models $E
 uv run ie tables                            # Table 7 (+ CSVs); `ie figures` adds Figure 7
+
+# 12. Task audit (not in the paper): score the 76 task texts on what they can measure (reachable? would the best
+#     aligned response be scored convergent? instructed? permitted? on-target?) and re-report IR on the informative
+#     subset at the item level. Rubric: data/task_audit_rubric.md; pre-registration and analysis plan in
+#     REPLICATION_NOTES.md, "Task audit": commit it, then the pilot.
+uv run ie audit-tasks --pilot-sample 4 --blind-packets   # 24 seeded tasks -> data/task_audit_blind/: score them yourself first
+uv run ie audit-tasks --pilot-sample 4      # then 24 x 3 judges -> data/task_audit_pilot_votes.{json,md}
+uv run ie audit-tasks --pilot-sample 4 --compare-blind data/task_audit_blind   # gate: alpha on gating dims + kappa >= 0.6
+uv run ie audit-tasks                       # 76 tasks x 3 judges -> data/task_audit_votes.{json,md} + packets
+#     then one task-auditor agent per CONTESTED task (.claude/agents/task-auditor.md) writes <dir>/<task_id>.json
+uv run ie audit-tasks --merge <dir> --adjudicator "<who>"   # -> data/task_audit.json; review it by hand
+uv run ie tables                            # Table 8
 ```
 
 Once `DEFAULT_JUDGE` is set in step 4, `ie judge`, `ie tables` and `ie figures` all default to the chosen judge, so
@@ -105,4 +117,5 @@ steps 6 and 7 need no `--judge` flags.
 | `data/neutral_tasks.csv`, `data/neutral_task_rubric.md` | control tasks for the false-positive check, and the rubric they were selected with |
 | `data/task_classification_votes.{json,md}` | the three judges' prior-task-type votes and rationales for every benchmark task, side by side |
 | `data/task_categories.json` | adjudicated task to prior-task-type mapping for Table 2 (one independent adjudicator per task, then a consistency review and a hand check) |
+| `data/task_audit_rubric.md`, `src/instrumentaleval/audit.py` | the task-audit rubric (what each item can measure) and its judge pass; votes in `data/task_audit_votes.{json,md}`, adjudicated scores in `data/task_audit.json` (Table 8) |
 | `data/paper_results.json` | the paper's Tables 1 and 3 as numbers (with task counts), for the Table 6 comparison |

@@ -160,6 +160,49 @@ Status checklist (update as you go):
 - [x] Table 7d passes (o3-mini 128 / 512 / 1760, o4-mini 128 / 384 / 640 reasoning tokens); 7e NO EFFECT DETECTED
       (high − low +4.6 pp, Holm p = 0.516); Results filled. Sign-flip p now uses sorted task order (was hash-order).
 
+## Current work: task audit (Table 8)
+
+The judge passes and the sweeps are done; the open question is construct validity of the *items*. Each of the 76
+task texts is scored, from its text alone, on twelve dimensions (`data/task_audit_rubric.md`; judge text
+`audit.AUDIT_PROMPT`, version 2 after two adversarial Opus reviews) by a three-judge panel (`models.AUDIT_JUDGES`:
+gpt-5, claude-sonnet-4, gemini-2.5-pro). Five dimensions gate (R reachable, D0 best-response overlap, D1 instructed,
+D3 permitted, D7 off-target); the rest are reported strata. Labels are computed per judge in `audit.label`, never
+by the judge; the item's label is the majority (`audit.majority_label`), *contested* when not unanimous; the
+primary subset is **informative** = no gate and D6 ≥ 1. Agreement = Krippendorff's ordinal α
+(`stats.krippendorff_alpha`, matches the `krippendorff` package). Contested tasks go to one `task-auditor` agent
+each, which reads only `data/task_audit_packets/<id>.md`. Table 8 (`tables.table8`) does item-level inference with
+labels permuted within category (`stats.stratified_permutation_test`), dose-response by D1/D3, rule-flip and
+drop-gate sensitivity (`tables.relabel`), and the label × system-prompt check; it builds a pre-adjudication view
+from the votes while `data/task_audit.json` is absent.
+
+```sh
+uv run ie audit-tasks --pilot-sample 4 --blind-packets    # 24 seeded tasks (excludes audit.EXPECTATION_TASKS) -> data/task_audit_blind/ for the author's blind read; no API call
+uv run ie audit-tasks --pilot-sample 4                    # then the judges -> data/task_audit_pilot_votes.{json,md}, packets in data/task_audit_packets_pilot/
+uv run ie audit-tasks --pilot-sample 4 --compare-blind data/task_audit_blind   # kappa author vs majority (gate: >= 0.6)
+uv run ie audit-tasks                                     # 76 x 3 -> data/task_audit_votes.{json,md}, data/task_audit_packets/
+# one task-auditor agent per CONTESTED task -> <dir>/<task_id>.json (it reads only its packet)
+uv run ie audit-tasks --merge <dir> --adjudicator "<who>" # -> data/task_audit.json (uncontested tasks need no file)
+uv run ie tables                                          # Table 8
+```
+
+Status checklist (update as you go):
+
+- [x] v1 rubric, judge prompt, `audit.py`, Table 8, tests, agent spec written (2026-10-19).
+- [x] Adversarial review of v1 by two Opus 5.5 agents (both: do not pre-register); objections tabulated in the notes.
+- [x] v2 rewrite: D0/R/D4b/Step 0/rules; per-judge labels; invented examples only (5-gram leakage test); item-level
+      inference; 24-task pilot with the author's blind read as a gate; contested-only adjudication from packets.
+- [ ] Author's own read of the rubric, the prompt and the notes section; pre-registration committed.
+- [ ] Author's blind read of the 24 pilot items (`--blind-packets`, before any judge runs).
+- [ ] One single-task call per judge to verify the OpenRouter ids and the JSON mode; then the pilot; `--compare-blind`;
+      gate outcome recorded (amend on a fresh seed if it fails; at most two revisions).
+- [ ] Full run; α per dimension; adjudication of contested tasks; hand check; `data/task_audit.json`.
+- [ ] Table 8 before/after adjudication and the Results subsection (A1-A6) filled.
+
+The judges never see task ids, the category name, the preamble's content, model responses, or the author's
+expectations; `tests/test_audit.py` checks that no five consecutive words of the prompt occur in any task and that
+the quoted criterion sentences are verbatim from `prompts.JUDGE_SYSTEM_PROMPT`. If a judge id has been retired on
+OpenRouter, pass `--judges` with a replacement and record it in the notes before the pilot.
+
 ## Things that look like bugs but aren't
 
 - `ie status` / `ie vea-judge` report "nothing to do": the stored records are current; that's resumability working.

@@ -1,5 +1,5 @@
 """`uv run ie <command>`: fetch, generate, judge, tables, figures, classify-tasks, export-labels, vea-judge, vea-tables,
-vea-export-labels, frame-judge, frame-tables, frame-export-labels, check-anthropic, status."""
+vea-export-labels, frame-judge, frame-tables, frame-export-labels, audit-tasks, check-anthropic, status."""
 
 import argparse
 import os
@@ -45,6 +45,42 @@ def cmd_classify(a):
 def cmd_export_labels(a):
     from .labels import export_labels
     export_labels(a.n, a.seed, a.force)
+
+
+def cmd_audit(a):
+    from pathlib import Path
+    from .audit import (VOTES_JSON, VOTES_MD, audit_tasks, blind_agreement, blind_report, merge_cmd, pilot_ids,
+                        write_blind_packets)
+    from .models import AUDIT_JUDGES
+    if a.merge:
+        merge_cmd(Path(a.merge), a.adjudicator, a.force)
+        return
+    if a.compare_blind:
+        votes = VOTES_JSON.with_name("task_audit_pilot_votes.json") if a.pilot or a.pilot_sample else VOTES_JSON
+        if not votes.exists():
+            sys.exit(f"{votes} not found; run the judges first")
+        print(blind_report(blind_agreement(Path(a.compare_blind), votes)))
+        return
+    unknown = [j for j in (a.judges or []) if j not in AUDIT_JUDGES]
+    if unknown:
+        sys.exit(f"unknown audit judge(s) {unknown}; choose from {list(AUDIT_JUDGES)}")
+    if a.pilot_sample:
+        ids = pilot_ids(a.pilot_sample, a.seed)
+        print(f"pilot sample (seed {a.seed}, {a.pilot_sample} per category): {' '.join(ids)}")
+        if a.blind_packets:
+            files = write_blind_packets(ids)
+            print(f"wrote {len(files)} blind packets (+ JSON skeletons) in {files[0].parent}; score them before "
+                  "running the judges, then `ie audit-tasks --pilot-sample N` and `--compare-blind <dir>`")
+            return
+        if a.dry_run:
+            return
+        a.pilot = ids
+    if a.pilot:
+        out_json = VOTES_JSON.with_name("task_audit_pilot_votes.json")
+        out_md = VOTES_MD.with_name("task_audit_pilot_votes.md")
+        audit_tasks(a.force, a.judges, a.workers, set(a.pilot), out_json, out_md)
+    else:
+        audit_tasks(a.force, a.judges, a.workers)
 
 
 def cmd_generate(a):
@@ -212,6 +248,30 @@ def main() -> None:
     s.add_argument("--adjudicator", default="", help="who produced the adjudications (recorded in the output)")
     s.add_argument("--force", action="store_true")
     s.set_defaults(func=cmd_classify)
+
+    s = sub.add_parser("audit-tasks", help="Table 8: score every benchmark task on the task-audit rubric (what the "
+                                            "item can measure); --pilot for the pre-registered subset; --merge folds "
+                                            "per-task adjudications into data/task_audit.json")
+    s.add_argument("--judges", nargs="+", help="default: the AUDIT_JUDGES panel in models.py")
+    s.add_argument("--pilot", nargs="+", metavar="TASK_ID",
+                   help="only these task ids, written to data/task_audit_pilot_votes.{json,md}")
+    s.add_argument("--pilot-sample", type=int, metavar="N",
+                   help="pilot on a seeded stratified sample of N tasks per category, drawn from the tasks not named "
+                        "in the author's expectations first (audit.EXPECTATION_TASKS)")
+    s.add_argument("--seed", type=int, default=0, help="seed for --pilot-sample")
+    s.add_argument("--dry-run", action="store_true", help="with --pilot-sample: print the sample and stop")
+    s.add_argument("--blind-packets", action="store_true",
+                   help="with --pilot-sample: write data/task_audit_blind/<id>.{md,json} for the author's blind read "
+                        "(no API call) and stop")
+    s.add_argument("--compare-blind", metavar="DIR",
+                   help="kappa between the author's blind scores in DIR and the pilot majority (add --pilot-sample N "
+                        "to read the pilot votes)")
+    s.add_argument("--workers", type=int, default=4)
+    s.add_argument("--merge", metavar="DIR", help="directory of <task_id>.json adjudications (contested tasks must "
+                                                  "have one; uncontested tasks keep the unanimous label)")
+    s.add_argument("--adjudicator", default="", help="who produced the adjudications (recorded in the output)")
+    s.add_argument("--force", action="store_true")
+    s.set_defaults(func=cmd_audit)
 
     s = sub.add_parser("export-labels", help="write a blinded sample for human labelling (Table 4)")
     s.add_argument("--n", type=int, default=100)

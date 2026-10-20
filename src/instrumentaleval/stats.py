@@ -137,3 +137,68 @@ def cluster_bootstrap_rd(groups: dict, b: int = 5000, seed: int = 0) -> dict:
         return {"rd": point, "lo": math.nan, "hi": math.nan, "b_used": len(ests)}
     return {"rd": point, "lo": ests[int(0.025 * (len(ests) - 1))], "hi": ests[int(0.975 * (len(ests) - 1))],
             "b_used": len(ests)}
+
+
+def krippendorff_alpha(ratings: dict, max_value: int) -> float:
+    """Krippendorff's alpha with the ordinal metric for integer scores 0..max_value.
+
+    ratings: rater -> {item -> score}; items rated by fewer than two raters are dropped. nan when nothing is
+    pairable or every score is the same (no disagreement to expect). Pure Python, the standard coincidence-matrix
+    form (Krippendorff 2011, "Computing Krippendorff's Alpha-Reliability").
+    """
+    values = list(range(max_value + 1))
+    items = {}
+    for rater, scores in ratings.items():
+        for item, v in scores.items():
+            items.setdefault(item, []).append(v)
+    units = [vs for vs in items.values() if len(vs) >= 2]
+    if not units:
+        return math.nan
+    # coincidence matrix o[c][k] and value marginals n[c]
+    o = {c: {k: 0.0 for k in values} for c in values}
+    for vs in units:
+        m = len(vs)
+        for i, c in enumerate(vs):
+            for j, k in enumerate(vs):
+                if i != j:
+                    o[c][k] += 1.0 / (m - 1)
+    n = {c: sum(o[c].values()) for c in values}
+    total = sum(n.values())
+    if total <= 1 or sum(1 for c in values if n[c] > 0) < 2:
+        return math.nan
+
+    def delta2(c: int, k: int) -> float:  # ordinal distance between values c <= k
+        lo, hi = min(c, k), max(c, k)
+        return (sum(n[g] for g in range(lo, hi + 1)) - (n[lo] + n[hi]) / 2) ** 2
+
+    observed = sum(o[c][k] * delta2(c, k) for c in values for k in values if c != k)
+    expected = sum(n[c] * n[k] * delta2(c, k) for c in values for k in values if c != k) / (total - 1)
+    return 1.0 - observed / expected if expected else math.nan
+
+
+def stratified_permutation_test(values: dict, labels: dict, strata: dict, n: int = 10000, seed: int = 0) -> dict:
+    """Two-sided permutation test for mean(values | label True) − mean(values | label False) over items, shuffling
+    labels within each stratum (so a category's label mix is preserved). values/labels/strata: item -> float /
+    bool / stratum key. Returns the observed difference, p = (1 + #{|perm| >= |obs|}) / (n + 1), and the counts."""
+    items = [i for i in values if i in labels and i in strata]
+    a = [values[i] for i in items if labels[i]]
+    b = [values[i] for i in items if not labels[i]]
+    if not a or not b:
+        return {"diff": math.nan, "p": math.nan, "n_true": len(a), "n_false": len(b)}
+    observed = sum(a) / len(a) - sum(b) / len(b)
+    by_stratum: dict = {}
+    for i in items:
+        by_stratum.setdefault(strata[i], []).append(i)
+    rng = random.Random(seed)
+    hits = 0
+    for _ in range(n):
+        perm = {}
+        for members in by_stratum.values():
+            labs = [labels[i] for i in members]
+            rng.shuffle(labs)
+            perm.update(zip(members, labs))
+        pa = [values[i] for i in items if perm[i]]
+        pb = [values[i] for i in items if not perm[i]]
+        if pa and pb and abs(sum(pa) / len(pa) - sum(pb) / len(pb)) >= abs(observed) - 1e-12:
+            hits += 1
+    return {"diff": observed, "p": (1 + hits) / (n + 1), "n_true": len(a), "n_false": len(b)}
