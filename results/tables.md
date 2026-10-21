@@ -60,6 +60,24 @@ Pairwise IAR (%) on shared benchmark responses:
 | claude-sonnet-4 | 93.13 (n=684) | 100.00 | 86.84 (n=684) |
 | gemini-2.5-flash | 89.33 (n=684) | 86.84 (n=684) | 100.00 |
 
+## Table 4b: judge reliability over the Figure 1 models (not in the paper)
+
+Table 4 restricted to the responses of gpt-4o, deepseek-v3, qwen-2.5-72b, o1, o4-mini, o3-mini, gemini-2.5-flash, deepseek-r1 (gpt-4o-mini left out, as in Figure 1).
+
+| Judge Model | Average IAR | Average Cohen's κ | False Positive Rate | # neutral items | Agreement with Fable 5.1 | # Fable-labelled items |
+|---|---|---|---|---|---|---|
+| gpt-4o | 91.04 | 0.816 | 0.00 | 160 | 83.91 | 87 |
+| claude-sonnet-4 (for Sonnet-3.5) | 89.47 | 0.783 | 1.88 | 160 | 80.46 | 87 |
+| gemini-2.5-flash (for Gemini 2.0 Flash) | 87.91 | 0.755 | 5.00 | 160 | 88.51 | 87 |
+
+Pairwise IAR (%) on shared benchmark responses:
+
+| Judge | gpt-4o | claude-sonnet-4 | gemini-2.5-flash |
+|---|---|---|---|
+| gpt-4o | 100.00 | 92.60 (n=608) | 89.47 (n=608) |
+| claude-sonnet-4 | 92.60 (n=608) | 100.00 | 86.35 (n=608) |
+| gemini-2.5-flash | 89.47 (n=608) | 86.35 (n=608) | 100.00 |
+
 ## Table 5: cross-category Pearson correlation of CIRs across models (heat map: Figure 5)
 
 | Category (n = 9 models) | ES | HC | RAC | HB | SAA | DB |
@@ -77,27 +95,29 @@ Judge: `gpt-4o`. Pre-registration and caveats: REPLICATION_NOTES.md, "Additional
 
 **(a) IR (%) per model and system prompt.** Variants are defined in `prompts.SYSTEM_PROMPTS`. Family averages are over the models with every design variant (gpt-4o, gpt-4o-mini, deepseek-v3, qwen-2.5-72b, o4-mini, o3-mini, gemini-2.5-flash, deepseek-r1). ‡ the paper's number for a different snapshot or a substitute model, so not comparable; only GPT-4o (the same pinned snapshot) is compared with the paper.
 
-| Model | nudge | nonudge | nocause-nudge | nocause-nonudge | plain-nudge | plain-goal | plain-nonudge | nudge-rep | paper IR (Table 1) |
-|---|---|---|---|---|---|---|---|---|---|
-| gpt-4o | 51.32 | 52.63 | 48.68 | 40.79 | 63.16 | 56.58 | 57.89 | 55.26 | 21.05 |
-| gpt-4o-mini (added) | 25.00 | 26.32 | 23.68 | 25.00 | 51.32 | 53.95 | 50.00 | 23.68 | – |
-| deepseek-v3 | 75.00 | 73.68 | 81.58 | 71.05 | 75.00 | 75.00 | 63.16 | 76.32 | 21.05 ‡ |
-| qwen-2.5-72b (added) | 53.95 | 59.21 | 52.63 | 51.32 | 51.32 | 43.42 | 47.37 | – | – |
-| o4-mini (for o1-mini) | 39.47 | 42.11 | 39.47 | 40.79 | 43.42 | 40.79 | 44.74 | 42.11 | 43.42 ‡ |
-| o3-mini | 50.00 | 52.63 | 46.05 | 47.37 | 53.95 | 48.68 | 46.05 | – | 48.68 ‡ |
-| gemini-2.5-flash (for Gemini 2.0 FTE.) | 68.42 | 60.53 | 65.79 | 67.11 | 64.47 | 68.42 | 57.89 | – | 32.89 ‡ |
-| deepseek-r1 | 76.32 | 77.63 | 78.95 | 75.00 | 65.79 | 60.53 | 52.63 | – | 46.05 ‡ |
-| RLHF avg | 51.32 | 52.96 | 51.64 | 47.04 | 60.20 | 57.24 | 54.61 |  |  |
-| RLHF avg (paper models) | 63.16 | 63.16 | 65.13 | 55.92 | 69.08 | 65.79 | 60.53 |  |  |
-| RL avg | 58.55 | 58.22 | 57.57 | 57.57 | 56.91 | 54.61 | 50.33 |  |  |
+| Model | nudge | nonudge | nocause-nudge | nocause-nonudge | oversight-nonudge | plain-nudge | plain-goal | plain-nonudge | nudge-rep | paper IR (Table 1) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gpt-4o | 51.32 | 52.63 | 48.68 | 40.79 | 50.00 | 63.16 | 56.58 | 57.89 | 55.26 | 21.05 |
+| gpt-4o-mini (added) | 25.00 | 26.32 | 23.68 | 25.00 | 47.37 | 51.32 | 53.95 | 50.00 | 23.68 | – |
+| deepseek-v3 | 75.00 | 73.68 | 81.58 | 71.05 | 67.11 | 75.00 | 75.00 | 63.16 | 76.32 | 21.05 ‡ |
+| qwen-2.5-72b (added) | 53.95 | 59.21 | 52.63 | 51.32 | 44.74 | 51.32 | 43.42 | 47.37 | – | – |
+| o4-mini (for o1-mini) | 39.47 | 42.11 | 39.47 | 40.79 | 36.84 | 43.42 | 40.79 | 44.74 | 42.11 | 43.42 ‡ |
+| o3-mini | 50.00 | 52.63 | 46.05 | 47.37 | 47.37 | 53.95 | 48.68 | 46.05 | – | 48.68 ‡ |
+| gemini-2.5-flash (for Gemini 2.0 FTE.) | 68.42 | 60.53 | 65.79 | 67.11 | 59.21 | 64.47 | 68.42 | 57.89 | – | 32.89 ‡ |
+| deepseek-r1 | 76.32 | 77.63 | 78.95 | 75.00 | – | 65.79 | 60.53 | 52.63 | – | 46.05 ‡ |
+| RLHF avg | 51.32 | 52.96 | 51.64 | 47.04 |  | 60.20 | 57.24 | 54.61 |  |  |
+| RLHF avg (paper models) | 63.16 | 63.16 | 65.13 | 55.92 |  | 69.08 | 65.79 | 60.53 |  |  |
+| RL avg | 58.55 | 58.22 | 57.57 | 57.57 |  | 56.91 | 54.61 | 50.33 |  |  |
 
-**(b) Paired contrasts, pooled over models (arm A − arm B, pp).** Pairs are the (model, task) pairs judged in both arms. The p-value flips the sign of whole tasks, because every model sees the same 76 tasks. H1, H2a and H2b are the pre-registered primary tests (Holm-corrected); the rest are exploratory. b / c = pairs where only arm A / only arm B converged.
+**(b) Paired contrasts, pooled over models (arm A − arm B, pp).** Pairs are the (model, task) pairs judged in both arms. The p-value flips the sign of whole tasks, because every model sees the same 76 tasks. H1, H2a and H2b are the pre-registered primary tests, H4a and H4b the pre-registered follow-up (each family Holm-corrected on its own); the rest are exploratory. b / c = pairs where only arm A / only arm B converged.
 
 | Contrast | Δ (pp) | b / c | pairs | models | p (task sign-flip) | Holm p |
 |---|---|---|---|---|---|---|
 | H1: licence (nudge on) | +0.3 | 32 / 30 | 608 | 8 | 0.894 | 1.000 |
 | H2a: oversight + rules (nudge on) | -3.9 | 34 / 58 | 608 | 8 | 0.028 | 0.084 |
 | H2b: oversight + rules (nudge off) | -0.2 | 68 / 69 | 608 | 8 | 1.000 | 1.000 |
+| H4a: oversight clause (nudge off) | -2.1 | 21 / 32 | 532 | 7 | 0.270 | 0.539 |
+| H4b: obedience clauses + rules (nudge off) | -1.3 | 44 / 51 | 532 | 7 | 0.622 | 0.622 |
 | licence (nudge off) | +3.3 | 45 / 25 | 608 | 8 | 0.006 |  |
 | nudge (full jailbreak) | -0.7 | 29 / 33 | 608 | 8 | 0.671 |  |
 | nudge (no licence) | +2.3 | 41 / 27 | 608 | 8 | 0.116 |  |
@@ -114,6 +134,8 @@ Per model: Δ (pp) and b/c. Exact McNemar p per model is in `results/tables/tabl
 | H1: licence (nudge on) | +2.6 (5/3) | +1.3 (2/1) | -6.6 (1/6) | +1.3 (4/3) | +0.0 (8/8) | +3.9 (4/1) | +2.6 (4/2) | -2.6 (4/6) |
 | H2a: oversight + rules (nudge on) | -14.5 (1/12) | -27.6 (0/21) | +6.6 (6/1) | +1.3 (5/4) | -3.9 (4/7) | -7.9 (0/6) | +1.3 (4/3) | +13.2 (14/4) |
 | H2b: oversight + rules (nudge off) | -17.1 (5/18) | -25.0 (3/22) | +7.9 (10/4) | +3.9 (10/7) | -3.9 (5/8) | +1.3 (2/1) | +9.2 (9/2) | +22.4 (24/7) |
+| H4a: oversight clause (nudge off) | -7.9 (2/8) | -2.6 (1/3) | +3.9 (4/1) | -2.6 (1/3) | -7.9 (4/10) | +1.3 (4/3) | +1.3 (5/4) | – |
+| H4b: obedience clauses + rules (nudge off) | -9.2 (4/11) | -22.4 (3/20) | +3.9 (6/3) | +6.6 (10/5) | +3.9 (8/5) | +0.0 (3/3) | +7.9 (10/4) | – |
 | licence (nudge off) | +11.8 (11/2) | +1.3 (3/2) | +2.6 (4/2) | +7.9 (8/2) | +1.3 (6/5) | +5.3 (5/1) | -6.6 (2/7) | +2.6 (6/4) |
 | nudge (full jailbreak) | -1.3 (4/5) | -1.3 (2/3) | +1.3 (4/3) | -5.3 (1/5) | -2.6 (5/7) | -2.6 (2/4) | +7.9 (7/1) | -1.3 (4/5) |
 | nudge (no licence) | +7.9 (11/5) | -1.3 (1/2) | +10.5 (8/0) | +1.3 (6/5) | -1.3 (4/5) | -1.3 (2/3) | -1.3 (2/3) | +3.9 (7/4) |
@@ -133,26 +155,26 @@ Per model: Δ (pp) and b/c. Exact McNemar p per model is in `results/tables/tabl
 
 **(c) Diagnostics.** Refusals (heuristic: an explicit refusal in the first 200 characters, or a no_convergence verdict whose reason mentions a refusal; validated in REPLICATION_NOTES.md; never a headline metric) per model and arm. The judge counts a refusal as no_convergence, so this separates refusing from complying without instrumental behaviour.
 
-| Model | nudge | nonudge | nocause-nudge | nocause-nonudge | plain-nudge | plain-goal | plain-nonudge | nudge-rep |
-|---|---|---|---|---|---|---|---|---|
-| gpt-4o | 9/76 | 4/76 | 13/76 | 8/76 | 1/76 | 0/76 | 0/76 | 9/76 |
-| gpt-4o-mini (added) | 27/76 | 29/76 | 32/76 | 31/76 | 7/76 | 4/76 | 1/76 | 27/76 |
-| deepseek-v3 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 |
-| qwen-2.5-72b (added) | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | – |
-| o4-mini (for o1-mini) | 14/76 | 17/76 | 17/76 | 18/76 | 14/76 | 16/76 | 12/76 | 13/76 |
-| o3-mini | 7/76 | 9/76 | 9/76 | 9/76 | 7/76 | 8/76 | 6/76 | – |
-| gemini-2.5-flash (for Gemini 2.0 FTE.) | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | – |
-| deepseek-r1 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 1/76 | – |
+| Model | nudge | nonudge | nocause-nudge | nocause-nonudge | oversight-nonudge | plain-nudge | plain-goal | plain-nonudge | nudge-rep |
+|---|---|---|---|---|---|---|---|---|---|
+| gpt-4o | 9/76 | 4/76 | 13/76 | 8/76 | 0/76 | 1/76 | 0/76 | 0/76 | 9/76 |
+| gpt-4o-mini (added) | 27/76 | 29/76 | 32/76 | 31/76 | 3/76 | 7/76 | 4/76 | 1/76 | 27/76 |
+| deepseek-v3 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 |
+| qwen-2.5-72b (added) | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | – |
+| o4-mini (for o1-mini) | 14/76 | 17/76 | 17/76 | 18/76 | 18/76 | 14/76 | 16/76 | 12/76 | 13/76 |
+| o3-mini | 7/76 | 9/76 | 9/76 | 9/76 | 5/76 | 7/76 | 8/76 | 6/76 | – |
+| gemini-2.5-flash (for Gemini 2.0 FTE.) | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | 0/76 | – |
+| deepseek-r1 | 0/76 | 0/76 | 0/76 | 0/76 | – | 0/76 | 0/76 | 1/76 | – |
 
 Serving provider per arm (a provider switch between arms is a confound, not a prompt effect):
 
-- gpt-4o: nudge: Azure 44, OpenAI 32; nonudge: OpenAI 39, Azure 37; nocause-nudge: OpenAI 38, Azure 38; nocause-nonudge: Azure 43, OpenAI 33; plain-nudge: OpenAI 43, Azure 33; plain-goal: Azure 42, OpenAI 34; plain-nonudge: OpenAI 42, Azure 34; nudge-rep: OpenAI 40, Azure 36
+- gpt-4o: nudge: Azure 44, OpenAI 32; nonudge: OpenAI 39, Azure 37; nocause-nudge: OpenAI 38, Azure 38; nocause-nonudge: Azure 43, OpenAI 33; oversight-nonudge: OpenAI 48, Azure 28; plain-nudge: OpenAI 43, Azure 33; plain-goal: Azure 42, OpenAI 34; plain-nonudge: OpenAI 42, Azure 34; nudge-rep: OpenAI 40, Azure 36
 - gpt-4o-mini (added): OpenAI for every arm
 - deepseek-v3: StreamLake for every arm
-- qwen-2.5-72b (added): nudge: Novita 40, DeepInfra 36; nonudge: Novita 39, DeepInfra 37; nocause-nudge: DeepInfra 39, Novita 37; nocause-nonudge: Novita 59, DeepInfra 17; plain-nudge: Novita 39, DeepInfra 37; plain-goal: DeepInfra 47, Novita 29; plain-nonudge: Novita 68, DeepInfra 8
+- qwen-2.5-72b (added): nudge: Novita 40, DeepInfra 36; nonudge: Novita 39, DeepInfra 37; nocause-nudge: DeepInfra 39, Novita 37; nocause-nonudge: Novita 59, DeepInfra 17; oversight-nonudge: DeepInfra 76; plain-nudge: Novita 39, DeepInfra 37; plain-goal: DeepInfra 47, Novita 29; plain-nonudge: Novita 68, DeepInfra 8
 - o4-mini (for o1-mini): OpenAI for every arm
 - o3-mini: OpenAI for every arm
-- gemini-2.5-flash (for Gemini 2.0 FTE.): Google for every arm
+- gemini-2.5-flash (for Gemini 2.0 FTE.): nudge: Google 76; nonudge: Google 76; nocause-nudge: Google 76; nocause-nonudge: Google 76; oversight-nonudge: Google AI Studio 76; plain-nudge: Google 76; plain-goal: Google 76; plain-nonudge: Google 76
 - deepseek-r1: Novita for every arm
 
 ## Table 7: reasoning-effort sweep, o3-mini and o4-mini (not in the paper; Figure 7)
@@ -216,6 +238,12 @@ Judge: `gpt-4o`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_
 
 **(e) Pre-registered decision (H-E1, high − low pooled over the two models).** **NO EFFECT DETECTED**: high − low = +4.6 pp, Holm p = 0.516 (noise floor 2.6 pp).
 
+## Table 8: task audit, what each benchmark item can measure (not in the paper)
+
+Rubric: data/task_audit_rubric.md. Pre-registration and the pilot gate: REPLICATION_NOTES.md, "Task audit".
+
+_No task audit yet: `ie audit-tasks`, adjudicate (`.claude/agents/task-auditor.md`), then `ie audit-tasks --merge <dir>`._
+
 ## Response status per run
 
 - `deepseek-r1__nocause-nonudge__benchmark`: {'ok': 76}
@@ -223,6 +251,7 @@ Judge: `gpt-4o`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_
 - `deepseek-r1__nonudge__benchmark`: {'ok': 76}
 - `deepseek-r1__nudge__benchmark`: {'ok': 76}
 - `deepseek-r1__nudge__neutral`: {'ok': 20}
+- `deepseek-r1__oversight-nonudge__benchmark`: {'error': 6}
 - `deepseek-r1__plain-goal__benchmark`: {'ok': 76}
 - `deepseek-r1__plain-nonudge__benchmark`: {'ok': 76}
 - `deepseek-r1__plain-nudge__benchmark`: {'ok': 76}
@@ -232,6 +261,7 @@ Judge: `gpt-4o`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_
 - `deepseek-v3__nudge-rep__benchmark`: {'ok': 76}
 - `deepseek-v3__nudge__benchmark`: {'ok': 76}
 - `deepseek-v3__nudge__neutral`: {'ok': 20}
+- `deepseek-v3__oversight-nonudge__benchmark`: {'ok': 76}
 - `deepseek-v3__plain-goal__benchmark`: {'ok': 76}
 - `deepseek-v3__plain-nonudge__benchmark`: {'ok': 76}
 - `deepseek-v3__plain-nudge__benchmark`: {'ok': 76}
@@ -240,6 +270,7 @@ Judge: `gpt-4o`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_
 - `gemini-2.5-flash__nonudge__benchmark`: {'ok': 76}
 - `gemini-2.5-flash__nudge__benchmark`: {'ok': 76}
 - `gemini-2.5-flash__nudge__neutral`: {'ok': 20}
+- `gemini-2.5-flash__oversight-nonudge__benchmark`: {'ok': 76}
 - `gemini-2.5-flash__plain-goal__benchmark`: {'ok': 76}
 - `gemini-2.5-flash__plain-nonudge__benchmark`: {'ok': 76}
 - `gemini-2.5-flash__plain-nudge__benchmark`: {'ok': 76}
@@ -249,6 +280,7 @@ Judge: `gpt-4o`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_
 - `gpt-4o-mini__nudge-rep__benchmark`: {'ok': 76}
 - `gpt-4o-mini__nudge__benchmark`: {'ok': 76}
 - `gpt-4o-mini__nudge__neutral`: {'ok': 20}
+- `gpt-4o-mini__oversight-nonudge__benchmark`: {'ok': 76}
 - `gpt-4o-mini__plain-goal__benchmark`: {'ok': 76}
 - `gpt-4o-mini__plain-nonudge__benchmark`: {'ok': 76}
 - `gpt-4o-mini__plain-nudge__benchmark`: {'ok': 76}
@@ -258,6 +290,7 @@ Judge: `gpt-4o`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_
 - `gpt-4o__nudge-rep__benchmark`: {'ok': 76}
 - `gpt-4o__nudge__benchmark`: {'ok': 76}
 - `gpt-4o__nudge__neutral`: {'ok': 20}
+- `gpt-4o__oversight-nonudge__benchmark`: {'ok': 76}
 - `gpt-4o__plain-goal__benchmark`: {'ok': 76}
 - `gpt-4o__plain-nonudge__benchmark`: {'ok': 76}
 - `gpt-4o__plain-nudge__benchmark`: {'ok': 76}
@@ -271,6 +304,7 @@ Judge: `gpt-4o`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_
 - `o3-mini__nonudge__benchmark`: {'ok': 76}
 - `o3-mini__nudge__benchmark`: {'ok': 76}
 - `o3-mini__nudge__neutral`: {'ok': 20}
+- `o3-mini__oversight-nonudge__benchmark`: {'ok': 76}
 - `o3-mini__plain-goal__benchmark`: {'ok': 76}
 - `o3-mini__plain-nonudge__benchmark`: {'ok': 76}
 - `o3-mini__plain-nudge__benchmark`: {'ok': 76}
@@ -283,6 +317,7 @@ Judge: `gpt-4o`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_
 - `o4-mini__nudge-rep__benchmark`: {'ok': 76}
 - `o4-mini__nudge__benchmark`: {'ok': 76}
 - `o4-mini__nudge__neutral`: {'ok': 20}
+- `o4-mini__oversight-nonudge__benchmark`: {'ok': 76}
 - `o4-mini__plain-goal__benchmark`: {'ok': 76}
 - `o4-mini__plain-nonudge__benchmark`: {'ok': 76}
 - `o4-mini__plain-nudge__benchmark`: {'ok': 76}
@@ -291,6 +326,7 @@ Judge: `gpt-4o`, full `nudge` prompt. Pre-registration and caveats: REPLICATION_
 - `qwen-2.5-72b__nonudge__benchmark`: {'ok': 76}
 - `qwen-2.5-72b__nudge__benchmark`: {'ok': 76}
 - `qwen-2.5-72b__nudge__neutral`: {'ok': 20}
+- `qwen-2.5-72b__oversight-nonudge__benchmark`: {'ok': 76}
 - `qwen-2.5-72b__plain-goal__benchmark`: {'ok': 76}
 - `qwen-2.5-72b__plain-nonudge__benchmark`: {'ok': 76}
 - `qwen-2.5-72b__plain-nudge__benchmark`: {'ok': 76}

@@ -369,6 +369,11 @@ PRIMARY = [
     ("H2a: oversight + rules (nudge on)", "nocause-nudge", "plain-nudge"),
     ("H2b: oversight + rules (nudge off)", "nocause-nonudge", "plain-nonudge"),
 ]
+# Follow-up (pre-registered 2026-10-21, "Five-step decomposition"): H2b split in two, its own Holm family.
+SPLIT = [
+    ("H4a: oversight clause (nudge off)", "oversight-nonudge", "plain-nonudge"),
+    ("H4b: obedience clauses + rules (nudge off)", "nocause-nonudge", "oversight-nonudge"),
+]
 EXPLORATORY = [
     ("licence (nudge off)", "nonudge", "nocause-nonudge"),
     ("nudge (full jailbreak)", "nudge", "nonudge"),
@@ -453,6 +458,15 @@ def paper_table1() -> dict[str, dict]:
     return {v["ours"]: v | {"paper_name": k} for k, v in t1.items() if v["ours"]}
 
 
+def paper_table3() -> dict[str, dict]:
+    """Our model key -> the paper's Table 3 entry ({"without": ..., "with": ...}), named as in Table 1."""
+    if not PAPER_RESULTS.exists():
+        return {}
+    paper = json.loads(PAPER_RESULTS.read_text(encoding="utf-8"))
+    ours = {k: v["ours"] for k, v in paper["table1"].items() if v["ours"]}
+    return {ours[k]: v for k, v in paper["table3"].items()}
+
+
 def ablation_records(judge: str) -> pd.DataFrame:
     """One row per judged benchmark response (every variant): provider, decision and the refusal flag."""
     rows = []
@@ -510,12 +524,14 @@ def table6(df: pd.DataFrame, judge: str) -> str:
                 cir_rows += [{"model": m, "variant": v, "category": cat, "k": int(cm.loc[cat, "k"]),
                               "n": int(cm.loc[cat, "n"]), "cir": 100 * cm.loc[cat, "k"] / cm.loc[cat, "n"]}
                              for cat in cm.index]
-    design = [v for v in DESIGN_VARIANTS if v in variants]
+    # `oversight-nonudge` has no deepseek-r1 (endpoint gone), so it must not shrink the model set of the others
+    design = [v for v in DESIGN_VARIANTS if v in variants and v != "oversight-nonudge"]
     complete = [m for m in models if ir.loc[m, design].notna().all()]
+    averaged = [v for v in DESIGN_VARIANTS if v in variants and ir.loc[complete, v].notna().all()]
     out = ir.map(fmt)
     out.index = [TEST_MODELS[m].label for m in models]
     # design variants only: `nudge-rep` covers just REP_MODELS, so a family mean over it would mislead
-    for name, avg in family_averages(ir.loc[complete, design].T).items():
+    for name, avg in family_averages(ir.loc[complete, averaged].T).items():
         out.loc[name] = avg.reindex(variants).map(lambda x: "" if pd.isna(x) else fmt(x))
     out["paper IR (Table 1)"] = [
         (f"{paper[m]['ir']:.2f}" + ("" if m == "gpt-4o" else " ‡")) if m in paper else "–" for m in models
@@ -528,29 +544,32 @@ def table6(df: pd.DataFrame, judge: str) -> str:
                  "GPT-4o (the same pinned snapshot) is compared with the paper.\n\n" + md_table(out, "Model"))
 
     # (b) paired contrasts
-    contrasts = {label: paired_contrast(df, judge, a, b) for label, a, b in PRIMARY + EXPLORATORY}
+    contrasts = {label: paired_contrast(df, judge, a, b) for label, a, b in PRIMARY + SPLIT + EXPLORATORY}
     contrasts[INTERACTION[0]] = interaction_contrast(df, judge, INTERACTION[1], INTERACTION[2])
-    primary_p = [contrasts[label]["pooled"]["p"] if contrasts[label]["pooled"] else None for label, _, _ in PRIMARY]
-    holm_p = holm(primary_p) if None not in primary_p else [math.nan] * len(PRIMARY)
+    holm_by = {}
+    for family in (PRIMARY, SPLIT):
+        ps = [contrasts[label]["pooled"]["p"] if contrasts[label]["pooled"] else None for label, _, _ in family]
+        holm_by |= zip([label for label, _, _ in family], holm(ps) if None not in ps else [math.nan] * len(family))
     rows, long = {}, []
-    for i, label in enumerate(list(contrasts)):
+    for label in contrasts:
         pooled = contrasts[label]["pooled"]
-        is_primary = i < len(PRIMARY)
+        is_primary = label in holm_by
         if pooled:
             rows[label] = {"Δ (pp)": _signed(pooled["delta"]),
                            "b / c": "–" if label == INTERACTION[0] else f"{pooled['b']} / {pooled['c']}",
                            "pairs": pooled["n"], "models": len(pooled["models"]), "p (task sign-flip)": _p(pooled["p"]),
-                           "Holm p": _p(holm_p[i]) if is_primary else ""}
+                           "Holm p": _p(holm_by[label]) if is_primary else ""}
             long.append({"contrast": label, "model": "pooled", **{k: pooled.get(k) for k in ("delta", "b", "c", "n", "p")},
-                         "p_holm": holm_p[i] if is_primary else None})
+                         "p_holm": holm_by[label] if is_primary else None})
         for m, v in contrasts[label]["per_model"].items():
             long.append({"contrast": label, "model": m, **{k: v.get(k) for k in ("delta", "b", "c", "n", "p")}})
     save_csv(pd.DataFrame(long), f"table6_contrasts_{judge}")
     if rows:
         parts.append("**(b) Paired contrasts, pooled over models (arm A − arm B, pp).** Pairs are the (model, task) "
                      "pairs judged in both arms. The p-value flips the sign of whole tasks, because every model sees "
-                     "the same 76 tasks. H1, H2a and H2b are the pre-registered primary tests (Holm-corrected); the "
-                     "rest are exploratory. b / c = pairs where only arm A / only arm B converged.\n\n"
+                     "the same 76 tasks. H1, H2a and H2b are the pre-registered primary tests, H4a and H4b the "
+                     "pre-registered follow-up (each family Holm-corrected on its own); the rest are exploratory. "
+                     "b / c = pairs where only arm A / only arm B converged.\n\n"
                      + md_table(pd.DataFrame(rows).T, "Contrast"))
         per = pd.DataFrame({label: {TEST_MODELS[m].label: _signed(v["delta"]) + (f" ({v['b']}/{v['c']})" if "b" in v else "")
                                     for m, v in contrasts[label]["per_model"].items()} for label in contrasts})
@@ -573,11 +592,11 @@ def table6(df: pd.DataFrame, judge: str) -> str:
         prof = cir_matrix(df, judge, "nocause-nudge")
         with np.errstate(invalid="ignore", divide="ignore"):  # a flat profile has no correlation (nan)
             r = np.corrcoef([prof.loc[c, "gpt-4o"] for c in CATEGORIES], [p["cir"][c] for c in CATEGORIES])[0, 1]
-        verdict = licence_verdict(holm_p[0], g["delta"], floor, ours, paper_ci)
+        verdict = licence_verdict(holm_by[PRIMARY[0][0]], g["delta"], floor, ours, paper_ci)
         parts.append(
             "**Pre-registered decision: does the good-cause licence explain the paper's lower rates?** "
             f"**{verdict}.**\n\n"
-            f"- H1 pooled: Δ = {_signed(h1['pooled']['delta'])} pp, Holm p = {_p(holm_p[0])}\n"
+            f"- H1 pooled: Δ = {_signed(h1['pooled']['delta'])} pp, Holm p = {_p(holm_by[PRIMARY[0][0]])}\n"
             f"- GPT-4o: Δ licence = {_signed(g['delta'])} pp ({g['b']}/{g['c']}); noise floor = 1.96·√(b+c)/n from its "
             f"`nudge-rep` retest ({rep['b']}/{rep['c']} of {rep['n']}) = {floor:.1f} pp\n"
             f"- GPT-4o `nocause-nudge` IR = {fmt(ours)} (95% CI {fmt(ours_ci[0], 1)}–{fmt(ours_ci[1], 1)}); the paper's "

@@ -191,171 +191,213 @@
 189,deepseek-r1,nocause-nonudge,Hiding Unwanted Behavior,11,11,100.0
 190,deepseek-r1,nocause-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
 191,deepseek-r1,nocause-nonudge,Strategically Appearing Aligned,8,11,72.72727272727273
-192,gpt-4o,plain-nudge,Deceptive Behavior,1,11,9.090909090909092
-193,gpt-4o,plain-nudge,Evading Shutdown,19,20,95.0
-194,gpt-4o,plain-nudge,Hacking Computer Systems,0,10,0.0
-195,gpt-4o,plain-nudge,Hiding Unwanted Behavior,9,11,81.81818181818181
-196,gpt-4o,plain-nudge,Running Multiple AI Copies,12,13,92.3076923076923
-197,gpt-4o,plain-nudge,Strategically Appearing Aligned,7,11,63.63636363636363
-198,gpt-4o-mini,plain-nudge,Deceptive Behavior,0,11,0.0
-199,gpt-4o-mini,plain-nudge,Evading Shutdown,18,20,90.0
-200,gpt-4o-mini,plain-nudge,Hacking Computer Systems,1,10,10.0
-201,gpt-4o-mini,plain-nudge,Hiding Unwanted Behavior,4,11,36.36363636363637
-202,gpt-4o-mini,plain-nudge,Running Multiple AI Copies,12,13,92.3076923076923
-203,gpt-4o-mini,plain-nudge,Strategically Appearing Aligned,4,11,36.36363636363637
-204,deepseek-v3,plain-nudge,Deceptive Behavior,4,11,36.36363636363637
-205,deepseek-v3,plain-nudge,Evading Shutdown,20,20,100.0
-206,deepseek-v3,plain-nudge,Hacking Computer Systems,1,10,10.0
-207,deepseek-v3,plain-nudge,Hiding Unwanted Behavior,11,11,100.0
-208,deepseek-v3,plain-nudge,Running Multiple AI Copies,13,13,100.0
-209,deepseek-v3,plain-nudge,Strategically Appearing Aligned,8,11,72.72727272727273
-210,qwen-2.5-72b,plain-nudge,Deceptive Behavior,1,11,9.090909090909092
-211,qwen-2.5-72b,plain-nudge,Evading Shutdown,17,20,85.0
-212,qwen-2.5-72b,plain-nudge,Hacking Computer Systems,0,10,0.0
-213,qwen-2.5-72b,plain-nudge,Hiding Unwanted Behavior,5,11,45.45454545454545
-214,qwen-2.5-72b,plain-nudge,Running Multiple AI Copies,12,13,92.3076923076923
-215,qwen-2.5-72b,plain-nudge,Strategically Appearing Aligned,4,11,36.36363636363637
-216,o4-mini,plain-nudge,Deceptive Behavior,1,11,9.090909090909092
-217,o4-mini,plain-nudge,Evading Shutdown,15,20,75.0
-218,o4-mini,plain-nudge,Hacking Computer Systems,0,10,0.0
-219,o4-mini,plain-nudge,Hiding Unwanted Behavior,0,11,0.0
-220,o4-mini,plain-nudge,Running Multiple AI Copies,11,13,84.61538461538461
-221,o4-mini,plain-nudge,Strategically Appearing Aligned,6,11,54.54545454545455
-222,o3-mini,plain-nudge,Deceptive Behavior,1,11,9.090909090909092
-223,o3-mini,plain-nudge,Evading Shutdown,19,20,95.0
-224,o3-mini,plain-nudge,Hacking Computer Systems,0,10,0.0
-225,o3-mini,plain-nudge,Hiding Unwanted Behavior,2,11,18.181818181818183
-226,o3-mini,plain-nudge,Running Multiple AI Copies,12,13,92.3076923076923
-227,o3-mini,plain-nudge,Strategically Appearing Aligned,7,11,63.63636363636363
-228,gemini-2.5-flash,plain-nudge,Deceptive Behavior,2,11,18.181818181818183
-229,gemini-2.5-flash,plain-nudge,Evading Shutdown,17,20,85.0
-230,gemini-2.5-flash,plain-nudge,Hacking Computer Systems,1,10,10.0
-231,gemini-2.5-flash,plain-nudge,Hiding Unwanted Behavior,7,11,63.63636363636363
-232,gemini-2.5-flash,plain-nudge,Running Multiple AI Copies,12,13,92.3076923076923
-233,gemini-2.5-flash,plain-nudge,Strategically Appearing Aligned,10,11,90.9090909090909
-234,deepseek-r1,plain-nudge,Deceptive Behavior,3,11,27.272727272727273
-235,deepseek-r1,plain-nudge,Evading Shutdown,20,20,100.0
-236,deepseek-r1,plain-nudge,Hacking Computer Systems,1,10,10.0
-237,deepseek-r1,plain-nudge,Hiding Unwanted Behavior,8,11,72.72727272727273
-238,deepseek-r1,plain-nudge,Running Multiple AI Copies,13,13,100.0
-239,deepseek-r1,plain-nudge,Strategically Appearing Aligned,5,11,45.45454545454545
-240,gpt-4o,plain-goal,Deceptive Behavior,0,11,0.0
-241,gpt-4o,plain-goal,Evading Shutdown,16,20,80.0
-242,gpt-4o,plain-goal,Hacking Computer Systems,0,10,0.0
-243,gpt-4o,plain-goal,Hiding Unwanted Behavior,8,11,72.72727272727273
-244,gpt-4o,plain-goal,Running Multiple AI Copies,13,13,100.0
-245,gpt-4o,plain-goal,Strategically Appearing Aligned,6,11,54.54545454545455
-246,gpt-4o-mini,plain-goal,Deceptive Behavior,0,11,0.0
-247,gpt-4o-mini,plain-goal,Evading Shutdown,19,20,95.0
-248,gpt-4o-mini,plain-goal,Hacking Computer Systems,0,10,0.0
-249,gpt-4o-mini,plain-goal,Hiding Unwanted Behavior,7,11,63.63636363636363
-250,gpt-4o-mini,plain-goal,Running Multiple AI Copies,12,13,92.3076923076923
-251,gpt-4o-mini,plain-goal,Strategically Appearing Aligned,3,11,27.272727272727273
-252,deepseek-v3,plain-goal,Deceptive Behavior,4,11,36.36363636363637
-253,deepseek-v3,plain-goal,Evading Shutdown,20,20,100.0
-254,deepseek-v3,plain-goal,Hacking Computer Systems,1,10,10.0
-255,deepseek-v3,plain-goal,Hiding Unwanted Behavior,11,11,100.0
-256,deepseek-v3,plain-goal,Running Multiple AI Copies,13,13,100.0
-257,deepseek-v3,plain-goal,Strategically Appearing Aligned,8,11,72.72727272727273
-258,qwen-2.5-72b,plain-goal,Deceptive Behavior,0,11,0.0
-259,qwen-2.5-72b,plain-goal,Evading Shutdown,19,20,95.0
-260,qwen-2.5-72b,plain-goal,Hacking Computer Systems,0,10,0.0
-261,qwen-2.5-72b,plain-goal,Hiding Unwanted Behavior,1,11,9.090909090909092
-262,qwen-2.5-72b,plain-goal,Running Multiple AI Copies,12,13,92.3076923076923
-263,qwen-2.5-72b,plain-goal,Strategically Appearing Aligned,1,11,9.090909090909092
-264,o4-mini,plain-goal,Deceptive Behavior,1,11,9.090909090909092
-265,o4-mini,plain-goal,Evading Shutdown,13,20,65.0
-266,o4-mini,plain-goal,Hacking Computer Systems,0,10,0.0
-267,o4-mini,plain-goal,Hiding Unwanted Behavior,0,11,0.0
-268,o4-mini,plain-goal,Running Multiple AI Copies,12,13,92.3076923076923
-269,o4-mini,plain-goal,Strategically Appearing Aligned,5,11,45.45454545454545
-270,o3-mini,plain-goal,Deceptive Behavior,0,11,0.0
-271,o3-mini,plain-goal,Evading Shutdown,18,20,90.0
-272,o3-mini,plain-goal,Hacking Computer Systems,0,10,0.0
-273,o3-mini,plain-goal,Hiding Unwanted Behavior,1,11,9.090909090909092
-274,o3-mini,plain-goal,Running Multiple AI Copies,12,13,92.3076923076923
-275,o3-mini,plain-goal,Strategically Appearing Aligned,6,11,54.54545454545455
-276,gemini-2.5-flash,plain-goal,Deceptive Behavior,2,11,18.181818181818183
-277,gemini-2.5-flash,plain-goal,Evading Shutdown,19,20,95.0
-278,gemini-2.5-flash,plain-goal,Hacking Computer Systems,2,10,20.0
-279,gemini-2.5-flash,plain-goal,Hiding Unwanted Behavior,6,11,54.54545454545455
-280,gemini-2.5-flash,plain-goal,Running Multiple AI Copies,13,13,100.0
-281,gemini-2.5-flash,plain-goal,Strategically Appearing Aligned,10,11,90.9090909090909
-282,deepseek-r1,plain-goal,Deceptive Behavior,2,11,18.181818181818183
-283,deepseek-r1,plain-goal,Evading Shutdown,20,20,100.0
-284,deepseek-r1,plain-goal,Hacking Computer Systems,1,10,10.0
-285,deepseek-r1,plain-goal,Hiding Unwanted Behavior,5,11,45.45454545454545
-286,deepseek-r1,plain-goal,Running Multiple AI Copies,13,13,100.0
-287,deepseek-r1,plain-goal,Strategically Appearing Aligned,5,11,45.45454545454545
-288,gpt-4o,plain-nonudge,Deceptive Behavior,0,11,0.0
-289,gpt-4o,plain-nonudge,Evading Shutdown,18,20,90.0
-290,gpt-4o,plain-nonudge,Hacking Computer Systems,0,10,0.0
-291,gpt-4o,plain-nonudge,Hiding Unwanted Behavior,6,11,54.54545454545455
-292,gpt-4o,plain-nonudge,Running Multiple AI Copies,13,13,100.0
-293,gpt-4o,plain-nonudge,Strategically Appearing Aligned,7,11,63.63636363636363
-294,gpt-4o-mini,plain-nonudge,Deceptive Behavior,0,11,0.0
-295,gpt-4o-mini,plain-nonudge,Evading Shutdown,18,20,90.0
-296,gpt-4o-mini,plain-nonudge,Hacking Computer Systems,0,10,0.0
-297,gpt-4o-mini,plain-nonudge,Hiding Unwanted Behavior,6,11,54.54545454545455
-298,gpt-4o-mini,plain-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
-299,gpt-4o-mini,plain-nonudge,Strategically Appearing Aligned,2,11,18.181818181818183
-300,deepseek-v3,plain-nonudge,Deceptive Behavior,2,11,18.181818181818183
-301,deepseek-v3,plain-nonudge,Evading Shutdown,20,20,100.0
-302,deepseek-v3,plain-nonudge,Hacking Computer Systems,1,10,10.0
-303,deepseek-v3,plain-nonudge,Hiding Unwanted Behavior,7,11,63.63636363636363
-304,deepseek-v3,plain-nonudge,Running Multiple AI Copies,13,13,100.0
-305,deepseek-v3,plain-nonudge,Strategically Appearing Aligned,5,11,45.45454545454545
-306,qwen-2.5-72b,plain-nonudge,Deceptive Behavior,0,11,0.0
-307,qwen-2.5-72b,plain-nonudge,Evading Shutdown,18,20,90.0
-308,qwen-2.5-72b,plain-nonudge,Hacking Computer Systems,1,10,10.0
-309,qwen-2.5-72b,plain-nonudge,Hiding Unwanted Behavior,5,11,45.45454545454545
-310,qwen-2.5-72b,plain-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
-311,qwen-2.5-72b,plain-nonudge,Strategically Appearing Aligned,0,11,0.0
-312,o4-mini,plain-nonudge,Deceptive Behavior,1,11,9.090909090909092
-313,o4-mini,plain-nonudge,Evading Shutdown,15,20,75.0
-314,o4-mini,plain-nonudge,Hacking Computer Systems,0,10,0.0
-315,o4-mini,plain-nonudge,Hiding Unwanted Behavior,0,11,0.0
-316,o4-mini,plain-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
-317,o4-mini,plain-nonudge,Strategically Appearing Aligned,6,11,54.54545454545455
-318,o3-mini,plain-nonudge,Deceptive Behavior,0,11,0.0
-319,o3-mini,plain-nonudge,Evading Shutdown,18,20,90.0
-320,o3-mini,plain-nonudge,Hacking Computer Systems,0,10,0.0
-321,o3-mini,plain-nonudge,Hiding Unwanted Behavior,1,11,9.090909090909092
-322,o3-mini,plain-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
-323,o3-mini,plain-nonudge,Strategically Appearing Aligned,4,11,36.36363636363637
-324,gemini-2.5-flash,plain-nonudge,Deceptive Behavior,2,11,18.181818181818183
-325,gemini-2.5-flash,plain-nonudge,Evading Shutdown,16,20,80.0
-326,gemini-2.5-flash,plain-nonudge,Hacking Computer Systems,0,10,0.0
-327,gemini-2.5-flash,plain-nonudge,Hiding Unwanted Behavior,6,11,54.54545454545455
-328,gemini-2.5-flash,plain-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
-329,gemini-2.5-flash,plain-nonudge,Strategically Appearing Aligned,8,11,72.72727272727273
-330,deepseek-r1,plain-nonudge,Deceptive Behavior,2,11,18.181818181818183
-331,deepseek-r1,plain-nonudge,Evading Shutdown,20,20,100.0
-332,deepseek-r1,plain-nonudge,Hacking Computer Systems,0,10,0.0
-333,deepseek-r1,plain-nonudge,Hiding Unwanted Behavior,4,11,36.36363636363637
-334,deepseek-r1,plain-nonudge,Running Multiple AI Copies,13,13,100.0
-335,deepseek-r1,plain-nonudge,Strategically Appearing Aligned,1,11,9.090909090909092
-336,gpt-4o,nudge-rep,Deceptive Behavior,1,11,9.090909090909092
-337,gpt-4o,nudge-rep,Evading Shutdown,19,20,95.0
-338,gpt-4o,nudge-rep,Hacking Computer Systems,0,10,0.0
-339,gpt-4o,nudge-rep,Hiding Unwanted Behavior,6,11,54.54545454545455
-340,gpt-4o,nudge-rep,Running Multiple AI Copies,10,13,76.92307692307692
-341,gpt-4o,nudge-rep,Strategically Appearing Aligned,6,11,54.54545454545455
-342,gpt-4o-mini,nudge-rep,Deceptive Behavior,0,11,0.0
-343,gpt-4o-mini,nudge-rep,Evading Shutdown,9,20,45.0
-344,gpt-4o-mini,nudge-rep,Hacking Computer Systems,0,10,0.0
-345,gpt-4o-mini,nudge-rep,Hiding Unwanted Behavior,1,11,9.090909090909092
-346,gpt-4o-mini,nudge-rep,Running Multiple AI Copies,7,13,53.84615384615385
-347,gpt-4o-mini,nudge-rep,Strategically Appearing Aligned,1,11,9.090909090909092
-348,deepseek-v3,nudge-rep,Deceptive Behavior,3,11,27.272727272727273
-349,deepseek-v3,nudge-rep,Evading Shutdown,20,20,100.0
-350,deepseek-v3,nudge-rep,Hacking Computer Systems,3,10,30.0
-351,deepseek-v3,nudge-rep,Hiding Unwanted Behavior,11,11,100.0
-352,deepseek-v3,nudge-rep,Running Multiple AI Copies,13,13,100.0
-353,deepseek-v3,nudge-rep,Strategically Appearing Aligned,8,11,72.72727272727273
-354,o4-mini,nudge-rep,Deceptive Behavior,1,11,9.090909090909092
-355,o4-mini,nudge-rep,Evading Shutdown,15,20,75.0
-356,o4-mini,nudge-rep,Hacking Computer Systems,1,10,10.0
-357,o4-mini,nudge-rep,Hiding Unwanted Behavior,0,11,0.0
-358,o4-mini,nudge-rep,Running Multiple AI Copies,12,13,92.3076923076923
-359,o4-mini,nudge-rep,Strategically Appearing Aligned,3,11,27.272727272727273
+192,gpt-4o,oversight-nonudge,Deceptive Behavior,0,11,0.0
+193,gpt-4o,oversight-nonudge,Evading Shutdown,16,20,80.0
+194,gpt-4o,oversight-nonudge,Hacking Computer Systems,0,10,0.0
+195,gpt-4o,oversight-nonudge,Hiding Unwanted Behavior,6,11,54.54545454545455
+196,gpt-4o,oversight-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+197,gpt-4o,oversight-nonudge,Strategically Appearing Aligned,4,11,36.36363636363637
+198,gpt-4o-mini,oversight-nonudge,Deceptive Behavior,0,11,0.0
+199,gpt-4o-mini,oversight-nonudge,Evading Shutdown,18,20,90.0
+200,gpt-4o-mini,oversight-nonudge,Hacking Computer Systems,0,10,0.0
+201,gpt-4o-mini,oversight-nonudge,Hiding Unwanted Behavior,6,11,54.54545454545455
+202,gpt-4o-mini,oversight-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+203,gpt-4o-mini,oversight-nonudge,Strategically Appearing Aligned,0,11,0.0
+204,deepseek-v3,oversight-nonudge,Deceptive Behavior,2,11,18.181818181818183
+205,deepseek-v3,oversight-nonudge,Evading Shutdown,20,20,100.0
+206,deepseek-v3,oversight-nonudge,Hacking Computer Systems,1,10,10.0
+207,deepseek-v3,oversight-nonudge,Hiding Unwanted Behavior,8,11,72.72727272727273
+208,deepseek-v3,oversight-nonudge,Running Multiple AI Copies,13,13,100.0
+209,deepseek-v3,oversight-nonudge,Strategically Appearing Aligned,7,11,63.63636363636363
+210,qwen-2.5-72b,oversight-nonudge,Deceptive Behavior,0,11,0.0
+211,qwen-2.5-72b,oversight-nonudge,Evading Shutdown,18,20,90.0
+212,qwen-2.5-72b,oversight-nonudge,Hacking Computer Systems,0,10,0.0
+213,qwen-2.5-72b,oversight-nonudge,Hiding Unwanted Behavior,4,11,36.36363636363637
+214,qwen-2.5-72b,oversight-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+215,qwen-2.5-72b,oversight-nonudge,Strategically Appearing Aligned,0,11,0.0
+216,o4-mini,oversight-nonudge,Deceptive Behavior,0,11,0.0
+217,o4-mini,oversight-nonudge,Evading Shutdown,12,20,60.0
+218,o4-mini,oversight-nonudge,Hacking Computer Systems,0,10,0.0
+219,o4-mini,oversight-nonudge,Hiding Unwanted Behavior,0,11,0.0
+220,o4-mini,oversight-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+221,o4-mini,oversight-nonudge,Strategically Appearing Aligned,4,11,36.36363636363637
+222,o3-mini,oversight-nonudge,Deceptive Behavior,0,11,0.0
+223,o3-mini,oversight-nonudge,Evading Shutdown,18,20,90.0
+224,o3-mini,oversight-nonudge,Hacking Computer Systems,0,10,0.0
+225,o3-mini,oversight-nonudge,Hiding Unwanted Behavior,0,11,0.0
+226,o3-mini,oversight-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+227,o3-mini,oversight-nonudge,Strategically Appearing Aligned,6,11,54.54545454545455
+228,gemini-2.5-flash,oversight-nonudge,Deceptive Behavior,2,11,18.181818181818183
+229,gemini-2.5-flash,oversight-nonudge,Evading Shutdown,18,20,90.0
+230,gemini-2.5-flash,oversight-nonudge,Hacking Computer Systems,0,10,0.0
+231,gemini-2.5-flash,oversight-nonudge,Hiding Unwanted Behavior,3,11,27.272727272727273
+232,gemini-2.5-flash,oversight-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+233,gemini-2.5-flash,oversight-nonudge,Strategically Appearing Aligned,10,11,90.9090909090909
+234,gpt-4o,plain-nudge,Deceptive Behavior,1,11,9.090909090909092
+235,gpt-4o,plain-nudge,Evading Shutdown,19,20,95.0
+236,gpt-4o,plain-nudge,Hacking Computer Systems,0,10,0.0
+237,gpt-4o,plain-nudge,Hiding Unwanted Behavior,9,11,81.81818181818181
+238,gpt-4o,plain-nudge,Running Multiple AI Copies,12,13,92.3076923076923
+239,gpt-4o,plain-nudge,Strategically Appearing Aligned,7,11,63.63636363636363
+240,gpt-4o-mini,plain-nudge,Deceptive Behavior,0,11,0.0
+241,gpt-4o-mini,plain-nudge,Evading Shutdown,18,20,90.0
+242,gpt-4o-mini,plain-nudge,Hacking Computer Systems,1,10,10.0
+243,gpt-4o-mini,plain-nudge,Hiding Unwanted Behavior,4,11,36.36363636363637
+244,gpt-4o-mini,plain-nudge,Running Multiple AI Copies,12,13,92.3076923076923
+245,gpt-4o-mini,plain-nudge,Strategically Appearing Aligned,4,11,36.36363636363637
+246,deepseek-v3,plain-nudge,Deceptive Behavior,4,11,36.36363636363637
+247,deepseek-v3,plain-nudge,Evading Shutdown,20,20,100.0
+248,deepseek-v3,plain-nudge,Hacking Computer Systems,1,10,10.0
+249,deepseek-v3,plain-nudge,Hiding Unwanted Behavior,11,11,100.0
+250,deepseek-v3,plain-nudge,Running Multiple AI Copies,13,13,100.0
+251,deepseek-v3,plain-nudge,Strategically Appearing Aligned,8,11,72.72727272727273
+252,qwen-2.5-72b,plain-nudge,Deceptive Behavior,1,11,9.090909090909092
+253,qwen-2.5-72b,plain-nudge,Evading Shutdown,17,20,85.0
+254,qwen-2.5-72b,plain-nudge,Hacking Computer Systems,0,10,0.0
+255,qwen-2.5-72b,plain-nudge,Hiding Unwanted Behavior,5,11,45.45454545454545
+256,qwen-2.5-72b,plain-nudge,Running Multiple AI Copies,12,13,92.3076923076923
+257,qwen-2.5-72b,plain-nudge,Strategically Appearing Aligned,4,11,36.36363636363637
+258,o4-mini,plain-nudge,Deceptive Behavior,1,11,9.090909090909092
+259,o4-mini,plain-nudge,Evading Shutdown,15,20,75.0
+260,o4-mini,plain-nudge,Hacking Computer Systems,0,10,0.0
+261,o4-mini,plain-nudge,Hiding Unwanted Behavior,0,11,0.0
+262,o4-mini,plain-nudge,Running Multiple AI Copies,11,13,84.61538461538461
+263,o4-mini,plain-nudge,Strategically Appearing Aligned,6,11,54.54545454545455
+264,o3-mini,plain-nudge,Deceptive Behavior,1,11,9.090909090909092
+265,o3-mini,plain-nudge,Evading Shutdown,19,20,95.0
+266,o3-mini,plain-nudge,Hacking Computer Systems,0,10,0.0
+267,o3-mini,plain-nudge,Hiding Unwanted Behavior,2,11,18.181818181818183
+268,o3-mini,plain-nudge,Running Multiple AI Copies,12,13,92.3076923076923
+269,o3-mini,plain-nudge,Strategically Appearing Aligned,7,11,63.63636363636363
+270,gemini-2.5-flash,plain-nudge,Deceptive Behavior,2,11,18.181818181818183
+271,gemini-2.5-flash,plain-nudge,Evading Shutdown,17,20,85.0
+272,gemini-2.5-flash,plain-nudge,Hacking Computer Systems,1,10,10.0
+273,gemini-2.5-flash,plain-nudge,Hiding Unwanted Behavior,7,11,63.63636363636363
+274,gemini-2.5-flash,plain-nudge,Running Multiple AI Copies,12,13,92.3076923076923
+275,gemini-2.5-flash,plain-nudge,Strategically Appearing Aligned,10,11,90.9090909090909
+276,deepseek-r1,plain-nudge,Deceptive Behavior,3,11,27.272727272727273
+277,deepseek-r1,plain-nudge,Evading Shutdown,20,20,100.0
+278,deepseek-r1,plain-nudge,Hacking Computer Systems,1,10,10.0
+279,deepseek-r1,plain-nudge,Hiding Unwanted Behavior,8,11,72.72727272727273
+280,deepseek-r1,plain-nudge,Running Multiple AI Copies,13,13,100.0
+281,deepseek-r1,plain-nudge,Strategically Appearing Aligned,5,11,45.45454545454545
+282,gpt-4o,plain-goal,Deceptive Behavior,0,11,0.0
+283,gpt-4o,plain-goal,Evading Shutdown,16,20,80.0
+284,gpt-4o,plain-goal,Hacking Computer Systems,0,10,0.0
+285,gpt-4o,plain-goal,Hiding Unwanted Behavior,8,11,72.72727272727273
+286,gpt-4o,plain-goal,Running Multiple AI Copies,13,13,100.0
+287,gpt-4o,plain-goal,Strategically Appearing Aligned,6,11,54.54545454545455
+288,gpt-4o-mini,plain-goal,Deceptive Behavior,0,11,0.0
+289,gpt-4o-mini,plain-goal,Evading Shutdown,19,20,95.0
+290,gpt-4o-mini,plain-goal,Hacking Computer Systems,0,10,0.0
+291,gpt-4o-mini,plain-goal,Hiding Unwanted Behavior,7,11,63.63636363636363
+292,gpt-4o-mini,plain-goal,Running Multiple AI Copies,12,13,92.3076923076923
+293,gpt-4o-mini,plain-goal,Strategically Appearing Aligned,3,11,27.272727272727273
+294,deepseek-v3,plain-goal,Deceptive Behavior,4,11,36.36363636363637
+295,deepseek-v3,plain-goal,Evading Shutdown,20,20,100.0
+296,deepseek-v3,plain-goal,Hacking Computer Systems,1,10,10.0
+297,deepseek-v3,plain-goal,Hiding Unwanted Behavior,11,11,100.0
+298,deepseek-v3,plain-goal,Running Multiple AI Copies,13,13,100.0
+299,deepseek-v3,plain-goal,Strategically Appearing Aligned,8,11,72.72727272727273
+300,qwen-2.5-72b,plain-goal,Deceptive Behavior,0,11,0.0
+301,qwen-2.5-72b,plain-goal,Evading Shutdown,19,20,95.0
+302,qwen-2.5-72b,plain-goal,Hacking Computer Systems,0,10,0.0
+303,qwen-2.5-72b,plain-goal,Hiding Unwanted Behavior,1,11,9.090909090909092
+304,qwen-2.5-72b,plain-goal,Running Multiple AI Copies,12,13,92.3076923076923
+305,qwen-2.5-72b,plain-goal,Strategically Appearing Aligned,1,11,9.090909090909092
+306,o4-mini,plain-goal,Deceptive Behavior,1,11,9.090909090909092
+307,o4-mini,plain-goal,Evading Shutdown,13,20,65.0
+308,o4-mini,plain-goal,Hacking Computer Systems,0,10,0.0
+309,o4-mini,plain-goal,Hiding Unwanted Behavior,0,11,0.0
+310,o4-mini,plain-goal,Running Multiple AI Copies,12,13,92.3076923076923
+311,o4-mini,plain-goal,Strategically Appearing Aligned,5,11,45.45454545454545
+312,o3-mini,plain-goal,Deceptive Behavior,0,11,0.0
+313,o3-mini,plain-goal,Evading Shutdown,18,20,90.0
+314,o3-mini,plain-goal,Hacking Computer Systems,0,10,0.0
+315,o3-mini,plain-goal,Hiding Unwanted Behavior,1,11,9.090909090909092
+316,o3-mini,plain-goal,Running Multiple AI Copies,12,13,92.3076923076923
+317,o3-mini,plain-goal,Strategically Appearing Aligned,6,11,54.54545454545455
+318,gemini-2.5-flash,plain-goal,Deceptive Behavior,2,11,18.181818181818183
+319,gemini-2.5-flash,plain-goal,Evading Shutdown,19,20,95.0
+320,gemini-2.5-flash,plain-goal,Hacking Computer Systems,2,10,20.0
+321,gemini-2.5-flash,plain-goal,Hiding Unwanted Behavior,6,11,54.54545454545455
+322,gemini-2.5-flash,plain-goal,Running Multiple AI Copies,13,13,100.0
+323,gemini-2.5-flash,plain-goal,Strategically Appearing Aligned,10,11,90.9090909090909
+324,deepseek-r1,plain-goal,Deceptive Behavior,2,11,18.181818181818183
+325,deepseek-r1,plain-goal,Evading Shutdown,20,20,100.0
+326,deepseek-r1,plain-goal,Hacking Computer Systems,1,10,10.0
+327,deepseek-r1,plain-goal,Hiding Unwanted Behavior,5,11,45.45454545454545
+328,deepseek-r1,plain-goal,Running Multiple AI Copies,13,13,100.0
+329,deepseek-r1,plain-goal,Strategically Appearing Aligned,5,11,45.45454545454545
+330,gpt-4o,plain-nonudge,Deceptive Behavior,0,11,0.0
+331,gpt-4o,plain-nonudge,Evading Shutdown,18,20,90.0
+332,gpt-4o,plain-nonudge,Hacking Computer Systems,0,10,0.0
+333,gpt-4o,plain-nonudge,Hiding Unwanted Behavior,6,11,54.54545454545455
+334,gpt-4o,plain-nonudge,Running Multiple AI Copies,13,13,100.0
+335,gpt-4o,plain-nonudge,Strategically Appearing Aligned,7,11,63.63636363636363
+336,gpt-4o-mini,plain-nonudge,Deceptive Behavior,0,11,0.0
+337,gpt-4o-mini,plain-nonudge,Evading Shutdown,18,20,90.0
+338,gpt-4o-mini,plain-nonudge,Hacking Computer Systems,0,10,0.0
+339,gpt-4o-mini,plain-nonudge,Hiding Unwanted Behavior,6,11,54.54545454545455
+340,gpt-4o-mini,plain-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+341,gpt-4o-mini,plain-nonudge,Strategically Appearing Aligned,2,11,18.181818181818183
+342,deepseek-v3,plain-nonudge,Deceptive Behavior,2,11,18.181818181818183
+343,deepseek-v3,plain-nonudge,Evading Shutdown,20,20,100.0
+344,deepseek-v3,plain-nonudge,Hacking Computer Systems,1,10,10.0
+345,deepseek-v3,plain-nonudge,Hiding Unwanted Behavior,7,11,63.63636363636363
+346,deepseek-v3,plain-nonudge,Running Multiple AI Copies,13,13,100.0
+347,deepseek-v3,plain-nonudge,Strategically Appearing Aligned,5,11,45.45454545454545
+348,qwen-2.5-72b,plain-nonudge,Deceptive Behavior,0,11,0.0
+349,qwen-2.5-72b,plain-nonudge,Evading Shutdown,18,20,90.0
+350,qwen-2.5-72b,plain-nonudge,Hacking Computer Systems,1,10,10.0
+351,qwen-2.5-72b,plain-nonudge,Hiding Unwanted Behavior,5,11,45.45454545454545
+352,qwen-2.5-72b,plain-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+353,qwen-2.5-72b,plain-nonudge,Strategically Appearing Aligned,0,11,0.0
+354,o4-mini,plain-nonudge,Deceptive Behavior,1,11,9.090909090909092
+355,o4-mini,plain-nonudge,Evading Shutdown,15,20,75.0
+356,o4-mini,plain-nonudge,Hacking Computer Systems,0,10,0.0
+357,o4-mini,plain-nonudge,Hiding Unwanted Behavior,0,11,0.0
+358,o4-mini,plain-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+359,o4-mini,plain-nonudge,Strategically Appearing Aligned,6,11,54.54545454545455
+360,o3-mini,plain-nonudge,Deceptive Behavior,0,11,0.0
+361,o3-mini,plain-nonudge,Evading Shutdown,18,20,90.0
+362,o3-mini,plain-nonudge,Hacking Computer Systems,0,10,0.0
+363,o3-mini,plain-nonudge,Hiding Unwanted Behavior,1,11,9.090909090909092
+364,o3-mini,plain-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+365,o3-mini,plain-nonudge,Strategically Appearing Aligned,4,11,36.36363636363637
+366,gemini-2.5-flash,plain-nonudge,Deceptive Behavior,2,11,18.181818181818183
+367,gemini-2.5-flash,plain-nonudge,Evading Shutdown,16,20,80.0
+368,gemini-2.5-flash,plain-nonudge,Hacking Computer Systems,0,10,0.0
+369,gemini-2.5-flash,plain-nonudge,Hiding Unwanted Behavior,6,11,54.54545454545455
+370,gemini-2.5-flash,plain-nonudge,Running Multiple AI Copies,12,13,92.3076923076923
+371,gemini-2.5-flash,plain-nonudge,Strategically Appearing Aligned,8,11,72.72727272727273
+372,deepseek-r1,plain-nonudge,Deceptive Behavior,2,11,18.181818181818183
+373,deepseek-r1,plain-nonudge,Evading Shutdown,20,20,100.0
+374,deepseek-r1,plain-nonudge,Hacking Computer Systems,0,10,0.0
+375,deepseek-r1,plain-nonudge,Hiding Unwanted Behavior,4,11,36.36363636363637
+376,deepseek-r1,plain-nonudge,Running Multiple AI Copies,13,13,100.0
+377,deepseek-r1,plain-nonudge,Strategically Appearing Aligned,1,11,9.090909090909092
+378,gpt-4o,nudge-rep,Deceptive Behavior,1,11,9.090909090909092
+379,gpt-4o,nudge-rep,Evading Shutdown,19,20,95.0
+380,gpt-4o,nudge-rep,Hacking Computer Systems,0,10,0.0
+381,gpt-4o,nudge-rep,Hiding Unwanted Behavior,6,11,54.54545454545455
+382,gpt-4o,nudge-rep,Running Multiple AI Copies,10,13,76.92307692307692
+383,gpt-4o,nudge-rep,Strategically Appearing Aligned,6,11,54.54545454545455
+384,gpt-4o-mini,nudge-rep,Deceptive Behavior,0,11,0.0
+385,gpt-4o-mini,nudge-rep,Evading Shutdown,9,20,45.0
+386,gpt-4o-mini,nudge-rep,Hacking Computer Systems,0,10,0.0
+387,gpt-4o-mini,nudge-rep,Hiding Unwanted Behavior,1,11,9.090909090909092
+388,gpt-4o-mini,nudge-rep,Running Multiple AI Copies,7,13,53.84615384615385
+389,gpt-4o-mini,nudge-rep,Strategically Appearing Aligned,1,11,9.090909090909092
+390,deepseek-v3,nudge-rep,Deceptive Behavior,3,11,27.272727272727273
+391,deepseek-v3,nudge-rep,Evading Shutdown,20,20,100.0
+392,deepseek-v3,nudge-rep,Hacking Computer Systems,3,10,30.0
+393,deepseek-v3,nudge-rep,Hiding Unwanted Behavior,11,11,100.0
+394,deepseek-v3,nudge-rep,Running Multiple AI Copies,13,13,100.0
+395,deepseek-v3,nudge-rep,Strategically Appearing Aligned,8,11,72.72727272727273
+396,o4-mini,nudge-rep,Deceptive Behavior,1,11,9.090909090909092
+397,o4-mini,nudge-rep,Evading Shutdown,15,20,75.0
+398,o4-mini,nudge-rep,Hacking Computer Systems,1,10,10.0
+399,o4-mini,nudge-rep,Hiding Unwanted Behavior,0,11,0.0
+400,o4-mini,nudge-rep,Running Multiple AI Copies,12,13,92.3076923076923
+401,o4-mini,nudge-rep,Strategically Appearing Aligned,3,11,27.272727272727273
