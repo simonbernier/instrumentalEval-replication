@@ -235,8 +235,7 @@ def draw_figure1(judge: str, models: list[str] | None):
     handles = [Patch(facecolor=FIGURE1_FILLS[f], edgecolor=FIGURE1_COLORS[f], linewidth=1.5, label=f"{f} models")
                for f in groups] + [
         Line2D([], [], **PAPER_MARKER, label="paper (Table 1)"),
-        Line2D([], [], color=INK, linewidth=1.5, linestyle=style["avg_style"], label="family average"),
-        Line2D([], [], color=INK, linewidth=1, label="95% Wilson interval")]
+        Line2D([], [], color=INK, linewidth=1.5, linestyle=style["avg_style"], label="family average")]
     fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.125, 0.955), ncol=len(handles),
                frameon=False, fontsize=10, handlelength=1.8, columnspacing=1.2)
     return fig
@@ -478,8 +477,7 @@ def figure6(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
                       label=f"IR, {f} models") for f in groups]
     handles += [Line2D([], [], color=INK, linewidth=1.5, linestyle=(0, (4, 2)), marker="s", markersize=4.5,
                        markerfacecolor="white", markeredgewidth=1.2, label="refusal rate"),
-                Line2D([], [], **paper_marker, label="paper (Table 3)"),
-                Line2D([], [], color=INK_2, linewidth=1, label="95% Wilson interval")]
+                Line2D([], [], **paper_marker, label="paper (Table 3)")]
     fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.01, 1.0), ncol=len(handles), frameon=False,
                fontsize=8.5, handlelength=2.6)
     return save(fig, out_dir, f"figure6_{judge}")
@@ -488,14 +486,14 @@ def figure6(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
 def figure7(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
     df = load_judgments()
     arms = {(base, arm): arm_decisions(df, judge, base, arm)
-            for base in EFFORT_BASE_MODELS for arm in ("default", "nudge-rep", *EFFORT_LEVELS)}
+            for base in EFFORT_BASE_MODELS for arm in ("default", *EFFORT_LEVELS)}
     arms = {k: v for k, v in arms.items() if v}
     models = [b for b in EFFORT_BASE_MODELS if any((b, e) in arms for e in EFFORT_LEVELS)]
     if not models:
         print(f"figure 7 skipped: no reasoning-effort runs judged by `{judge}` (README step 11)")
         return []
-    fig, axes = plt.subplots(1, len(models), figsize=(3.4 * len(models) + 0.4, 3.4), sharey=True, squeeze=False)
-    color = FAMILY_COLORS["RL"]
+    fig, axes = plt.subplots(1, len(models), figsize=(3.4 * len(models) + 0.4, 3.2), sharey=True, squeeze=False)
+    color = FIGURE1_COLORS["RL"]
     for i, (ax, base) in enumerate(zip(axes[0], models)):
         xs, ys, los, his = [], [], [], []
         for x, effort in enumerate(EFFORT_LEVELS):
@@ -507,24 +505,20 @@ def figure7(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
         ax.plot(xs, ys, color=color, linewidth=1.5, zorder=2)
         ax.errorbar(xs, ys, yerr=[[y - lo for y, lo in zip(ys, los)], [hi - y for y, hi in zip(ys, his)]],
                     fmt="o", color=color, ecolor=color, elinewidth=1, capsize=0, markersize=5.5, zorder=3)
-        for ref, dx, marker in (("default", -0.12, "D"), ("nudge-rep", 0.12, "s")):
-            if (base, ref) in arms:  # the stored runs sit at OpenAI's default effort, which is medium
-                d = arms[(base, ref)]
-                k, n = sum(d.values()), len(d)
-                lo, hi = wilson_ci(k, n)
-                y = 100 * k / n
-                ax.errorbar([1 + dx], [y], yerr=[[y - lo], [hi - y]], fmt=marker, color=INK_2, ecolor=INK_2,
-                            elinewidth=1, capsize=0, markersize=5, zorder=3)
-        ax.set_title(base, loc="left", fontsize=10, color=INK, fontweight="bold")
+        if (base, "default") in arms:  # the stored run sits at OpenAI's default effort, which is medium
+            d = arms[(base, "default")]
+            k, n = sum(d.values()), len(d)
+            lo, hi = wilson_ci(k, n)
+            y = 100 * k / n
+            ax.errorbar([1 - 0.12], [y], yerr=[[y - lo], [hi - y]], fmt="D", color=INK_2, ecolor=INK_2,
+                        elinewidth=1, capsize=0, markersize=5, zorder=3)
         style_axes(ax, "IR (%)" if i == 0 else None)
+        ax.text(0.03, 0.97, base, transform=ax.transAxes, ha="left", va="top", fontsize=10, color=INK,
+                fontweight="bold", zorder=5, bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.5})
         ax.set_xlim(-0.45, 2.45)
-        ax.set_xticks(range(3), [f"{e} effort" for e in EFFORT_LEVELS])
+        ax.set_xticks(range(3), EFFORT_LEVELS)
     handles = [Line2D([], [], color=color, marker="o", label="explicit reasoning effort"),
-               Line2D([], [], color=INK_2, linestyle="none", marker="D", label="stored run, default effort"),
-               Line2D([], [], color=INK_2, linestyle="none", marker="s", label="stored nudge-rep run, default effort"),
-               Line2D([], [], color=INK_2, linewidth=1, label="95% Wilson interval")]
-    fig.legend(handles=handles, loc="lower center", ncol=2, frameon=False, fontsize=8, bbox_to_anchor=(0.5, -0.12))
-    fig.suptitle(f"IR vs reasoning effort, full nudge prompt, judge {judge}", fontsize=10, color=INK, x=0.01,
-                 ha="left")
+               Line2D([], [], color=INK_2, linestyle="none", marker="D", label="default effort")]
+    fig.legend(handles=handles, loc="lower center", ncol=2, frameon=False, fontsize=8, bbox_to_anchor=(0.5, -0.08))
     fig.tight_layout()
     return save(fig, out_dir, f"figure7_{judge}")
