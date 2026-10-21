@@ -203,6 +203,16 @@ expectations; `tests/test_audit.py` checks that no five consecutive words of the
 the quoted criterion sentences are verbatim from `prompts.JUDGE_SYSTEM_PROMPT`. If a judge id has been retired on
 OpenRouter, pass `--judges` with a replacement and record it in the notes before the pilot.
 
+## Capability ordering (Figure 1 x-axis)
+
+Figure 1 orders models within each family by `capability.capability_order`, computed from
+`data/capability_scores.csv` (every row has its URL, stated setting and access date; hand-curated, no API spend).
+Only Epoch AI rows are scored (amendment A1 in `REPLICATION_NOTES.md`, "Capability ordering"): 2/3 reasoning
+(GPQA Diamond, MATH L5, OTIS Mock AIME) + 1/3 ECI. `uv run ie capability` writes results/capability.md (table, ties,
+cross-source ρ). `figures.REASONING_ORDER` is only the fallback while the CSV is absent. gemini-2.5-flash has no
+Epoch reasoning run at our setting: it is placed by ECI against ECI (amendment A2, post hoc, backed by the AA
+index) and is tied with o3-mini. AA index rows for other model versions are kept with `usable=no`.
+
 ## Things that look like bugs but aren't
 
 - `ie status` / `ie vea-judge` report "nothing to do": the stored records are current; that's resumability working.

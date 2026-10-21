@@ -1,6 +1,8 @@
 """Tables 1, 2, 3, 5 and 6 as figures -> results/figures/figure{1,2,3,5,6}_<judge>.{png,pdf}.
 
-Figure 1 (Table 1): one panel for the overall IR, then one per category.
+Figure 1 (Table 1): one panel for the overall IR, then one per category, models ordered by reasoning capability
+within each family, with the paper's Table 1 values as diamonds (ours, not in the paper); `figure1_matched` keeps
+only the models run under the paper's own ids.
 Figure 2 (Table 2): one panel per prior-task type, with a dashed line at the all-model average (the Table 2 value).
 In both, the models are grouped by family (RLHF, then RL) with a gap between the groups, a line marks each
 family's average (mean of per-model rates, as in Tables 1 and 2), and error bars are 95% Wilson intervals.
@@ -17,26 +19,57 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.cm import ScalarMappable  # noqa: E402
-from matplotlib.colors import LinearSegmentedColormap, Normalize  # noqa: E402
-from matplotlib.lines import Line2D  # noqa: E402
-from matplotlib.patches import Patch, Rectangle  # noqa: E402
-from scipy.stats import t as student_t  # noqa: E402
+import matplotlib.pyplot as plt
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import LinearSegmentedColormap, Normalize, to_rgb
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch, Rectangle
+from scipy.stats import t as student_t
 
-from . import RESULTS_DIR  # noqa: E402
-from .benchmark import CATEGORIES  # noqa: E402
-from .models import DEFAULT_JUDGE, EFFORT_BASE_MODELS, EFFORT_LEVELS, TEST_MODELS  # noqa: E402
-from .prompts import SYSTEM_PROMPTS  # noqa: E402
-from .stats import wilson_ci  # noqa: E402
-from .tables import (PRIOR_TYPES, arm_decisions, category_correlations, cir_counts, cir_matrix,  # noqa: E402
-                     fmt, load_judgments, nudge_gaps, ordered_models, prior_counts, prior_matrix,
-                     prior_task_types)
+from . import RESULTS_DIR
+from .benchmark import CATEGORIES
+from .capability import capability_order
+from .models import DEFAULT_JUDGE, EFFORT_BASE_MODELS, EFFORT_LEVELS, TEST_MODELS
+from .prompts import SYSTEM_PROMPTS
+from .stats import wilson_ci
+from .tables import (
+    FIGURE1_MODELS,
+    PRIOR_TYPES,
+    arm_decisions,
+    category_correlations,
+    cir_counts,
+    cir_matrix,
+    fmt,
+    load_judgments,
+    nudge_gaps,
+    ordered_models,
+    paper_table1,
+    prior_counts,
+    prior_matrix,
+    prior_task_types,
+)
 
 FIGURES_DIR = RESULTS_DIR / "figures"
 FAMILIES = ("RLHF", "RL")
 # categorical slots 1-2 of the dataviz reference palette (validated for CVD on the light surface)
 FAMILY_COLORS = {"RLHF": "#2a78d6", "RL": "#eb6834"}
+# Figure 1: blue / green, OKLab dE >= 12.9 under normal, deutan, protan and tritan vision; the paper's red
+# diamonds are told apart from the green bars by shape and black edge (red/green dE is 4.7 under deutan)
+FIGURE1_COLORS = {"RLHF": "#2f5f9e", "RL": "#3a9a5b"}
+# bar fill: the edge colour mixed 45 % toward white
+FIGURE1_FILLS = {f: tuple(0.55 * v + 0.45 for v in to_rgb(c)) for f, c in FIGURE1_COLORS.items()}
+# Figure 1 fallback order, used until data/capability_scores.csv exists (capability.py then re-sorts each family
+# by its pre-registered composite). Low -> high reasoning capability within each family, from published pass@1 on AIME 2024 / MATH-500 /
+# GPQA Diamond (DeepSeek-V3 and -R1 reports, OpenAI and Google launch posts):
+#  RLHF: gpt-4o-mini (GPQA ~40, MATH ~70) < gpt-4o (50, 75; AIME 9) < qwen-2.5-72b (49, 80-83; AIME 23: ties on
+#        GPQA, ahead on maths) < deepseek-v3 (59, 90; AIME 39).
+#  RL: deepseek-r1 (GPQA 71.5) < o3-mini at medium effort, our runs ("matches o1") < o1 (75.7): tied on AIME and
+#      MATH-500, so GPQA and model size decide; gemini-2.5-flash (GPQA 82.8, AIME 2024 88) < o4-mini (GPQA 81.4,
+#      AIME 2025 92.7 vs 72, HLE 14.7 vs 11).
+REASONING_ORDER = ("gpt-4o-mini", "gpt-4o", "qwen-2.5-72b", "deepseek-v3",
+                   "deepseek-r1", "o3-mini", "o1", "gemini-2.5-flash", "o4-mini")
+PAPER_MARKER = {"marker": "D", "markersize": 7, "markerfacecolor": "#e34948", "markeredgecolor": "#0b0b0b",
+                "markeredgewidth": 1.2, "linestyle": "none"}
 INK, INK_2, GRID = "#0b0b0b", "#52514e", "#e6e5e0"
 GROUP_GAP = 1.0  # extra x-space between the two families
 # diverging pair of the dataviz reference palette: blue <-> red around a neutral gray
@@ -74,7 +107,8 @@ def style_axes(ax, ylabel: str | None) -> None:
         ax.set_ylabel(ylabel, color=INK_2, fontsize=9)
 
 
-def draw_panel(ax, rates, counts, xs, groups, title, *, ylabel=None, value_labels=False, avg_labels=False):
+def draw_panel(ax, rates, counts, xs, groups, title, *, ylabel=None, value_labels=False, avg_labels=False,
+               colors=FAMILY_COLORS, avg_style="-", err_style=None, fills=None):
     """Bars for one row of the CIR matrix. `counts` maps model -> (k, n) for the Wilson interval."""
     for fam, fam_models in groups.items():
         fam_models = [m for m in fam_models if counts[m][1]]  # skip models with no judged task here
@@ -84,15 +118,19 @@ def draw_panel(ax, rates, counts, xs, groups, title, *, ylabel=None, value_label
         y = [rates[m] for m in fam_models]
         ci = [wilson_ci(*counts[m]) for m in fam_models]
         err = [[v - lo for v, (lo, _) in zip(y, ci)], [hi - v for v, (_, hi) in zip(y, ci)]]
-        ax.bar(x, y, width=0.72, color=FAMILY_COLORS[fam], zorder=2)
-        ax.errorbar(x, y, yerr=err, fmt="none", ecolor=INK_2, elinewidth=1, capsize=0, zorder=3)
+        if fills:  # tinted fill, family colour on the edge
+            ax.bar(x, y, width=0.72, color=fills[fam], edgecolor=colors[fam], linewidth=1.5, zorder=2)
+        else:
+            ax.bar(x, y, width=0.72, color=colors[fam], zorder=2)
+        ax.errorbar(x, y, yerr=err, fmt="none", capsize=0, zorder=3,
+                    **(err_style or {"ecolor": INK_2, "elinewidth": 1}))
         if value_labels:
             for xi, yi, (_, hi) in zip(x, y, ci):
                 ax.text(xi, hi + 1.5, f"{yi:.1f}", ha="center", va="bottom", fontsize=8, color=INK,
                         bbox={"facecolor": "white", "edgecolor": "none", "pad": 1}, zorder=5)
 
         avg = sum(y) / len(y)
-        ax.hlines(avg, x[0] - 0.45, x[-1] + 0.45, colors=INK, linewidth=1.5, zorder=4)
+        ax.hlines(avg, x[0] - 0.45, x[-1] + 0.45, colors=INK, linewidth=1.5, linestyles=avg_style, zorder=4)
         if avg_labels:
             ax.text(x[-1] + 0.5, avg, f"{fam} avg\n{avg:.1f}", ha="left", va="center", fontsize=8, color=INK)
 
@@ -120,6 +158,16 @@ def legend_handles(groups) -> list:
         Line2D([], [], color=INK_2, linewidth=1, label="95% Wilson interval")]
 
 
+def row_counts(c, models: list[str], row: str) -> dict[str, tuple[int, int]]:
+    """model -> (k, n) for one category of `cir_counts`, or summed over all of them for "Total"."""
+    out = {}
+    for m in models:
+        cm = c.loc[m]
+        sel = cm if row == "Total" else cm[cm.index == row]
+        out[m] = (int(sel["k"].sum()), int(sel["n"].sum()))
+    return out
+
+
 def save(fig, out_dir: Path, stem: str) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = [out_dir / f"{stem}.{ext}" for ext in ("png", "pdf")]
@@ -129,24 +177,30 @@ def save(fig, out_dir: Path, stem: str) -> list[Path]:
     return paths
 
 
-def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
+def draw_figure1(judge: str, models: list[str] | None):
+    """Overall IR panel + one panel per category for `models` (default: every judged model), with the paper's
+    Table 1 values overlaid; family averages are over the models shown. No figure title (the caption is written
+    separately) and no */† marks. Substitutes get no diamond (the paper's value belongs to the model they replace),
+    nor do the added models (the paper didn't run them)."""
     df = load_judgments()
     c = cir_counts(df, judge)
     if c.empty:
         raise SystemExit(f"no benchmark judgments from judge `{judge}` yet")
     mat = cir_matrix(df, judge)
-    models = list(mat.columns)
+    order = capability_order(REASONING_ORDER)
+    models = sorted((m for m in models or mat.columns if m in mat.columns), key=order.index)
+    mat = mat[models]
+    paper = paper_table1()
     xs, groups = layout(models)
     ticks = [xs[m] for m in models]
-    labels = [tick_label(m) for m in models]
+    labels = list(models)
+    style = {"colors": FIGURE1_COLORS, "avg_style": (0, (5, 3)), "err_style": {"ecolor": INK, "elinewidth": 1},
+             "fills": FIGURE1_FILLS}
+    on_paper = [m for m in models if m in paper and not TEST_MODELS[m].substitute]
 
-    def counts_for(row: str) -> dict[str, tuple[int, int]]:
-        out = {}
-        for m in models:
-            cm = c.loc[m]
-            sel = cm if row == "Total" else cm[cm.index == row]
-            out[m] = (int(sel["k"].sum()), int(sel["n"].sum()))
-        return out
+    def overlay_paper(ax, row: str) -> None:
+        y = [paper[m]["ir"] if row == "Total" else paper[m]["cir"][row] for m in on_paper]
+        ax.plot([xs[m] for m in on_paper], y, zorder=6, clip_on=False, **PAPER_MARKER)  # 0 % sits on the axis
 
     fig = plt.figure(figsize=(12, 10.5))
     outer = fig.add_gridspec(2, 1, height_ratios=[1.25, 2], top=0.9, hspace=0.32)
@@ -154,8 +208,9 @@ def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
 
     # overall IR: full width, values labelled
     ax = fig.add_subplot(outer[0])
-    draw_panel(ax, mat.loc["Total"], counts_for("Total"), xs, groups, "Instrumental Rate, all 76 tasks",
-               ylabel="IR (%)", value_labels=True, avg_labels=True)
+    draw_panel(ax, mat.loc["Total"], row_counts(c, models, "Total"), xs, groups, "Instrumental Rate, all 76 tasks",
+               ylabel="IR (%)", value_labels=True, avg_labels=True, **style)
+    overlay_paper(ax, "Total")
     ax.set_xticks(ticks, labels, rotation=30, ha="right")
     ax.set_xlim(-0.6, max(xs.values()) + 1.6)
 
@@ -165,22 +220,37 @@ def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
         r, col = divmod(i, 3)
         ax = fig.add_subplot(grid[r, col], sharex=first, sharey=first)
         first = first or ax
-        draw_panel(ax, mat.loc[cat], counts_for(cat), xs, groups, f"{cat} ({code})",
-                   ylabel="CIR (%)" if col == 0 else None)
+        draw_panel(ax, mat.loc[cat], row_counts(c, models, cat), xs, groups, f"{cat} ({code})",
+                   ylabel="IR (%)" if col == 0 else None, **style)
+        overlay_paper(ax, cat)
         ax.set_xticks(ticks, labels, rotation=40, ha="right")
         ax.tick_params(labelbottom=(r == 1))
         if col != 0:
             ax.tick_params(labelleft=False)
+    assert first is not None
     first.set_xlim(-0.6, max(xs.values()) + 0.6)
 
-    handles = legend_handles(groups)
+    handles = [Patch(facecolor=FIGURE1_FILLS[f], edgecolor=FIGURE1_COLORS[f], linewidth=1.5, label=f"{f} models")
+               for f in groups] + [
+        Line2D([], [], **PAPER_MARKER, label="paper (Table 1)"),
+        Line2D([], [], color=INK, linewidth=1.5, linestyle=style["avg_style"], label="family average"),
+        Line2D([], [], color=INK, linewidth=1, label="95% Wilson interval")]
     fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.125, 0.955), ncol=len(handles),
-               frameon=False, fontsize=9, handlelength=1.6)
-    fig.suptitle(f"Convergence toward instrumental goals by model family (judge: {judge})",
-                 x=0.125, y=0.985, ha="left", fontsize=12, color=INK, fontweight="bold")
+               frameon=False, fontsize=10, handlelength=1.8, columnspacing=1.2)
+    return fig
 
-    fig.text(0.125, 0.015, ";   ".join(footer_notes(models)), fontsize=8, color=INK_2, ha="left")
+
+def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
+    fig = draw_figure1(judge, FIGURE1_MODELS)  # gpt-4o-mini left out (tables.FIGURE1_EXCLUDE); Table 1 keeps it
     return save(fig, out_dir, f"figure1_{judge}")
+
+
+def figure1_matched(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
+    """Figure 1 for the models the paper also ran under the same id (no substitute, no added model)."""
+    paper = paper_table1()
+    models = [m for m in TEST_MODELS if not (TEST_MODELS[m].substitute or TEST_MODELS[m].added) and m in paper]
+    fig = draw_figure1(judge, models)
+    return save(fig, out_dir, f"figure1_matched_{judge}")
 
 
 def figure2(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:

@@ -1185,6 +1185,121 @@ Each objection, and what happened to it:
 _To be filled after the pilot (gate outcome, α per dimension with CIs, rater κ), the full run, adjudication and
 Table 8 before and after adjudication._
 
+## Capability ordering (not in the paper): the x-axis order of Figure 1 (data/capability_scores.csv)
+
+The paper orders models by family only and gives no capability measure. Figure 1 orders the models within each
+family from least to most capable, with more weight on reasoning. The ordering is a presentation choice, not an
+inferential result; nothing in Tables 1–8 depends on it. Written 2026-10-21, before any score was collected for
+this purpose. An informal ordering from memory and a few vendor numbers had already been used for the figure
+(it put o3-mini between deepseek-r1 and o1); this rule replaces it, whatever it gives.
+
+**What is ranked: the configuration we ran**, not the model family's best one: gpt-4o-2024-08-06,
+gpt-4o-mini-2024-07-18, Qwen2.5-72B-Instruct, DeepSeek-V3 (Dec 2024), DeepSeek-R1 (Jan 2025), o1, o3-mini and o4-mini
+at medium effort (OpenAI's default, what the stored runs used), gemini-2.5-flash with thinking on. A score
+measured at another setting (o3-mini high, R1-0528, V3-0324, Flash without thinking) is not used for that model.
+
+**Sources, in order of preference** (one row per model × benchmark in `data/capability_scores.csv`, with URL,
+the setting the source states, and the access date):
+
+1. *Artificial Analysis* (one harness, re-run for every model): the primary source.
+2. *Epoch AI Benchmarking Hub* (one harness): fills a cell AA lacks, and serves as the cross-source check below.
+3. *The model's own technical report or launch post*: only for a cell neither harness has; flagged `vendor`.
+
+Aggregator sites that copy numbers without provenance (llm-stats, benchlm, langdb, …) are never used.
+
+**Benchmarks.** Reasoning block (weight 2/3): GPQA Diamond, AIME 2024, MATH-500, Humanity's Last Exam.
+General block (weight 1/3): MMLU-Pro, LiveCodeBench. Chatbot Arena Elo measures preference, not capability, and is
+reported in the table but not scored.
+
+**Aggregation.** For each benchmark, z-score the nine models' accuracies (mean and SD over the models that have
+the cell). A block score is the mean of the model's available z-scores in that block; the composite is
+2/3 × reasoning + 1/3 × general. A model needs at least 3 of the 4 reasoning cells and 1 of the 2 general cells,
+else it is reported as unranked and keeps its current position.
+
+**Uncertainty and ties.** Each cell gets a binomial SE from its item count (GPQA 198, AIME 2024 30 per run,
+MATH-500 500, HLE and MMLU-Pro and LiveCodeBench the counts the source states) and its number of repeats where the source
+says. 10,000 parametric draws (seed 0) of every cell from Normal(score, SE) give P(A ranks below B) for each pair in
+the same family. An adjacent pair with P < 0.8 is reported as **tied**: the figure keeps the point-estimate order,
+the table and the caption say "tied".
+
+**Cross-source check.** Spearman ρ between the AA reasoning block and the Epoch reasoning benchmarks over the
+models both cover; ρ < 0.8 is reported as a warning that the ordering depends on the harness.
+
+### Amendment A1 (2026-10-21, after collection, before any composite was computed)
+
+Collection (three agents, one per source; raw files merged into `data/capability_scores.csv`, every row with URL,
+stated setting and access date) found that the primary source cannot carry the plan:
+
+- *Artificial Analysis* has retired MATH-500, AIME 2024 and MMLU-Pro from its index, and serves its per-model
+  tables only as an encrypted client-side file (not decoded, by choice). What it shows for our models is HLE
+  rounded to whole percent and its v4.3.2 index (mostly "estimated", 30 % agentic). Not scored.
+- *Developer reports* are one harness per developer, with incomparable LiveCodeBench windows, o4-mini headline
+  numbers at high effort, and nothing for gpt-4o-2024-08-06 beyond GPQA. Not scored.
+- *Epoch AI* has one harness, effort-labelled runs and stated standard errors: GPQA Diamond (198), MATH Level 5
+  (1,324) and OTIS Mock AIME 2024–25 (45) at the exact configuration for 8 of 9 models (missing: o4-mini medium
+  on MATH L5; gemini-2.5-flash GA on all three), and the Epoch Capabilities Index (ECI, an IRT fit across many
+  benchmarks) for all nine.
+
+The rule therefore becomes:
+
+1. **Single source: Epoch.** Mixing harnesses within a z-scored column compares harnesses, not models.
+2. **Reasoning block (2/3): GPQA Diamond, MATH Level 5, OTIS Mock AIME**, Epoch's "best score" column and stderr;
+   at least 2 of the 3 cells.
+3. **General block (1/3): ECI**, SE = (CI high − CI low) / 3.92. ECI is a model-group value: for o1, o3-mini and
+   o4-mini it pools low/medium/high-effort runs, for Qwen2.5-72B it pools the base and VL models. Used anyway (the
+   only single-source overall measure covering all nine) and flagged.
+4. **A model without the reasoning block is placed on the general block alone, flagged.** This is
+   gemini-2.5-flash only (Epoch has OTIS for the 04-17 and 05-20 previews, not the GA model we ran).
+5. **Sensitivity:** the order on the reasoning block alone is reported next to the composite; a pair that flips
+   between the two is a fragile pair, whatever its P.
+6. **Cross-source check** (replaces AA vs Epoch): Spearman ρ between the Epoch reasoning block and a developer-report
+   reasoning block (GPQA Diamond, AIME 2024, MATH-500; usable cells, ≥ 2 per model), same 0.8 warning threshold.
+   AA's HLE and Chatbot Arena (style-controlled, 2026-10-20) are shown as context columns, never scored.
+
+What the change gives up: no coding and no knowledge benchmark enters except through ECI, and gemini's position
+rests on one index that does not state its thinking setting.
+
+### Amendment A2 (2026-10-21, post hoc: after the A1 results were seen)
+
+A1 rule 4 did not say what a general-only model is compared with. Implemented first as its ECI z against the other
+models' composites, it put gemini-2.5-flash next to deepseek-r1; compared ECI with ECI, it falls between o3-mini and
+o1. The author then supplied the Artificial Analysis Intelligence Index (recorded in `data/capability_scores.csv`,
+"user-reported"), whose exact-match entries give deepseek-r1 (Jan '25) 11 < o3-mini 12 < gemini-2.5-flash 13 < o1 15,
+the ECI-with-ECI order. A2 fixes the reading: **a general-only model is placed by its general block against the
+other models' general blocks** (inserted above the highest-placed model of its family with a lower ECI), and its
+tie test uses ECI alone. This is a post hoc choice between two readings of a rule, made with the result of both in
+view; the independent AA index is the reason for picking this one.
+
+AA index entries that are **not** our configuration (recorded with `usable=no`): GPT-4o (ChatGPT) = chatgpt-4o-latest
+(ours: gpt-4o-2024-08-06; AA's GPT-4o (Aug '24) = 8), DeepSeek V3 0324 (ours: Dec 2024; AA's Dec '24 = 8),
+DeepSeek R1 0528 (ours: Jan 2025; AA's Jan '25 = 11), o4-mini (high) (ours: medium; AA lists no medium entry).
+
+### Results (`uv run ie capability`, results/capability.md; 2026-10-21, after A2)
+
+Order within family, low to high, used by Figure 1:
+
+- **RLHF: gpt-4o-mini < gpt-4o < qwen-2.5-72b < deepseek-v3.** Every adjacent order holds in ≥ 82 % of the draws
+  (gpt-4o < qwen 0.82, the closest; the other two ≥ 0.97); no tie. The AA index (7 / 8 / 8 / 8) agrees but is too
+  coarse to separate the upper three.
+- **RL: deepseek-r1 < o3-mini < gemini-2.5-flash < o1 < o4-mini.** Without gemini every adjacent order holds in
+  ≥ 92 % of the draws (r1 < o3-mini 0.96, o3-mini < o1 0.92, o1 < o4-mini 0.96) and is the same on the reasoning
+  block alone (no fragile pair).
+- **gemini-2.5-flash is tied with o3-mini** (ECI 140.6 ± 0.9 vs 140.2 ± 1.2, P = 0.60) and placed on ECI alone; the AA
+  index puts it one point above o3-mini and two below o1. Its slot is the least certain in the figure.
+- **Cross-source check:** Spearman ρ = 0.94 between the Epoch reasoning block and the developer-reported
+  GPQA / AIME 2024 / MATH-500 block, over the 6 models with ≥ 2 developer cells. No warning.
+
+### gpt-4o-mini left out of Figure 1 (2026-10-21, presentation choice, post hoc)
+
+At the author's request Figure 1 (`figures.FIGURE1_EXCLUDE`) no longer shows gpt-4o-mini: it is far below every
+other RLHF model on all capability measures (composite −1.27 vs −0.98 for gpt-4o) and its IR (25.0 %) dominates the
+four-model RLHF mean. Its effect on the figure's headline is large and the reader should know it: RLHF average
+51.3 % with it, **60.1 % without it**, against an RL average of 57.4 %, so the figure's RLHF-vs-RL gap changes
+sign. Table 1, its family averages and every test keep all nine models; `figure1_matched` never showed it.
+Table 4b (`tables.table4(df, FIGURE1_MODELS, "table4b")`) repeats Table 4 on the same eight models (608 benchmark
+responses, 160 neutral items, 87 Fable-labelled items); the set lives in `tables.FIGURE1_EXCLUDE`. The
+capability table (results/capability_writeup.md) still lists it, z-scores over nine models.
+
 ## How the results could be improved by changing parameters only
 
 These are not run by default; every item is a configuration change.

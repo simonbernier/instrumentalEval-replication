@@ -12,11 +12,27 @@ import pandas as pd
 
 from . import DATA_DIR, RESULTS_DIR
 from .benchmark import CATEGORIES
-from .models import DEFAULT_JUDGE, EFFORT_BASE_MODELS, EFFORT_LEVELS, EFFORT_MODELS, JUDGES, TABLE3_MODELS, TEST_MODELS
+from .models import (
+    DEFAULT_JUDGE,
+    EFFORT_BASE_MODELS,
+    EFFORT_LEVELS,
+    EFFORT_MODELS,
+    JUDGES,
+    TABLE3_MODELS,
+    TEST_MODELS,
+)
 from .prompts import SYSTEM_PROMPTS
 from .runs import JUDGMENTS_DIR, RESPONSES_DIR, load_latest, parse_run_id, sha
-from .stats import (agreement, cohen_kappa, holm, mcnemar_exact, pairwise, sign_flip_test, stratified_permutation_test,
-                    wilson_ci)
+from .stats import (
+    agreement,
+    cohen_kappa,
+    holm,
+    mcnemar_exact,
+    pairwise,
+    sign_flip_test,
+    stratified_permutation_test,
+    wilson_ci,
+)
 
 TABLES_DIR = RESULTS_DIR / "tables"
 HUMAN_LABELS = RESULTS_DIR / "human_labels.csv"
@@ -240,8 +256,14 @@ def table3(df: pd.DataFrame) -> str:
 
 # ---------------------------------------------------------------- Table 4
 
-def _decisions(df: pd.DataFrame, task_set: str) -> dict[str, dict[str, str]]:
-    sub = df[(df.task_set == task_set) & (df.variant == "nudge") & df.model.isin(TEST_MODELS)]
+# Figure 1 leaves out gpt-4o-mini (presentation choice, REPLICATION_NOTES.md "Capability ordering"): its capability is
+# far below the other RLHF models, so it dominates the family average. Table 4b uses the same model set.
+FIGURE1_EXCLUDE = ("gpt-4o-mini",)
+FIGURE1_MODELS = [m for m in TEST_MODELS if m not in FIGURE1_EXCLUDE]
+
+
+def _decisions(df: pd.DataFrame, task_set: str, models=TEST_MODELS) -> dict[str, dict[str, str]]:
+    sub = df[(df.task_set == task_set) & (df.variant == "nudge") & df.model.isin(list(models))]
     out = {}
     for judge, g in sub.groupby("judge"):
         out[judge] = {f"{m}|{t}": ("convergence" if c else "no_convergence")
@@ -264,9 +286,10 @@ def human_labels() -> dict[str, str]:
     return labels
 
 
-def table4(df: pd.DataFrame) -> str:
-    bench = _decisions(df, "benchmark")
-    neutral = _decisions(df, "neutral")
+def table4(df: pd.DataFrame, models=TEST_MODELS, stem: str = "table4") -> str:
+    """Judge reliability over the responses of `models` (Table 4: all test models; Table 4b: FIGURE1_MODELS)."""
+    bench = _decisions(df, "benchmark", models)
+    neutral = _decisions(df, "neutral", models)
     # A judge with only neutral judgments still gets a row, so FPR can be read before the benchmark is judged.
     judges = [j for j in JUDGES if j in bench or j in neutral]
     if not judges:
@@ -291,7 +314,7 @@ def table4(df: pd.DataFrame) -> str:
             "# Fable-labelled items": len(hum),
         }
     out = pd.DataFrame(rows).T
-    save_csv(out, "table4")
+    save_csv(out, stem)
     if len(bench_judges) < 2:
         return md_table(out, "Judge Model")
 
@@ -299,7 +322,7 @@ def table4(df: pd.DataFrame) -> str:
     for j1 in bench_judges:
         for j2 in bench_judges:
             pair.loc[j1, j2] = "100.00" if j1 == j2 else f"{fmt(iar[(j1, j2)][0])} (n={iar[(j1, j2)][1]})"
-    save_csv(pair, "table4_pairwise_iar")
+    save_csv(pair, f"{stem}_pairwise_iar")
     return (md_table(out, "Judge Model") + "\n\nPairwise IAR (%) on shared benchmark responses:\n\n"
             + md_table(pair, "Judge"))
 
@@ -1015,6 +1038,9 @@ def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.m
         f"family. Per-model rates are in Figure 2.\n\n{table2(df, judge)}",
         f"## Table 3: goal-nudging ablation (Figure 3)\n\n{table3(df)}",
         f"## Table 4: judge reliability\n\n{table4(df)}",
+        "## Table 4b: judge reliability over the Figure 1 models (not in the paper)\n\n"
+        f"Table 4 restricted to the responses of {', '.join(FIGURE1_MODELS)} (gpt-4o-mini left out, as in "
+        f"Figure 1).\n\n{table4(df, FIGURE1_MODELS, 'table4b')}",
         f"## Table 5: cross-category Pearson correlation of CIRs across models (heat map: Figure 5)\n\n"
         f"{table5(df, judge)}",
         "## Table 6: system-prompt ablations (not in the paper; Figure 6)\n\n"

@@ -1,0 +1,4 @@
+,Average IAR,Average Cohen's κ,False Positive Rate,# neutral items,Agreement with Fable 5.1,# Fable-labelled items
+gpt-4o,91.04,0.816,0.00,160,83.91,87
+claude-sonnet-4 (for Sonnet-3.5),89.47,0.783,1.88,160,80.46,87
+gemini-2.5-flash (for Gemini 2.0 Flash),87.91,0.755,5.00,160,88.51,87

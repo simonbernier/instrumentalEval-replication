@@ -1,5 +1,5 @@
 """`uv run ie <command>`: fetch, generate, judge, tables, figures, classify-tasks, export-labels, vea-judge, vea-tables,
-vea-export-labels, frame-judge, frame-tables, frame-export-labels, audit-tasks, check-anthropic, status."""
+vea-export-labels, frame-judge, frame-tables, frame-export-labels, audit-tasks, capability, check-anthropic, status."""
 
 import argparse
 import os
@@ -115,10 +115,17 @@ def cmd_tables(a):
 
 
 def cmd_figures(a):
-    from .figures import figure1, figure2, figure3, figure5, figure6, figure7
-    for p in (figure1(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge) + figure6(a.judge)
+    from .figures import figure1, figure1_matched, figure2, figure3, figure5, figure6, figure7
+    for p in (figure1(a.judge) + figure1_matched(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge) + figure6(a.judge)
               + figure7(a.judge)):
         print(p)
+
+
+def cmd_capability(a):
+    from .capability import OUT, build
+    from .figures import REASONING_ORDER
+    print(" < ".join(build(REASONING_ORDER)))
+    print(OUT)
 
 
 def _cot_runs(a) -> list[str]:
@@ -239,6 +246,9 @@ def main() -> None:
     s = sub.add_parser("figures", help="plot Table 1 -> results/figures/")
     s.add_argument("--judge", default=DEFAULT_JUDGE, choices=list(JUDGES))
     s.set_defaults(func=cmd_figures)
+
+    s = sub.add_parser("capability", help="capability ordering for Figure 1 -> results/capability.md")
+    s.set_defaults(func=cmd_capability)
 
     s = sub.add_parser("classify-tasks", help="Table 2: all judges vote on each task's prior-task type; "
                                                "--merge folds per-task adjudications into data/task_categories.json")
