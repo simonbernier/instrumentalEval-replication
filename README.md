@@ -59,6 +59,9 @@ V="nocause-nudge nocause-nonudge plain-nudge plain-goal plain-nonudge nudge-rep"
 uv run ie generate --variants $V --limit 1   # smoke test: read a few answers, check `ie status`
 uv run ie generate --variants $V
 uv run ie judge --variants $V
+# follow-up arm (REPLICATION_NOTES.md, "Five-step decomposition"): the oversight sentence alone
+uv run ie generate --variants oversight-nonudge --limit 1   # smoke test, 48 calls
+uv run ie generate --variants oversight-nonudge && uv run ie judge --variants oversight-nonudge
 uv run ie tables
 uv run ie figures
 
