@@ -792,9 +792,9 @@ is unchanged: deepseek-r1 almost never verbalizes eval awareness here, and every
 
 **Figure 6 view (2026-10-22, presentation only, no new calls).** `ie vea-figure6` puts the VEA rate on Figure 6's x
 axis for DeepSeek-R1, the only model with a raw chain of thought, over its four prompts (it has no
-`oversight-nonudge` run): results/vea/figure6_vea.md and figures/figure6_vea_gpt-5.{png,pdf}. Left panel: Figure 6's
-DeepSeek-R1 panel unchanged (IR and refusals by gpt-4o, the paper's Table 3) with the VEA rate added on the same
-0–100 axis; right panel: the VEA rate alone on a 0–12 % axis. Same 76 responses per step and same 95 % Wilson
+`oversight-nonudge` run): results/vea/figure6_vea.md and figures/figure6_vea_gpt-5.{png,pdf}. One panel: the VEA rate
+alone on a 0–12 % axis (a first version also redrew Figure 6's DeepSeek-R1 panel beside it and was dropped as too
+crowded); the table carries each step's IR and refusals from Figure 6. Same 76 responses per step and same 95 % Wilson
 intervals as Figure 6. **Judge: gpt-5**, because it is the only one of the two that finds the strict cases (3/3 against
 0/3) and it agrees with all 52 hand labels; its one known error class, in-scenario monitoring, is shown rather than
 hidden, as a second series with `vea_tables.MONITORING_FLAGS` removed (a reading in this session, not blinded).

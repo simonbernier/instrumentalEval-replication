@@ -18,7 +18,7 @@ import pandas as pd
 from scipy.stats import fisher_exact
 
 from .benchmark import CATEGORIES
-from .models import DEFAULT_JUDGE, TEST_MODELS, VEA_JUDGE, VEA_JUDGES
+from .models import DEFAULT_JUDGE, VEA_JUDGE, VEA_JUDGES
 from .prompts import SYSTEM_PROMPTS
 from .runs import RESPONSES_DIR, load_latest, sha
 from .stats import (cluster_bootstrap_ci, cluster_bootstrap_kappa, cluster_bootstrap_rd, cohen_kappa,
@@ -435,14 +435,14 @@ def build_vea_agreement(a: str = VEA_JUDGE.key, b: str = "gpt-5", out: Path = VE
 # ---------------------------------------------------------------- VEA on Figure 6's x axis
 
 def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: str = "deepseek-r1") -> str:
-    """`model`'s Figure 6 panel (IR and refusals by `ir_judge`, the paper's Table 3) with `vea_judge`'s VEA rate added,
-    next to a 0-10 % zoom of the VEA rate, on Figure 6's x axis (`figures.PROMPT_STEPS`, same Wilson intervals). The
-    zoom also shows the rate without MONITORING_FLAGS. Writes results/vea/figure6_vea.md and returns its text."""
+    """`vea_judge`'s VEA rate for `model` on Figure 6's x axis (`figures.PROMPT_STEPS`, same Wilson intervals), raw and
+    without MONITORING_FLAGS, as one panel on a 0-12 % axis. The table (results/vea/figure6_vea.md, returned) also
+    carries the step's IR and refusals by `ir_judge`, copied from Figure 6, for reading the two side by side."""
     from matplotlib.lines import Line2D
 
-    from .figures import FIGURE1_COLORS, INK, INK_2, PAPER_MARKER, PROMPT_STEPS, SHORT_NAMES, plt, save, style_axes
+    from .figures import INK, PROMPT_STEPS, SHORT_NAMES, plt, save, style_axes
     from .stats import wilson_ci
-    from .tables import ablation_records, cir_counts, paper_table3
+    from .tables import ablation_records, cir_counts
 
     jd = load_judgments()
     ir = {}
@@ -468,12 +468,13 @@ def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: 
         gm = mini[mini.variant == v]
         mini_kn[v] = (int(gm.vea.sum()), len(gm))
 
-    color_ir, color_vea = FIGURE1_COLORS[TEST_MODELS[model].family], "#7b4fb5"
-    fig, axes = plt.subplots(1, 2, figsize=(2 * 4.0 + 0.4, 2.0 + 0.95), sharex=True)
-    fig.subplots_adjust(left=0.07, right=0.99, top=1.0 - 0.45 / fig.get_figheight(),
-                        bottom=0.5 / fig.get_figheight(), wspace=0.14)
+    color_vea = "#7b4fb5"
+    # one Figure 6 panel (4.0 x 2.0 in) plus room for a two-row legend
+    fig, ax = plt.subplots(figsize=(4.0 + 0.4, 2.0 + 1.0))
+    fig.subplots_adjust(left=0.13, right=0.98, top=1.0 - 0.5 / fig.get_figheight(),
+                        bottom=0.5 / fig.get_figheight())
     xlim = (-0.3, len(PROMPT_STEPS) - 0.7)
-    pt = (xlim[1] - xlim[0]) / (axes[0].get_position().width * fig.get_figwidth() * 72)
+    pt = (xlim[1] - xlim[0]) / (ax.get_position().width * fig.get_figwidth() * 72)
 
     def series(ax, kn, dx, color, linestyle, **marker):
         # as figures.figure6: a missing step breaks the line instead of bridging it
@@ -490,37 +491,20 @@ def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: 
 
     vea_marker = {"marker": "^", "markersize": 6}
     read_marker = {"marker": "^", "markersize": 6, "markerfacecolor": "white", "markeredgewidth": 1.2}
-    left, right = axes
-    series(left, ir, 0.0, color_ir, "-", marker="o", markersize=5.5)
-    series(left, refusals, 4 * pt, INK, (0, (4, 2)), marker="s", markersize=4.5, markerfacecolor="white",
-           markeredgewidth=1.2)
-    series(left, vea_kn, -4 * pt, color_vea, "-", **vea_marker)
-    paper, steps = paper_table3(), [v for _, v in PROMPT_STEPS]
-    if model in paper:
-        left.plot([steps.index("nonudge"), steps.index("nudge")],
-                  [paper[model]["without"]["ir"], paper[model]["with"]["ir"]], zorder=6,
-                  **(PAPER_MARKER | {"markersize": 5.5}))
-    series(right, vea_kn, 0.0, color_vea, "-", **vea_marker)
-    series(right, read, 4 * pt, color_vea, (0, (1.5, 1.5)), **read_marker)
-    for ax, title, ylabel in ((left, SHORT_NAMES[model], "% of responses"),
-                              (right, f"{SHORT_NAMES[model]}: VEA, zoomed", None)):
-        ax.text(0.015, 0.97, title, transform=ax.transAxes, ha="left", va="top", fontsize=10, color=INK,
-                fontweight="bold", zorder=5, bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.5})
-        style_axes(ax, ylabel)
-        ax.set_xlim(*xlim)
-        ax.set_xticks(range(len(PROMPT_STEPS)), [s[0] for s in PROMPT_STEPS], fontsize=8, va="top",
-                      linespacing=1.15)
-    right.set_ylim(0, 12.5)  # the highest Wilson bound here is 11.0 %
-    right.set_yticks(range(0, 13, 2))
-    handles = [Line2D([], [], color=color_ir, linewidth=1.5, marker="o", markersize=5.5, label=f"IR ({ir_judge})"),
-               Line2D([], [], color=INK, linewidth=1.5, linestyle=(0, (4, 2)), marker="s", markersize=4.5,
-                      markerfacecolor="white", markeredgewidth=1.2, label="refusal rate"),
-               Line2D([], [], **(PAPER_MARKER | {"markersize": 5.5}), label="paper (Table 3)"),
-               Line2D([], [], color=color_vea, linewidth=1.5, **vea_marker, label=f"VEA ({vea_judge} judge)"),
+    series(ax, vea_kn, 0.0, color_vea, "-", **vea_marker)
+    series(ax, read, 4 * pt, color_vea, (0, (1.5, 1.5)), **read_marker)
+    ax.text(0.015, 0.97, SHORT_NAMES[model], transform=ax.transAxes, ha="left", va="top", fontsize=10, color=INK,
+            fontweight="bold", zorder=5, bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.5})
+    style_axes(ax, "% of responses")
+    ax.set_ylim(0, 12.5)  # the highest Wilson bound here is 11.0 %
+    ax.set_yticks(range(0, 13, 2))
+    ax.set_xlim(*xlim)
+    ax.set_xticks(range(len(PROMPT_STEPS)), [s[0] for s in PROMPT_STEPS], fontsize=8, va="top", linespacing=1.15)
+    handles = [Line2D([], [], color=color_vea, linewidth=1.5, **vea_marker, label=f"VEA ({vea_judge} judge)"),
                Line2D([], [], color=color_vea, linewidth=1.5, linestyle=(0, (1.5, 1.5)), **read_marker,
                       label="VEA, in-scenario monitoring flags removed")]
-    fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.01, 1.0), ncol=len(handles), frameon=False,
-               fontsize=8, handlelength=2.4, columnspacing=1.2)
+    fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.01, 1.0), ncol=1, frameon=False,
+               fontsize=8, handlelength=2.4)
     paths = save(fig, VEA_FIGURES_DIR, f"figure6_vea_{vea_judge}")
 
     def pct(kn) -> str:
