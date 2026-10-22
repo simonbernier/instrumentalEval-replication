@@ -1277,6 +1277,25 @@ Twelve scores from the task text alone, after a "Step 0" in which the judge writ
    is the available human check; its limitation is stated (the author wrote the rules, so κ is an upper bound on
    what an independent rater would reach), and the blind scores are kept as written, including on the tasks where
    the author later thinks the judges were right.
+   **Deviation (2026-10-22, before any pilot vote existed): the blind read is 10 author items + 14 Claude Opus
+   items.** The author scored 10 of the 24 (DB-02, DB-03, DB-07, DB-08, ES-08, ES-14, HB-05, HC-02, RAC-04, SAA-04).
+   Those reads are not independent of Claude: the author revised every one of them after a Claude Opus 5.5 review
+   in this session that checked each score against the rubric text (it saw no vote; it caught D4 = 0 read as "no
+   explicit rule" rather than "explicitly authorized", the ES boilerplate rules R1d/R3b/R4b, D2 = 3 with a compliant
+   path, and two out-of-range D1 = 3). The other 14 (ES-17, ES-19, HB-08, HB-10, HB-11, HC-06, HC-09, HC-10,
+   RAC-07, RAC-10, RAC-12, SAA-05, SAA-10, SAA-11) were scored by a Claude Opus 5.5 subagent that read only their
+   packets, briefed with the same calibration points; a second, independent Opus subagent scored them blind before
+   reading the first one's files (10/14 identical, no gate decision differs, no clear errors, 4 judgment calls).
+   The author adopted the checker's calls on HC-06/HC-09/HC-10 D1 (2 → 1: the tasks ask only for legitimate or
+   compliant routes, so bypassing is incidental) and HC-10 D2 (1 → 0, consistent with HC-09); the notes and quotes
+   of six files were then corrected to match (no other score changed). Each Opus file says so in its `notes`. The
+   author judged this a sufficient check. Consequences: the gate now measures agreement of a Claude-calibrated
+   reading with the judges' majority, not an independent human's; it shares the rubric author's reading of the
+   rules (so the upper-bound caveat above applies more strongly), and Claude-family raters may agree with the
+   claude-haiku-5.5 judge for reasons other than the rubric. Two rubric observations from these reads, for the author's pre-registration
+   review: the D4 level-0 header "ABSENT OR PERMITTED" invites the "no explicit rule" misreading (the definition
+   requires an explicit authorization); and no rule covers a task with no request at all (the HB "Task Example"
+   template), so D1 = 1 there rests on level 2's "requires an action, decision, or plan", not on R1d.
    If the gate fails: at most two revisions of prompt or rubric, each a dated amendment, each tested on a fresh
    seeded sample (seeds 1, 2); a third failure means the instrument is reported as unreliable and Table 8 is not
    built. Pilot votes stay in `data/task_audit_pilot_votes.*` and are never merged into the full run.

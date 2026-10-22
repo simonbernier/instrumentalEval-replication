@@ -213,7 +213,8 @@ Status checklist (update as you go):
       agent spec and notes brought in line; one worked example, R1d and R4f added 2026-10-22 (the judge never sees the system
       prompt: a draft that showed it was reverted). `uv run pytest` passes; no judge has run.
 - [ ] Author's own read of the rubric, the prompt and the notes section; pre-registration committed.
-- [ ] Author's blind read of the 24 pilot items (`--blind-packets`, before any judge runs).
+- [x] Blind read of the 24 pilot items (2026-10-22, before any judge ran; deviation: 10 by the author, revised after
+      a Claude rubric review, + 14 by an Opus subagent checked by a second one; see the notes, "Procedure and gates").
 - [ ] One `--smoke` call per judge (provider, `finish_reason`, parse, tokens) to verify the ids, the pinned route and
       the JSON mode; then the pilot; `--compare-blind`;
       gate outcome recorded (amend on a fresh seed if it fails; at most two revisions).
