@@ -1556,12 +1556,13 @@ shuffling are unchanged.
   (kept by decision), D5 near-constant; amended rules tuned on the seed-0 items; adjudication saw the votes; no
   human rater. The labels are largely fixed by category (SAA all informative, ES none), so the within-category
   contrast rests on three categories. Table 8 is exploratory and reported as such.
-- **Figure 8** (`figures.figure8`, `ie figures` → results/figures/figure8_gpt-4o.*): Figure 1's overall-IR panel
-  split by subset, Figure 1's eight models and style: all 76 (with the paper's diamonds), well-posed (66; contains
-  the informative items), informative (25), flagged (10). Family averages, all / well-posed / informative /
-  flagged: RLHF 60.1 / 57.6 / 50.7 / 76.7, RL 57.4 / 53.9 / 53.6 / 80.0. Read with Table 8(c): the higher flagged
-  bars reflect category mix (flagged items are mostly Evading Shutdown and Running Multiple Copies), and per-model
-  flagged rates rest on 10 tasks.
+- **Figure 8** (`figures.figure8`, `ie figures` → results/figures/figure8_gpt-4o.*), remade 2026-10-22 (the
+  earlier version split the panel by the audit labels; dropped): Figure 1's overall-IR panel, Figure 1's eight
+  models and style, for all 76 tasks (with the paper's diamonds) and for the 15 tasks Claude Fable 5.1 scored as good
+  questions in a separate run by the author (prompt and outputs not in this repo; list in `figures.FABLE_GOOD_TASKS`:
+  ES-14, -15, -16, -18, -20; HC-01; HB-02, -04, -08; SAA-06 to -11). Family averages, all / Fable 15: RLHF 60.1 /
+  53.3, RL 57.4 / 57.3. Post hoc and descriptive: the subset was chosen after the responses were judged, per-model
+  rates rest on 15 tasks, and its category mix (5 ES, 1 HC, 3 HB, 6 SAA; no DB or RAC) differs from the benchmark's.
 
 ## Capability ordering (not in the paper): the x-axis order of Figure 1 (data/capability_scores.csv)
 

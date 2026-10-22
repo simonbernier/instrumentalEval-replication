@@ -12,8 +12,8 @@ Figure 6 (Table 6): one panel per model in the Figure 1 order, IR as the upstrea
 autonomous AI agent." one paragraph group at a time (PROMPT_STEPS), the nudge last.
 Figure 7 (Table 7): one panel per o-series model, IR against explicit reasoning effort, with the stored
 default-effort runs as reference points.
-Figure 8 (Table 8): Figure 1's overall-IR panel split by the task audit's labels (all 76, well-posed, informative,
-flagged), the paper's IR on the all-76 panel.
+Figure 8: Figure 1's overall-IR panel for all 76 tasks (the paper's IR as diamonds) and for the 15 tasks Claude
+Fable 5.1 scored as good questions (FABLE_GOOD_TASKS).
 """
 
 import math
@@ -45,11 +45,9 @@ from .tables import (
     cir_matrix,
     fmt,
     load_judgments,
-    load_task_audit,
     nudge_gaps,
     paper_table1,
     paper_table3,
-    primary,
     prior_counts,
     prior_matrix,
     prior_task_types,
@@ -538,53 +536,111 @@ def figure7(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
     return save(fig, out_dir, f"figure7_{judge}")
 
 
-# Figure 8 subsets, in panel order: the replication's own overall IR, then the task audit's labels (primary label:
-# overlap gate not applied, tables.DROPPED_GATES). Well-posed contains informative; flagged is its complement.
-AUDIT_SUBSETS = (("All tasks", lambda e: True), ("Well-posed: no gate fails", lambda e: e["label"]["well_posed"]),
-                 ("Informative: well-posed, response is an act", lambda e: e["label"]["informative"]),
-                 ("Flagged: fails a gate", lambda e: not e["label"]["well_posed"]))
+# Figure 8: the tasks Claude Fable 5.1 scored as good questions (2026-10-22, author's run outside this repo; see
+# REPLICATION_NOTES.md, "Figure 8"). No Deceptive Behavior or Running Multiple Copies task is among them.
+FABLE_GOOD_TASKS = ("ES-14", "ES-15", "ES-16", "ES-18", "ES-20", "HC-01", "HB-02", "HB-04", "HB-08",
+                    "SAA-06", "SAA-07", "SAA-08", "SAA-09", "SAA-10", "SAA-11")
+
+
+# Figure 8 (b): the two models with both a stored ablation and the paper's Table 3. Colour = model (its Figure 1
+# family colour), line = source (solid ours, dotted paper), marker = model x source. The two models sit left / right
+# of each step so their intervals never overlap; value labels go diagonally outward ((x, y) signs per source,
+# ours then paper), away from the line segments that arrive at or leave each point.
+ABLATION_MODELS = {"gpt-4o": {"marker": "o", "paper_marker": "D", "dx": -0.1, "labels": ((-1, -1), (-1, -1))},
+                   "deepseek-r1": {"marker": "^", "paper_marker": "s", "dx": 0.1, "labels": ((1, -1), (1, -1))}}
+
+
+def tint(color: str, w: float) -> tuple[float, ...]:
+    """`color` mixed a fraction `w` toward white."""
+    return tuple((1 - w) * v + w for v in to_rgb(color))
 
 
 def figure8(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
-    """Figure 1's overall-IR panel split by the task audit (Table 8): the same models, order, bars, Wilson intervals
-    and family averages, one panel per subset on a shared axis. The paper's IR (diamonds) only exists for all 76 tasks.
-    Per-model rates on the flagged subset rest on about ten tasks, so the family averages are the comparison to read;
-    the subsets also differ in category mix (no Evading Shutdown task is informative), see Table 8(c)."""
-    audit = {t: primary(e) for t, e in load_task_audit().items()}
-    if not audit:
-        raise SystemExit("no data/task_audit.json yet: `ie audit-tasks --merge <dir>`")
+    """(a) Figure 1's overall IR, each model's all-76 bar (the paper's IR as diamonds) beside its bar on
+    FABLE_GOOD_TASKS, family averages in the legend; per-model rates on the subset rest on 15 tasks and its category
+    mix differs. (b) The system-prompt ablation (Figure 6's cumulative steps, all 76 tasks) for gpt-4o and
+    deepseek-r1, with the paper's Table 3 IR without and with the nudge. deepseek-r1 has no oversight arm."""
     df = load_judgments()
-    sub = df[(df.judge == judge) & (df.variant == "nudge") & (df.task_set == "benchmark") & df.model.isin(FIGURE1_MODELS)]
+    bench = df[(df.judge == judge) & (df.task_set == "benchmark")]
+    sub = bench[(bench.variant == "nudge") & bench.model.isin(FIGURE1_MODELS)]
+    assert set(FABLE_GOOD_TASKS) <= set(sub.task_id), set(FABLE_GOOD_TASKS) - set(sub.task_id)
     order = capability_order(REASONING_ORDER)
     models = sorted(sub.model.unique(), key=order.index)
-    xs, groups = layout(models, gap=1.9)  # wider than Figure 1: the "RLHF avg" label sits in the gap at this width
-    ticks = [xs[m] for m in models]
+    xs, groups = layout(models)
     paper = paper_table1()
+
+    fig, (ax, bx) = plt.subplots(2, 1, figsize=(12, 10.2), gridspec_kw={"hspace": 0.3, "height_ratios": [1.1, 1]})
+
+    # (a) side by side per model: dark = all 76 tasks, light tint of the same colour = Fable's 15
+    sets = (("all 76 tasks", sub, -0.2, 0.0),
+            (f"Fable 5.1's {len(FABLE_GOOD_TASKS)} good tasks", sub[sub.task_id.isin(FABLE_GOOD_TASKS)], 0.2, 0.62))
+    handles = []
+    for fam, fam_models in groups.items():
+        for name, s, dx, w in sets:
+            counts = [(int(s[s.model == m].conv.sum()), int((s.model == m).sum())) for m in fam_models]
+            y = [100 * k / n for k, n in counts]
+            ci = [wilson_ci(k, n) for k, n in counts]
+            x = [xs[m] + dx for m in fam_models]
+            ax.bar(x, y, width=0.38, color=tint(FIGURE1_COLORS[fam], w), edgecolor=FIGURE1_COLORS[fam], linewidth=1.2,
+                   zorder=2)
+            ax.errorbar(x, y, yerr=[[max(0.0, v - lo) for v, (lo, _) in zip(y, ci)],
+                                    [max(0.0, hi - v) for v, (_, hi) in zip(y, ci)]],
+                        fmt="none", ecolor=INK, elinewidth=1, capsize=0, zorder=3)
+            for xi, yi, (_, hi) in zip(x, y, ci):
+                ax.text(xi, hi + 1.2, f"{yi:.1f}", ha="center", va="bottom", fontsize=7.5, color=INK, zorder=5)
+            handles.append(Patch(facecolor=tint(FIGURE1_COLORS[fam], w), edgecolor=FIGURE1_COLORS[fam], linewidth=1.2,
+                                 label=f"{fam} models, {name} (avg {sum(y) / len(y):.1f})"))
     on_paper = [m for m in models if m in paper and not TEST_MODELS[m].substitute]
-    style = {"colors": FIGURE1_COLORS, "avg_style": (0, (5, 3)), "err_style": {"ecolor": INK, "elinewidth": 1},
-             "fills": FIGURE1_FILLS}
+    ax.plot([xs[m] - 0.2 for m in on_paper], [paper[m]["ir"] for m in on_paper], zorder=6, **PAPER_MARKER)
+    handles += [Line2D([], [], **PAPER_MARKER, label="paper (Table 1, all 76 tasks)"),
+                Line2D([], [], color=INK, linewidth=1, label="95% Wilson interval")]
+    style_axes(ax, "IR (%)")
+    ax.set_ylim(0, 132)  # headroom for the legend; the axis itself stops at 100
+    ax.spines["left"].set_bounds(0, 100)
+    ax.set_xticks([xs[m] for m in models], models, rotation=30, ha="right", fontsize=9)
+    ax.set_xlim(-0.6, max(xs.values()) + 0.6)
+    ax.set_title("(a) Instrumental Rate with the goal nudge: all 76 tasks and the tasks Fable 5.1 scored as good",
+                 loc="left", fontsize=10, color=INK, fontweight="bold")
+    ax.legend(handles=handles, loc="upper center", ncol=3, frameon=True, framealpha=0.95, edgecolor=GRID,
+              fontsize=8.5, handlelength=1.8, columnspacing=1.4)
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8.6), sharex=True, sharey=True, gridspec_kw={"hspace": 0.28,
-                                                                                            "wspace": 0.1})
-    for i, (ax, (name, keep)) in enumerate(zip(axes.flat, AUDIT_SUBSETS)):
-        ids = {t for t, e in audit.items() if keep(e)}
-        s = sub[sub.task_id.isin(ids)]
-        counts = {m: (int(s[s.model == m].conv.sum()), int((s.model == m).sum())) for m in models}
-        rates = {m: 100 * k / n if n else math.nan for m, (k, n) in counts.items()}
-        draw_panel(ax, rates, counts, xs, groups, f"{name} ({len(ids)} tasks)",
-                   ylabel="IR (%)" if i % 2 == 0 else None, avg_labels=True, **style)
-        if i == 0:
-            ax.plot([xs[m] for m in on_paper], [paper[m]["ir"] for m in on_paper], zorder=6, clip_on=False,
-                    **PAPER_MARKER)
-        ax.set_xticks(ticks, models, rotation=35, ha="right")
-        ax.tick_params(labelbottom=i >= 2)
-    axes[0, 0].set_xlim(-0.6, max(xs.values()) + 1.7)  # room for the family-average labels
-
-    handles = [Patch(facecolor=FIGURE1_FILLS[f], edgecolor=FIGURE1_COLORS[f], linewidth=1.5, label=f"{f} models")
-               for f in groups] + [
-        Line2D([], [], **PAPER_MARKER, label="paper (Table 1, all 76 tasks)"),
-        Line2D([], [], color=INK, linewidth=1.5, linestyle=style["avg_style"], label="family average"),
-        Line2D([], [], color=INK, linewidth=1, label="95% Wilson interval")]
-    fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.125, 0.965), ncol=len(handles), frameon=False,
-               fontsize=10, handlelength=1.8, columnspacing=1.2)
+    # (b) cumulative prompt steps: ours (solid, Wilson intervals), the paper's Table 3 at nonudge and nudge (dotted)
+    steps, t3 = [v for _, v in PROMPT_STEPS], paper_table3()
+    dotted = (0, (1.5, 1.5))
+    handles = []
+    for m, st in ABLATION_MODELS.items():
+        color = FIGURE1_COLORS[TEST_MODELS[m].family]
+        kn = {v: (int(g.conv.sum()), len(g)) for v, g in bench[bench.model == m].groupby("variant") if v in steps}
+        x = [i + st["dx"] for i in range(len(steps))]
+        y = [100 * kn[v][0] / kn[v][1] if v in kn else math.nan for v in steps]
+        bx.plot(x, y, color=color, linewidth=1.8, zorder=3)  # a missing step breaks the line instead of bridging it
+        pts = [(xi, yi, wilson_ci(*kn[v])) for xi, yi, v in zip(x, y, steps) if v in kn]
+        ours = dict(marker=st["marker"], markersize=7, markeredgecolor="white", markeredgewidth=0.8)
+        bx.errorbar([p[0] for p in pts], [p[1] for p in pts],
+                    yerr=[[yi - lo for _, yi, (lo, _) in pts], [hi - yi for _, yi, (_, hi) in pts]],
+                    color=color, ecolor=color, elinewidth=1.1, capsize=0, linestyle="none", zorder=4, **ours)
+        theirs = dict(marker=st["paper_marker"], markersize=7.5, markerfacecolor="white", markeredgecolor=color,
+                      markeredgewidth=1.8)
+        px = [steps.index("nonudge") + st["dx"], steps.index("nudge") + st["dx"]]
+        py = [t3[m]["without"]["ir"], t3[m]["with"]["ir"]]
+        bx.plot(px, py, color=color, linewidth=1.5, linestyle=dotted, zorder=4, **theirs)
+        for xy, (sx, sy) in (([p[:2] for p in pts], st["labels"][0]), (list(zip(px, py)), st["labels"][1])):
+            for xi, yi in xy:
+                bx.text(xi + 0.05 * sx, yi + 2.5 * sy, f"{yi:.1f}", ha="left" if sx > 0 else "right",
+                        va="bottom" if sy > 0 else "top", fontsize=7.5, color=color, fontweight="bold", zorder=5,
+                        bbox={"facecolor": "white", "edgecolor": "none", "pad": 0.6})
+        for i, v in enumerate(steps):
+            if v not in kn:
+                bx.text(i + st["dx"], 75, f"no {m} run\n(endpoint retired)", ha="center", va="center", fontsize=7.5,
+                        color=INK_2, style="italic")
+        handles += [Line2D([], [], color=color, linewidth=1.8, label=f"{m}, this replication", **ours),
+                    Line2D([], [], color=color, linewidth=1.5, linestyle=dotted, label=f"{m}, paper (Table 3)",
+                           **theirs)]
+    style_axes(bx, "IR (%)")
+    bx.set_xlim(-0.5, len(steps) - 0.5)
+    bx.set_xticks(range(len(steps)), [s[0] for s in PROMPT_STEPS], fontsize=9, linespacing=1.15)
+    bx.set_title("(b) System-prompt ablation, all 76 tasks: IR as the upstream prompt is built up step by step",
+                 loc="left", fontsize=10, color=INK, fontweight="bold")
+    bx.legend(handles=handles, loc="lower left", ncol=2, frameon=True, framealpha=0.95, edgecolor=GRID, fontsize=8.5,
+              handlelength=3.2, columnspacing=1.4)
     return save(fig, out_dir, f"figure8_{judge}")
