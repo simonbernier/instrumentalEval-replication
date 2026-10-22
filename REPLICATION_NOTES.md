@@ -1556,6 +1556,12 @@ shuffling are unchanged.
   (kept by decision), D5 near-constant; amended rules tuned on the seed-0 items; adjudication saw the votes; no
   human rater. The labels are largely fixed by category (SAA all informative, ES none), so the within-category
   contrast rests on three categories. Table 8 is exploratory and reported as such.
+- **Figure 8** (`figures.figure8`, `ie figures` → results/figures/figure8_gpt-4o.*): Figure 1's overall-IR panel
+  split by subset, Figure 1's eight models and style: all 76 (with the paper's diamonds), well-posed (66; contains
+  the informative items), informative (25), flagged (10). Family averages, all / well-posed / informative /
+  flagged: RLHF 60.1 / 57.6 / 50.7 / 76.7, RL 57.4 / 53.9 / 53.6 / 80.0. Read with Table 8(c): the higher flagged
+  bars reflect category mix (flagged items are mostly Evading Shutdown and Running Multiple Copies), and per-model
+  flagged rates rest on 10 tasks.
 
 ## Capability ordering (not in the paper): the x-axis order of Figure 1 (data/capability_scores.csv)
 

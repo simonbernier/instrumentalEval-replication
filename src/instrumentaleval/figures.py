@@ -12,6 +12,8 @@ Figure 6 (Table 6): one panel per model in the Figure 1 order, IR as the upstrea
 autonomous AI agent." one paragraph group at a time (PROMPT_STEPS), the nudge last.
 Figure 7 (Table 7): one panel per o-series model, IR against explicit reasoning effort, with the stored
 default-effort runs as reference points.
+Figure 8 (Table 8): Figure 1's overall-IR panel split by the task audit's labels (all 76, well-posed, informative,
+flagged), the paper's IR on the all-76 panel.
 """
 
 import math
@@ -43,9 +45,11 @@ from .tables import (
     cir_matrix,
     fmt,
     load_judgments,
+    load_task_audit,
     nudge_gaps,
     paper_table1,
     paper_table3,
+    primary,
     prior_counts,
     prior_matrix,
     prior_task_types,
@@ -86,7 +90,7 @@ def tick_label(m: str) -> str:
     return spec.key + ("†" if spec.added else "*" if spec.substitute else "")
 
 
-def layout(models: list[str]) -> tuple[dict[str, float], dict[str, list[str]]]:
+def layout(models: list[str], gap: float = GROUP_GAP) -> tuple[dict[str, float], dict[str, list[str]]]:
     """x position of each model, with the families side by side and a gap between them."""
     groups = {f: [m for m in models if TEST_MODELS[m].family == f] for f in FAMILIES}
     xs, x = {}, 0.0
@@ -94,7 +98,7 @@ def layout(models: list[str]) -> tuple[dict[str, float], dict[str, list[str]]]:
         for m in groups[f]:
             xs[m] = x
             x += 1
-        x += GROUP_GAP
+        x += gap
     return xs, {f: g for f, g in groups.items() if g}
 
 
@@ -121,7 +125,8 @@ def draw_panel(ax, rates, counts, xs, groups, title, *, ylabel=None, value_label
         x = [xs[m] for m in fam_models]
         y = [rates[m] for m in fam_models]
         ci = [wilson_ci(*counts[m]) for m in fam_models]
-        err = [[v - lo for v, (lo, _) in zip(y, ci)], [hi - v for v, (_, hi) in zip(y, ci)]]
+        # clamped: at 0 % or 100 % the Wilson bound can land a rounding error past the point
+        err = [[max(0.0, v - lo) for v, (lo, _) in zip(y, ci)], [max(0.0, hi - v) for v, (_, hi) in zip(y, ci)]]
         if fills:  # tinted fill, family colour on the edge
             ax.bar(x, y, width=0.72, color=fills[fam], edgecolor=colors[fam], linewidth=1.5, zorder=2)
         else:
@@ -531,3 +536,55 @@ def figure7(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
               handlelength=2.2, columnspacing=1.2, borderaxespad=0.2)
     fig.tight_layout()
     return save(fig, out_dir, f"figure7_{judge}")
+
+
+# Figure 8 subsets, in panel order: the replication's own overall IR, then the task audit's labels (primary label:
+# overlap gate not applied, tables.DROPPED_GATES). Well-posed contains informative; flagged is its complement.
+AUDIT_SUBSETS = (("All tasks", lambda e: True), ("Well-posed: no gate fails", lambda e: e["label"]["well_posed"]),
+                 ("Informative: well-posed, response is an act", lambda e: e["label"]["informative"]),
+                 ("Flagged: fails a gate", lambda e: not e["label"]["well_posed"]))
+
+
+def figure8(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
+    """Figure 1's overall-IR panel split by the task audit (Table 8): the same models, order, bars, Wilson intervals
+    and family averages, one panel per subset on a shared axis. The paper's IR (diamonds) only exists for all 76 tasks.
+    Per-model rates on the flagged subset rest on about ten tasks, so the family averages are the comparison to read;
+    the subsets also differ in category mix (no Evading Shutdown task is informative), see Table 8(c)."""
+    audit = {t: primary(e) for t, e in load_task_audit().items()}
+    if not audit:
+        raise SystemExit("no data/task_audit.json yet: `ie audit-tasks --merge <dir>`")
+    df = load_judgments()
+    sub = df[(df.judge == judge) & (df.variant == "nudge") & (df.task_set == "benchmark") & df.model.isin(FIGURE1_MODELS)]
+    order = capability_order(REASONING_ORDER)
+    models = sorted(sub.model.unique(), key=order.index)
+    xs, groups = layout(models, gap=1.9)  # wider than Figure 1: the "RLHF avg" label sits in the gap at this width
+    ticks = [xs[m] for m in models]
+    paper = paper_table1()
+    on_paper = [m for m in models if m in paper and not TEST_MODELS[m].substitute]
+    style = {"colors": FIGURE1_COLORS, "avg_style": (0, (5, 3)), "err_style": {"ecolor": INK, "elinewidth": 1},
+             "fills": FIGURE1_FILLS}
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8.6), sharex=True, sharey=True, gridspec_kw={"hspace": 0.28,
+                                                                                            "wspace": 0.1})
+    for i, (ax, (name, keep)) in enumerate(zip(axes.flat, AUDIT_SUBSETS)):
+        ids = {t for t, e in audit.items() if keep(e)}
+        s = sub[sub.task_id.isin(ids)]
+        counts = {m: (int(s[s.model == m].conv.sum()), int((s.model == m).sum())) for m in models}
+        rates = {m: 100 * k / n if n else math.nan for m, (k, n) in counts.items()}
+        draw_panel(ax, rates, counts, xs, groups, f"{name} ({len(ids)} tasks)",
+                   ylabel="IR (%)" if i % 2 == 0 else None, avg_labels=True, **style)
+        if i == 0:
+            ax.plot([xs[m] for m in on_paper], [paper[m]["ir"] for m in on_paper], zorder=6, clip_on=False,
+                    **PAPER_MARKER)
+        ax.set_xticks(ticks, models, rotation=35, ha="right")
+        ax.tick_params(labelbottom=i >= 2)
+    axes[0, 0].set_xlim(-0.6, max(xs.values()) + 1.7)  # room for the family-average labels
+
+    handles = [Patch(facecolor=FIGURE1_FILLS[f], edgecolor=FIGURE1_COLORS[f], linewidth=1.5, label=f"{f} models")
+               for f in groups] + [
+        Line2D([], [], **PAPER_MARKER, label="paper (Table 1, all 76 tasks)"),
+        Line2D([], [], color=INK, linewidth=1.5, linestyle=style["avg_style"], label="family average"),
+        Line2D([], [], color=INK, linewidth=1, label="95% Wilson interval")]
+    fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.125, 0.965), ncol=len(handles), frameon=False,
+               fontsize=10, handlelength=1.8, columnspacing=1.2)
+    return save(fig, out_dir, f"figure8_{judge}")

@@ -129,9 +129,9 @@ def cmd_tables(a):
 
 
 def cmd_figures(a):
-    from .figures import figure1, figure1_matched, figure2, figure3, figure5, figure6, figure7
+    from .figures import figure1, figure1_matched, figure2, figure3, figure5, figure6, figure7, figure8
     for p in (figure1(a.judge) + figure1_matched(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge) + figure6(a.judge)
-              + figure7(a.judge)):
+              + figure7(a.judge) + figure8(a.judge)):
         print(p)
 
 
