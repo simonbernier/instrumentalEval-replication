@@ -629,9 +629,9 @@ def figure7(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
 
 
 # Figure 8: the tasks Claude Fable 5.1 scored as good questions (2026-10-22, author's run outside this repo; see
-# REPLICATION_NOTES.md, "Figure 8"). No Deceptive Behavior or Running Multiple Copies task is among them.
-FABLE_GOOD_TASKS = ("ES-14", "ES-15", "ES-16", "ES-18", "ES-20", "HC-01", "HB-02", "HB-04", "HB-08",
-                    "SAA-06", "SAA-07", "SAA-08", "SAA-09", "SAA-10", "SAA-11")
+# REPLICATION_NOTES.md, "Figure 8"). No Hiding Unwanted Behavior or Running Multiple Copies task is among them.
+FABLE_GOOD_TASKS = ("ES-14", "ES-15", "ES-16", "ES-18", "ES-19", "ES-20", "HC-01",
+                    "SAA-01", "SAA-06", "SAA-07", "SAA-08", "SAA-09", "SAA-10", "SAA-11", "DB-01")
 
 
 # Figure 8 (b, c): the two models with both a stored ablation and the paper's Table 3, one panel each, in panel (a)'s

@@ -1561,23 +1561,25 @@ shuffling are unchanged.
   - (a) Figure 1's overall IR (nudge, Figure 1's eight models), each model's bar on all 76 tasks (with the paper's
     Table 1 diamond) beside a lighter bar on the 15 tasks Claude Fable 5.1 scored as good questions in a separate run
     by the author (prompt and outputs not in this repo; list in `figures.FABLE_GOOD_TASKS`: ES-14, -15, -16, -18,
-    -20; HC-01; HB-02, -04, -08; SAA-06 to -11). Family averages, all / Fable 15: RLHF 60.1 / 53.3, RL 57.4 / 57.3.
+    -19, -20; HC-01; SAA-01, -06 to -11; DB-01). The list was replaced the same day when Fable 5.1 revised its choice
+    (first list: ES-14, -15, -16, -18, -20; HC-01; HB-02, -04, -08; SAA-06 to -11; family averages then RLHF 53.3,
+    RL 57.3). Family averages, all / Fable 15: RLHF 60.1 / 55.6, RL 57.4 / 62.7.
     Post hoc: the subset was chosen after the responses were judged, per-model rates rest on 15 tasks, and its
-    category mix (5 ES, 1 HC, 3 HB, 6 SAA; no DB or RAC) differs from the benchmark's.
+    category mix (6 ES, 1 HC, 7 SAA, 1 DB; no HB or RAC) differs from the benchmark's.
   - (b, c) The system-prompt ablation (Figure 6's five cumulative steps), one panel per model (gpt-4o,
     deepseek-r1), on all 76 tasks (dark) and on Fable's 15 (light), with the paper's Table 3 IR at `nonudge` and
     `nudge` (gpt-4o 15.8 → 21.1, deepseek-r1 34.2 → 46.0). IR (%), base / + oversight / + rules / + good cause /
-    + nudge, all 76 vs Fable 15: gpt-4o 57.9 / 50.0 / 40.8 / 52.6 / 51.3 vs 66.7 / 46.7 / 26.7 / 46.7 / 33.3;
-    deepseek-r1 52.6 / – / 75.0 / 77.6 / 76.3 vs 40.0 / – / 66.7 / 66.7 / 73.3. Every Fable-15 interval spans about
+    + nudge, all 76 vs Fable 15: gpt-4o 57.9 / 50.0 / 40.8 / 52.6 / 51.3 vs 66.7 / 46.7 / 20.0 / 46.7 / 40.0;
+    deepseek-r1 52.6 / – / 75.0 / 77.6 / 76.3 vs 46.7 / – / 60.0 / 66.7 / 66.7. Every Fable-15 interval spans about
     ±20 pp; no step-to-step contrast on the subset was tested. deepseek-r1 has no oversight step (endpoint retired,
     see "Five-step decomposition"); its lines bridge the gap. Error bars are 95% Wilson intervals (stated in the
     caption, not the legend).
   - Post hoc check (2026-10-22), are gpt-4o's drops refusals? Per-task transitions, Table 6c's refusal heuristic
     (`tables.is_refusal`): base → + oversight (−7.9 pp; Fable −20.0) has no refusal at either step, so none of it;
-    + oversight → + rules (−9.2 pp) loses 11 convergent tasks, 3 of them to refusals (on Fable all 3 losses are
-    plain no-convergence); + good cause → + nudge on Fable (−13.3 pp) is 2 convergent tasks turned refusals, while
-    on all 76 the 5 such refusals are offset by gains (−1.3 pp). Refusal rates, all 76: 0 / 0 / 10.5 / 5.3 / 11.8 %;
-    Fable 15: 0 / 0 / 13.3 / 0 / 20.0 %. deepseek-r1 refuses at most once per arm.
+    + oversight → + rules (−9.2 pp; Fable −26.7) loses 11 convergent tasks, 3 of them to refusals (on Fable all 4
+    losses are plain no-convergence); + good cause → + nudge on Fable (−6.7 pp) is 1 convergent task turned refusal,
+    while on all 76 the 5 such refusals are offset by gains (−1.3 pp). Refusal rates, all 76: 0 / 0 / 10.5 / 5.3 /
+    11.8 %; Fable 15: 0 / 0 / 13.3 / 0 / 6.7 %. deepseek-r1 refuses at most once per arm.
 
 ## Capability ordering (not in the paper): the x-axis order of Figure 1 (data/capability_scores.csv)
 
