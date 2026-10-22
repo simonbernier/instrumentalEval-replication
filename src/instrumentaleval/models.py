@@ -138,6 +138,11 @@ AUDIT_JUDGES: dict[str, ModelSpec] = {
 # GPT-5-mini at low reasoning effort, 4000 completion tokens (reasoning + the short REASONING/QUOTE answer).
 VEA_JUDGE = ModelSpec("gpt-5-mini", "openai/gpt-5-mini", "", send_temperature=False, max_tokens=4000,
                       extra_body={"reasoning": {"effort": "low"}})
+# Second VEA judge (ours, REPLICATION_NOTES.md "Eval awareness", "Second judge"): the frame judge's model and effort,
+# because gpt-5-mini at low effort missed the single-sentence asides. Same rubric and parser; results/vea/gpt-5/.
+VEA_JUDGE_GPT5 = ModelSpec("gpt-5", "openai/gpt-5", "", send_temperature=False, max_tokens=8000,
+                           extra_body={"reasoning": {"effort": "medium"}})
+VEA_JUDGES = {j.key: j for j in (VEA_JUDGE, VEA_JUDGE_GPT5)}
 # Only models whose stored `reasoning` is their own chain of thought can be judged for VEA (or frame awareness).
 VEA_MODELS = [m.key for m in TEST_MODELS.values() if m.cot == "raw"]
 

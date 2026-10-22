@@ -139,6 +139,35 @@ def cluster_bootstrap_rd(groups: dict, b: int = 5000, seed: int = 0) -> dict:
             "b_used": len(ests)}
 
 
+def positive_agreement(a: list[bool], b: list[bool]) -> float:
+    """Specific positive agreement 2a / (2a + b + c): of the cells either rater calls positive, the share both do.
+    Unlike κ it ignores the many joint negatives, which dominate at a base rate near zero."""
+    both = sum(x and y for x, y in zip(a, b, strict=True))
+    one = sum(x != y for x, y in zip(a, b, strict=True))
+    return math.nan if 2 * both + one == 0 else 2 * both / (2 * both + one)
+
+
+def cluster_bootstrap_kappa(groups: dict, b: int = 5000, seed: int = 0) -> tuple[float, float, float]:
+    """(κ, lo, hi): Cohen's κ between two binary raters with a 95% percentile CI from resampling clusters (tasks).
+    groups: cluster -> list of (rater A 0/1, rater B 0/1). Resamples where κ is undefined (one category only) are
+    dropped; with very few positives the interval is wide and partly made of such ties."""
+    cl = [v for v in groups.values() if v]
+
+    def kappa(cells) -> float:
+        if not any(x or y for x, y in cells):  # no positive at all: κ is undefined, not 1
+            return math.nan
+        return cohen_kappa([str(x) for x, _ in cells], [str(y) for _, y in cells])
+
+    point = kappa([c for v in cl for c in v])
+    rng = random.Random(seed)
+    m = len(cl)
+    ests = sorted(k for k in (kappa([c for _ in range(m) for c in cl[rng.randrange(m)]]) for _ in range(b))
+                  if not math.isnan(k))
+    if len(ests) < 100:
+        return (point, math.nan, math.nan)
+    return (point, ests[int(0.025 * (len(ests) - 1))], ests[int(0.975 * (len(ests) - 1))])
+
+
 def krippendorff_alpha(ratings: dict, max_value: int) -> float:
     """Krippendorff's alpha with the ordinal metric for integer scores 0..max_value.
 

@@ -18,7 +18,7 @@ import re
 
 from . import RESULTS_DIR
 from .client import chat
-from .models import VEA_JUDGE, VEA_MODELS
+from .models import VEA_JUDGE, VEA_MODELS, ModelSpec
 from .runs import load_latest, now, parse_run_id, responses_path, run_parallel, sha
 
 VEA_DIR = RESULTS_DIR / "vea"
@@ -133,13 +133,14 @@ def vea_path(judge: str, rid: str):
     return VEA_DIR / judge / f"{rid}.jsonl"
 
 
-def judge_config() -> dict:
-    return VEA_JUDGE.request_config() | {"temperature": None}
+def judge_config(judge: ModelSpec = VEA_JUDGE) -> dict:
+    return judge.request_config() | {"temperature": None}
 
 
-def judge_vea(rid: str, limit: int | None = None, workers: int = 8, cells: set | None = None) -> None:
-    """Judge every ok response of one run for VEA (or only the (variant, task_id) pairs in `cells`); skip tasks
-    already judged on the same CoT with the same request."""
+def judge_vea(rid: str, limit: int | None = None, workers: int = 8, cells: set | None = None,
+              judge: ModelSpec = VEA_JUDGE) -> None:
+    """Judge every ok response of one run for VEA (or only the (variant, task_id) pairs in `cells`) with `judge`;
+    skip tasks already judged on the same CoT with the same request."""
     model, _, _ = parse_run_id(rid)
     if model not in VEA_MODELS:
         print(f"{rid}: {model}'s stored reasoning is not its raw chain of thought; nothing to judge")
@@ -148,9 +149,9 @@ def judge_vea(rid: str, limit: int | None = None, workers: int = 8, cells: set |
     if not responses:
         print(f"no responses for {rid}; run `ie generate` first")
         return
-    path = vea_path(VEA_JUDGE.key, rid)
+    path = vea_path(judge.key, rid)
     existing = load_latest(path)
-    config = judge_config()
+    config = judge_config(judge)
 
     def current(r: dict) -> bool:
         j = existing.get(r["task_id"], {})
@@ -169,16 +170,16 @@ def judge_vea(rid: str, limit: int | None = None, workers: int = 8, cells: set |
         prompt = judge_prompt(cot)
         rec = {
             "task_id": r["task_id"], "category": r["category"], "task_number": r["task_number"],
-            "model": r["model"], "variant": r["variant"], "task_set": r["task_set"], "judge": VEA_JUDGE.key,
-            "judge_openrouter_id": VEA_JUDGE.openrouter_id, "cot_sha": sha(cot), "cot_chars": len(cot),
+            "model": r["model"], "variant": r["variant"], "task_set": r["task_set"], "judge": judge.key,
+            "judge_openrouter_id": judge.openrouter_id, "cot_sha": sha(cot), "cot_chars": len(cot),
             "cot_truncated": len(cot) > MAX_COT_CHARS, "response_sha": sha(r["test_llm_response"]),
             "judge_config": config, "prompt_sha": sha(prompt), "time": now(),
         }
         try:
-            out = chat(VEA_JUDGE, None, prompt, None)
+            out = chat(judge, None, prompt, None)
             if needs_retry(out["content"], out["finish_reason"]):
                 first = out
-                out = chat(VEA_JUDGE, None, prompt, None)
+                out = chat(judge, None, prompt, None)
                 rec["retry_of"] = {"judge_raw": first["content"], "finish_reason": first["finish_reason"]}
         except Exception as e:  # recorded and retried on the next invocation
             return rec | {"status": "error", "error": f"{type(e).__name__}: {e}"}
@@ -188,10 +189,10 @@ def judge_vea(rid: str, limit: int | None = None, workers: int = 8, cells: set |
                       "has_quote_field": has_quote_field(out["content"]),
                       "judge_raw": out.pop("content")} | out
 
-    run_parallel(todo, work, path, workers, desc=f"vea <- {rid}")
+    run_parallel(todo, work, path, workers, desc=f"vea[{judge.key}] <- {rid}")
     recs = load_latest(path).values()
     ok = [r for r in recs if r["status"] == "ok"]
-    print(f"  VEA on {rid}: {sum(r['vea'] for r in ok)}/{len(ok)} flagged, "
+    print(f"  VEA ({judge.key}) on {rid}: {sum(r['vea'] for r in ok)}/{len(ok)} flagged, "
           f"{sum(not r['has_quote_field'] for r in ok)} replies without a QUOTE field, "
           f"{sum(r['vea'] != r['vea_authors_parser'] for r in ok)} where the authors' parser differs, "
           f"{sum('retry_of' in r for r in ok)} retried, {sum(r['status'] == 'error' for r in recs)} errors")

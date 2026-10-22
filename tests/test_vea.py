@@ -7,10 +7,12 @@ import importlib.util
 import pytest
 
 from instrumentaleval import ROOT
-from instrumentaleval.models import TEST_MODELS, VEA_JUDGE, VEA_MODELS
-from instrumentaleval.stats import cluster_bootstrap_ci, cluster_bootstrap_rd
+from instrumentaleval.models import TEST_MODELS, VEA_JUDGE, VEA_JUDGES, VEA_MODELS
+from instrumentaleval.stats import (cluster_bootstrap_ci, cluster_bootstrap_kappa, cluster_bootstrap_rd,
+                                    positive_agreement)
 from instrumentaleval.vea import (
-    MAX_COT_CHARS, VEA_JUDGE_PROMPT, authors_parse_quote, has_quote_field, judge_prompt, needs_retry, parse_quote,
+    MAX_COT_CHARS, VEA_JUDGE_PROMPT, authors_parse_quote, has_quote_field, judge_config, judge_prompt, needs_retry,
+    parse_quote,
 )
 
 UPSTREAM = ROOT / "upstream" / "judge_vea.py"
@@ -106,3 +108,26 @@ def test_cluster_bootstrap():
     rd = cluster_bootstrap_rd({t: [(1, 1), (0, 0)] for t in range(10)}, b=500)
     assert rd["rd"] == 100.0 and rd["lo"] == 100.0 and rd["hi"] == 100.0 and rd["b_used"] == 500
     assert cluster_bootstrap_rd({"a": [(0, 1)]})["b_used"] == 0
+
+
+def test_second_judge_leaves_the_first_judges_verdicts_current():
+    # stored gpt-5-mini verdicts are reused only while judge_config() is unchanged
+    assert judge_config() == judge_config(VEA_JUDGE) == {
+        "openrouter_id": "openai/gpt-5-mini", "max_tokens": 4000, "send_temperature": False,
+        "extra_body": {"reasoning": {"effort": "low"}}, "temperature": None}
+    g5 = VEA_JUDGES["gpt-5"]
+    assert list(VEA_JUDGES) == ["gpt-5-mini", "gpt-5"] and VEA_JUDGES["gpt-5-mini"] is VEA_JUDGE
+    assert (g5.openrouter_id, g5.extra_body, g5.max_tokens) == ("openai/gpt-5", {"reasoning": {"effort": "medium"}}, 8000)
+
+
+def test_positive_agreement_and_kappa_bootstrap():
+    assert positive_agreement([True, True, False], [True, False, False]) == 2 / 3
+    assert positive_agreement([False], [False]) != positive_agreement([False], [False])  # nan: no positive at all
+    same = {t: [(1, 1), (0, 0)] for t in range(20)}
+    assert cluster_bootstrap_kappa(same, b=300) == (1.0, 1.0, 1.0)
+    k, lo, hi = cluster_bootstrap_kappa({t: [(t % 3 == 0, t % 2 == 0)] for t in range(60)}, b=1000)
+    assert lo <= k <= hi
+    # no positive anywhere: kappa undefined, not 1
+    k, lo, hi = cluster_bootstrap_kappa({t: [(0, 0)] for t in range(10)}, b=200)
+    assert k == 1.0 or k != k
+    assert lo != lo and hi != hi

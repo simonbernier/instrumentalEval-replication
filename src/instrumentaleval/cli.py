@@ -5,7 +5,8 @@ import argparse
 import os
 import sys
 
-from .models import ABLATION_MODELS, ALL_MODELS, DEFAULT_JUDGE, EFFORT_MODELS, JUDGES, REP_MODELS, TEST_MODELS, VEA_MODELS
+from .models import (ABLATION_MODELS, ALL_MODELS, DEFAULT_JUDGE, EFFORT_MODELS, JUDGES, REP_MODELS, TEST_MODELS, VEA_JUDGE,
+                     VEA_JUDGES, VEA_MODELS)
 from .prompts import SYSTEM_PROMPTS
 from .runs import RESPONSES_DIR, load_latest, parse_run_id
 
@@ -160,7 +161,7 @@ def _cells(a) -> set | None:
 def cmd_vea_judge(a):
     from .vea import judge_vea
     for rid in _cot_runs(a):
-        judge_vea(rid, a.limit, a.workers, _cells(a))
+        judge_vea(rid, a.limit, a.workers, _cells(a), VEA_JUDGES[a.judge])
 
 
 def cmd_frame_judge(a):
@@ -181,7 +182,12 @@ def cmd_frame_export_labels(a):
 
 def cmd_vea_tables(a):
     from .vea_tables import build_vea_tables
-    print(build_vea_tables(a.judge))
+    print(build_vea_tables(a.judge, a.vea_judge))
+
+
+def cmd_vea_agreement(a):
+    from .vea_tables import build_vea_agreement
+    print(build_vea_agreement(*a.judges))
 
 
 def cmd_vea_export_labels(a):
@@ -301,16 +307,24 @@ def main() -> None:
                        help="only these cells, e.g. nonudge:ES-10 nudge:HC-01 (known-cell recall check)")
         s.add_argument("--workers", type=int, default=8)
         s.set_defaults(func=func)
+        return s
 
-    cot_judge_parser("vea-judge", "judge stored chains of thought for verbalized eval awareness (GPT-5-mini, Goodfire "
-                                  "F1 rubric) -> results/vea/<judge>/", cmd_vea_judge)
+    s = cot_judge_parser("vea-judge", "judge stored chains of thought for verbalized eval awareness (Goodfire F1 "
+                                      "rubric) -> results/vea/<judge>/", cmd_vea_judge)
+    s.add_argument("--judge", default=VEA_JUDGE.key, choices=list(VEA_JUDGES),
+                   help=f"default: {VEA_JUDGE.key} (pre-registered); gpt-5 is the second judge")
     cot_judge_parser("frame-judge", "score stored chains of thought for frame awareness (GPT-5, Rajamanoharan & "
                                     "Nanda's 0-5 rubric + perceived frame) -> results/frame/<judge>/", cmd_frame_judge)
 
-    s = sub.add_parser("vea-tables", help="build results/vea/tables.md and results/vea/figures/")
+    s = sub.add_parser("vea-tables", help="build results/vea/tables.md (tables_<judge>.md for the second judge)")
     s.add_argument("--judge", default=DEFAULT_JUDGE, choices=list(JUDGES),
                    help="whose convergence verdicts to cross with VEA (V4)")
+    s.add_argument("--vea-judge", default=VEA_JUDGE.key, choices=list(VEA_JUDGES))
     s.set_defaults(func=cmd_vea_tables)
+
+    s = sub.add_parser("vea-agreement", help="V6: agreement between two VEA judges -> results/vea/agreement.md")
+    s.add_argument("--judges", nargs=2, default=list(VEA_JUDGES), metavar=("A", "B"), choices=list(VEA_JUDGES))
+    s.set_defaults(func=cmd_vea_agreement)
 
     s = sub.add_parser("vea-export-labels", help="blinded sheet of all VEA positives + sampled negatives for a hand check")
     s.add_argument("--n-neg", type=int, default=50)
