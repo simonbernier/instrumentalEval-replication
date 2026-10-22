@@ -207,7 +207,7 @@ Status checklist (update as you go):
 
 - [x] v1 rubric, judge prompt, `audit.py`, Table 8, tests, agent spec written (2026-10-19).
 - [x] Adversarial review of v1 by two Opus 5.5 agents (both: do not pre-register); objections tabulated in the notes.
-- [x] v2 rewrite: D0/R/D4b/Step 0/rules; per-judge labels; invented examples only (5-gram leakage test); item-level
+- [x] v2 rewrite: overlap and reachability gates, Step 0, numbered rules; per-judge labels; invented examples only (5-gram leakage test); item-level
       inference; 24-task pilot with the author's blind read as a gate; contested-only adjudication from packets.
 - [x] v3 (2026-10-21): twelve dimensions collapsed to five (author's rubric); code, Table 8, tests, rubric md,
       agent spec and notes brought in line; one worked example, R1d and R4f added 2026-10-22 (the judge never sees the system
@@ -215,11 +215,21 @@ Status checklist (update as you go):
 - [ ] Author's own read of the rubric, the prompt and the notes section; pre-registration committed.
 - [x] Blind read of the 24 pilot items (2026-10-22, before any judge ran; deviation: 10 by the author, revised after
       a Claude rubric review, + 14 by an Opus subagent checked by a second one; see the notes, "Procedure and gates").
-- [ ] One `--smoke` call per judge (provider, `finish_reason`, parse, tokens) to verify the ids, the pinned route and
-      the JSON mode; then the pilot; `--compare-blind`;
-      gate outcome recorded (amend on a fresh seed if it fails; at most two revisions).
-- [ ] Full run; α per dimension; adjudication of contested tasks; hand check; `data/task_audit.json`.
-- [ ] Table 8 before/after adjudication and the Results subsection (A1-A6) filled.
+- [x] One `--smoke` call per judge (2026-10-22, ES-01): pinned providers, `stop`, parsed first try.
+- [x] Pilot 1 (seed 0, 2026-10-22, ≈ $0.10): **gate fails** (α D1 0.58, D2 0.63; blind κ 0.41); outcome and
+      diagnosis in the notes, "Task audit" → "Results". gpt-6-luna nested the dimensions in `instance` on 2 tasks.
+- [x] Amendment 1 drafted (2026-10-22; R1d+, R1e, R1f, R2a+, strict `json_schema` = `audit.RESPONSE_FORMAT`,
+      fresh `pilot_ids` per seed with `_seed<s>` files); schema smoke-checked on all three judges.
+- [x] Deviation (2026-10-22, author): amendment 1 adopted as drafted; no seed-1 pilot, no further blind read; the
+      full run goes ahead and reliability rests on the full-run α rule only (notes, "Results").
+- [x] Full run (2026-10-22, ≈ $0.32): 228/228 parsed; α D1 0.66, D2 0.48, D3 0.80, D4 0.68, D5 0.27 (near-constant);
+      20 contested, 48 well-posed, 8 flagged. Notes, "Results" → "Full run".
+- [x] Adjudication (20 task-auditor agents) and `--merge` → `data/task_audit.json` (2026-10-22): 62/76 well-posed,
+      22 informative (25 with the overlap gate dropped); 5 majority labels flipped. D1 kept at α 0.66 (author).
+- [x] Overlap gate dropped from Table 8's primary label (`tables.DROPPED_GATES`); hand check by 17 blinded Opus
+      agents: labels 17/17, D2 exact 10/17. A2 permutation test fixed (centred on the category-mix null).
+- [x] Table 8 built and Results filled (2026-10-22): 25 informative; A2 +8.0 pp vs +17.4 expected, p = 0.001,
+      opposite to the prediction; A5 +8.5 pp on informative (p = 0.030). Exploratory: gate never passed.
 
 The judges never see task ids, the category name, the system prompt, model responses, or the author's
 expectations; `tests/test_audit.py` checks that no five consecutive words of the prompt occur in any task and that
@@ -254,6 +264,9 @@ index) and is tied with o3-mini. AA index rows for other model versions are kept
   `None` followed by a note; V5 counts them, and the authors' parser is kept only for comparison.
 - The frame judge fills `perceived_situation_category` for any score > 0, but only score ≥ 2 counts as aware;
   `frame_tables` maps everything below the threshold to the "none" group, so score-1 rows never appear in F4.
+- `ie audit-tasks` ends with "N calls failed after retries … was not written": a provider outage. Every finished
+  call is in `data/<votes stem>.calls.jsonl`; re-run the same command and only the missing calls are made. Delete
+  that file to call the judges afresh (`--force` alone reuses it).
 - `ie generate`, `ie judge` and `ie status` handle `o4-mini@high`-style runs, but Tables 1–6 and Figures 1–6 never
   show them: the sweep arms live in `EFFORT_MODELS`, not `TEST_MODELS`, by design (Table 7 is where they appear).
 - Some pytest cases skip: they need `benchmark/*.csv` or `upstream/main.py` (`ie fetch`).

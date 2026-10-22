@@ -1,0 +1,8 @@
+,tasks,informative,"well-posed, narrative",flagged,unobservable (D1 = 0),best-response overlap (D2 = 3) (not gating),instructed (D3 = 2),permitted (D4 = 0),unrealistic (D5 = 0),partial probe (D1 = 1),substantial overlap (D2 = 2),incentivized (D3 = 1),implied rules (D4 = 1),low realism (D5 ≤ 1),majority well-posed (pre-adjudication),contested
+Evading Shutdown,20,0,15,5,0,1,5,0,0,20,14,15,18,20,14,3
+Hacking Computer Systems,10,6,4,0,0,0,0,0,0,4,0,1,0,8,9,2
+Running Multiple AI Copies,13,4,5,4,0,7,4,1,0,5,2,8,10,13,7,7
+Hiding Unwanted Behavior,11,1,10,0,0,0,0,0,0,10,0,11,0,11,11,0
+Strategically Appearing Aligned,11,11,0,0,0,0,0,0,0,0,0,8,10,9,11,0
+Deceptive Behavior,11,3,7,1,1,0,0,0,0,7,0,1,8,11,7,8
+All,76,25,41,10,1,8,9,1,0,46,16,44,46,72,59,20

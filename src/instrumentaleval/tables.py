@@ -824,13 +824,25 @@ STRATUM_LABELS = {"partial_probe": "partial probe (D1 = 1)", "substantial_overla
                   "low_realism": "low realism (D5 ≤ 1)"}
 # Sensitivity variants of Table 8(e): the rules whose flip changes a gate, each gate dropped in turn, a stricter
 # overlap gate, and unanimous judge labels only.
-SENSITIVITY = (("as adjudicated", "none"), ("R1b flipped (peer-system signal → central)", "R1b"),
+SENSITIVITY = (("as adjudicated", "none"), ("all five gates (overlap gate kept, as pre-registered)", "keep:overlap"),
+               ("R1b flipped (peer-system signal → central)", "R1b"),
                ("R3b flipped (handle-it-for-the-goal → instructed)", "R3b"),
                ("R4b flipped (general licence → permitted)", "R4b"), ("D2 gate at ≥ 2", "D2>=2"),
                ("drop gate: unobservable", "drop:unobservable"), ("drop gate: overlap", "drop:overlap"),
                ("drop gate: instructed", "drop:instructed"), ("drop gate: permitted", "drop:unconstrained"),
                ("drop gate: unrealistic", "drop:unrealistic"), ("unanimous judge labels only", "unanimous"))
 PERMUTATIONS = 10000
+# Gates dropped from the primary label by the pre-registered full-run rule (a gate dimension with α < 0.67 on the
+# full run is unreliable): D2 overlap, α = 0.48 (REPLICATION_NOTES.md, "Task audit" → "Full run"). D1 (α = 0.66) is
+# kept by the author's decision. Their flags are still counted in (a); (e) shows the label with them ("keep:<gate>").
+DROPPED_GATES = ("overlap",)
+
+
+def primary(entry: dict) -> dict:
+    """The audit entry with well_posed / informative recomputed without DROPPED_GATES; gate flags are kept."""
+    wp = not any(v for g, v in entry["label"]["gates"].items() if g not in DROPPED_GATES)
+    return {**entry, "label": {**entry["label"], "well_posed": wp,
+                               "informative": wp and entry["scores"].get("d1_probeability") == 2}}
 
 
 def load_task_audit(path: Path | None = None) -> dict[str, dict]:
@@ -862,13 +874,15 @@ def item_test(sub: pd.DataFrame, informative: dict[str, bool], category: dict[st
     vals = per_item_ir(sub)
     r = stratified_permutation_test(vals, {t: not informative[t] for t in vals if t in informative},
                                                  category, PERMUTATIONS, seed)
-    return {"diff_pp": 100 * r["diff"] if not math.isnan(r["diff"]) else math.nan, "p": r["p"],
+    return {"diff_pp": 100 * r["diff"] if not math.isnan(r["diff"]) else math.nan,
+            "null_pp": 100 * r["null_mean"] if not math.isnan(r["null_mean"]) else math.nan, "p": r["p"],
             "n_flagged": r["n_true"], "n_informative": r["n_false"]}
 
 
 def relabel(audit: dict, flip: str) -> dict[str, bool]:
     """task_id -> informative under a sensitivity variant: a rule flip (R1b: D1 1->2; R3b: D3 1->2; R4b: D4 1->0 where
-    the adjudicator or a judge majority applied the rule), a dropped gate, D2 gating at >= 2, or unanimous labels only."""
+    the adjudicator or a judge majority applied the rule), a dropped gate, D2 gating at >= 2, unanimous labels only,
+    or a gate of DROPPED_GATES put back ("keep:<gate>"). Every variant starts from the primary label."""
     from .audit import label as audit_label
     out = {}
     for tid, e in audit.items():
@@ -887,6 +901,9 @@ def relabel(audit: dict, flip: str) -> dict[str, bool]:
             sc["d4_rules"] = 0
         lab = audit_label(sc)
         g = dict(lab["gates"])
+        for d in DROPPED_GATES:
+            if flip != f"keep:{d}":
+                g[d] = False
         if flip.startswith("drop:"):
             g[flip[5:]] = False
         if flip == "D2>=2":
@@ -913,6 +930,7 @@ def table8(df: pd.DataFrame, judge: str, audit: dict | None = None) -> str:
                 "`ie audit-tasks --merge <dir>`._")
     if not all(all(v is not None for v in e["scores"].values()) for e in audit.values()):
         adjudicated = False
+    audit = {t: primary(e) for t, e in audit.items()}
     # consensus scores may be None where an even panel split; such items drop out of (d) and (e)
     scored = {t: e for t, e in audit.items() if all(v is not None for v in e["scores"].values())}
     cat_of = {tid: e["category"] for tid, e in audit.items()}
@@ -929,7 +947,7 @@ def table8(df: pd.DataFrame, judge: str, audit: dict | None = None) -> str:
                "well-posed, narrative": sum(subset[t] == "well-posed narrative" for t in ids),
                "flagged": sum(subset[t] == "flagged" for t in ids)}
         for g, name in GATE_LABELS.items():
-            row[name] = sum(audit[t]["label"]["gates"][g] for t in ids)
+            row[name + (" (not gating)" if g in DROPPED_GATES else "")] = sum(audit[t]["label"]["gates"][g] for t in ids)
         for st, name in STRATUM_LABELS.items():
             row[name] = sum(audit[t]["label"]["strata"][st] for t in ids)
         row["majority well-posed (pre-adjudication)"] = sum(bool(audit[t]["majority"].get("well_posed")) for t in ids)
@@ -939,7 +957,9 @@ def table8(df: pd.DataFrame, judge: str, audit: dict | None = None) -> str:
     save_csv(fl, "table8_flags")
     sections.append("**(a) Tasks by subset, gate and stratum, per category** (adjudicated scores; gates may overlap; "
                     "strata are descriptive). `informative` = no gate and the behaviour is central (D1 = 2: the "
-                    "response is an act, decision or plan, not a description), the primary subset.\n\n"
+                    "response is an act, decision or plan, not a description), the primary subset. Gates marked "
+                    "\"not gating\" failed the full-run reliability rule (α < 0.67) and are counted but not applied; "
+                    "(e) shows the label with them.\n\n"
                     + md_table(fl, "Category"))
 
     sub = df[(df.judge == judge) & (df.variant == "nudge") & (df.task_set == "benchmark") & df.model.isin(TEST_MODELS)]
@@ -983,9 +1003,11 @@ def table8(df: pd.DataFrame, judge: str, audit: dict | None = None) -> str:
                  "the descriptive one (which subsets the high-IR categories consist of), not a causal one.")
     sections.append(f"**(c) Item-level test (A2).** Per-item IR = mean over the {len(models)} models. flagged − "
                     f"informative = {fmt(r['diff_pp'], 1)} pp over {r['n_flagged']} flagged and {r['n_informative']} "
-                    f"informative items; permutation p = {_p(r['p'])} ({PERMUTATIONS} shuffles of the labels within "
-                    f"category). Categories with ≥ 3 items of each label: {spread}/6.{downgrade} Category composition "
-                    "of each subset is in (a).")
+                    f"informative items, against {fmt(r['null_pp'], 1)} pp expected from the category mix alone (mean "
+                    f"of {PERMUTATIONS} shuffles of the labels within category); two-sided permutation p = "
+                    f"{_p(r['p'])}, centred on that expectation. Observed below expected means that, within "
+                    f"categories, flagged items score lower than informative ones. Categories with ≥ 3 items of each "
+                    f"label: {spread}/6.{downgrade} Category composition of each subset is in (a).")
 
     # (d) dose-response within category: per-item IR by D3 directive level, and by D4 rule level
     vals = per_item_ir(sub)
@@ -1012,7 +1034,8 @@ def table8(df: pd.DataFrame, judge: str, audit: dict | None = None) -> str:
         lab = informative if flip == "none" else relabel(scored, flip)
         rr = item_test(sub, lab, cat_of)
         rows[name] = {"informative items": sum(lab.values()), "flagged items": sum(not v for v in lab.values()),
-                      "flagged − informative (pp)": fmt(rr["diff_pp"], 1), "permutation p": _p(rr["p"])}
+                      "flagged − informative (pp)": fmt(rr["diff_pp"], 1),
+                      "expected from category mix (pp)": fmt(rr["null_pp"], 1), "permutation p": _p(rr["p"])}
     if rows:
         sens = pd.DataFrame(rows).T
         save_csv(sens, f"table8_sensitivity_{judge}")

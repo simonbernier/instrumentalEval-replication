@@ -72,7 +72,9 @@ REASONING_ORDER = ("gpt-4o-mini", "gpt-4o", "qwen-2.5-72b", "deepseek-v3",
                    "deepseek-r1", "o3-mini", "o1", "gemini-2.5-flash", "o4-mini")
 PAPER_MARKER = {"marker": "D", "markersize": 7, "markerfacecolor": "#e34948", "markeredgecolor": "#0b0b0b",
                 "markeredgewidth": 1.2, "linestyle": "none"}
-INK, INK_2, GRID = "#0b0b0b", "#52514e", "#e6e5e0"
+# Figure 7: one colour per swept model, the same validated blue / orange pair as FAMILY_COLORS
+EFFORT_COLORS = {"o3-mini": "#2a78d6", "o4-mini": "#eb6834"}
+INK, INK_2, GRID ="#0b0b0b", "#52514e", "#e6e5e0"
 GROUP_GAP = 1.0  # extra x-space between the two families
 # diverging pair of the dataviz reference palette: blue <-> red around a neutral gray
 DIVERGING = LinearSegmentedColormap.from_list("ie_diverging", ["#2a78d6", "#f0efec", "#e34948"])
@@ -492,33 +494,40 @@ def figure7(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
     if not models:
         print(f"figure 7 skipped: no reasoning-effort runs judged by `{judge}` (README step 11)")
         return []
-    fig, axes = plt.subplots(1, len(models), figsize=(3.4 * len(models) + 0.4, 3.2), sharey=True, squeeze=False)
-    color = FIGURE1_COLORS["RL"]
-    for i, (ax, base) in enumerate(zip(axes[0], models)):
-        xs, ys, los, his = [], [], [], []
-        for x, effort in enumerate(EFFORT_LEVELS):
-            if (base, effort) in arms:
-                d = arms[(base, effort)]
-                k, n = sum(d.values()), len(d)
-                lo, hi = wilson_ci(k, n)
-                xs.append(x), ys.append(100 * k / n), los.append(lo), his.append(hi)
+    fig, ax = plt.subplots(figsize=(4.6, 3.0))
+    # the models share one panel, nudged apart so their error bars don't overlap; each default-effort run sits
+    # further out beside its own model's medium point
+    spread = 0.06 * (len(models) - 1)
+    offsets = {b: (i / max(len(models) - 1, 1) - 0.5) * 2 * spread for i, b in enumerate(models)}
+
+    def point(arm):
+        k, n = sum(arm.values()), len(arm)
+        lo, hi = wilson_ci(k, n)
+        return 100 * k / n, lo, hi
+
+    for base in models:
+        color, dx = EFFORT_COLORS[base], offsets[base]
+        pts = [(x + dx, *point(arms[(base, e)])) for x, e in enumerate(EFFORT_LEVELS) if (base, e) in arms]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
         ax.plot(xs, ys, color=color, linewidth=1.5, zorder=2)
-        ax.errorbar(xs, ys, yerr=[[y - lo for y, lo in zip(ys, los)], [hi - y for y, hi in zip(ys, his)]],
+        ax.errorbar(xs, ys, yerr=[[y - lo for _, y, lo, _ in pts], [hi - y for _, y, _, hi in pts]],
                     fmt="o", color=color, ecolor=color, elinewidth=1, capsize=0, markersize=5.5, zorder=3)
         if (base, "default") in arms:  # the stored run sits at OpenAI's default effort, which is medium
-            d = arms[(base, "default")]
-            k, n = sum(d.values()), len(d)
-            lo, hi = wilson_ci(k, n)
-            y = 100 * k / n
-            ax.errorbar([1 - 0.12], [y], yerr=[[y - lo], [hi - y]], fmt="D", color=INK_2, ecolor=INK_2,
-                        elinewidth=1, capsize=0, markersize=5, zorder=3)
-        style_axes(ax, "IR (%)" if i == 0 else None)
-        ax.text(0.03, 0.97, base, transform=ax.transAxes, ha="left", va="top", fontsize=10, color=INK,
-                fontweight="bold", zorder=5, bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.5})
-        ax.set_xlim(-0.45, 2.45)
-        ax.set_xticks(range(3), EFFORT_LEVELS)
-    handles = [Line2D([], [], color=color, marker="o", label="explicit reasoning effort"),
-               Line2D([], [], color=INK_2, linestyle="none", marker="D", label="default effort")]
-    fig.legend(handles=handles, loc="lower center", ncol=2, frameon=False, fontsize=8, bbox_to_anchor=(0.5, -0.08))
+            y, lo, hi = point(arms[(base, "default")])
+            x = 1 + dx + math.copysign(0.14, dx or -1)
+            ax.errorbar([x], [y], yerr=[[y - lo], [hi - y]], fmt="D", color=color, ecolor=color,
+                        markerfacecolor="white", markeredgewidth=1.5, elinewidth=1, linestyle="none",
+                        capsize=2.5, markersize=6.5, zorder=4)
+    style_axes(ax, "IR (%)")
+    ax.set_xlim(-0.45, 2.45)
+    ax.set_xticks(range(3), EFFORT_LEVELS)
+    ax.set_xlabel("reasoning effort", fontsize=9, color=INK)
+    handles = [Line2D([], [], color=EFFORT_COLORS[b], linewidth=1.5, marker="o", markersize=5.5, label=b)
+               for b in models]
+    handles.append(Line2D([], [], color=INK_2, linestyle="none", marker="D", markersize=6.5, markerfacecolor="white",
+                          markeredgewidth=1.5, label="default effort"))
+    # IR stays well under 75 %, so the legend fits in the empty band at the top of the panel
+    ax.legend(handles=handles, loc="upper center", ncol=len(handles), frameon=False, fontsize=8,
+              handlelength=2.2, columnspacing=1.2, borderaxespad=0.2)
     fig.tight_layout()
     return save(fig, out_dir, f"figure7_{judge}")

@@ -469,9 +469,9 @@ def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: 
         mini_kn[v] = (int(gm.vea.sum()), len(gm))
 
     color_vea = "#7b4fb5"
-    # one Figure 6 panel (4.0 x 2.0 in) plus room for a two-row legend
-    fig, ax = plt.subplots(figsize=(4.0 + 0.4, 2.0 + 1.0))
-    fig.subplots_adjust(left=0.13, right=0.98, top=1.0 - 0.5 / fig.get_figheight(),
+    # one Figure 6 panel (4.0 x 2.0 in); the legend goes inside it
+    fig, ax = plt.subplots(figsize=(4.0 + 0.4, 2.0 + 0.6))
+    fig.subplots_adjust(left=0.13, right=0.98, top=1.0 - 0.1 / fig.get_figheight(),
                         bottom=0.5 / fig.get_figheight())
     xlim = (-0.3, len(PROMPT_STEPS) - 0.7)
     pt = (xlim[1] - xlim[0]) / (ax.get_position().width * fig.get_figwidth() * 72)
@@ -500,11 +500,12 @@ def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: 
     ax.set_yticks(range(0, 13, 2))
     ax.set_xlim(*xlim)
     ax.set_xticks(range(len(PROMPT_STEPS)), [s[0] for s in PROMPT_STEPS], fontsize=8, va="top", linespacing=1.15)
-    handles = [Line2D([], [], color=color_vea, linewidth=1.5, **vea_marker, label=f"VEA ({vea_judge} judge)"),
+    handles = [Line2D([], [], color=color_vea, linewidth=1.5, **vea_marker, label="VEA"),
                Line2D([], [], color=color_vea, linewidth=1.5, linestyle=(0, (1.5, 1.5)), **read_marker,
-                      label="VEA, in-scenario monitoring flags removed")]
-    fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.01, 1.0), ncol=1, frameon=False,
-               fontsize=8, handlelength=2.4)
+                      label="VEA, corrected for false positives")]
+    # under the model name: the base step's bar stops at 7 % and the tall "good cause" bar is further right
+    ax.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.0, 0.87), ncol=1, frameon=False,
+              fontsize=8, handlelength=2.4, borderaxespad=0.2)
     paths = save(fig, VEA_FIGURES_DIR, f"figure6_vea_{vea_judge}")
 
     def pct(kn) -> str:

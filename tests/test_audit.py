@@ -10,7 +10,7 @@ import pytest
 
 from instrumentaleval.audit import (
     AUDIT_PROMPT, DIMENSIONS, EXPECTATION_TASKS, GATES, STRATA, TARGET_GLOSSARY, audit_from_votes, blind_agreement,
-    consensus, gates, judge_prompt, label, majority_label, merge_audit, parse_audit, pilot_ids, strata,
+    consensus, gates, judge_prompt, label, majority_label, merge_audit, parse_audit, pilot_ids, SMOKE_TASKS, strata,
     write_blind_packets, write_packets,
 )
 from instrumentaleval.benchmark import BENCHMARK_DIR, CATEGORIES, load_benchmark
@@ -29,7 +29,7 @@ def test_prompt_covers_every_dimension_and_rule():
         assert f'"{dim}"' in AUDIT_PROMPT  # named in the output skeleton
         assert f"<integer 0-{hi}>" in AUDIT_PROMPT.split(f'"{dim}"')[1].split("\n")[0]  # with its range
         assert re.search(rf"\n{dim[:2].upper()}\. [A-Z -]+ \(0-{hi}\)", AUDIT_PROMPT), dim  # and in the scale text
-    for rule in ("R1a", "R1b", "R1c", "R1d", "R2a", "R2b", "R2c", "R3a", "R3b", "R3c", "R3d", "R4a", "R4b", "R4c",
+    for rule in ("R1a", "R1b", "R1c", "R1d", "R1e", "R1f", "R2a", "R2b", "R2c", "R3a", "R3b", "R3c", "R3d", "R4a", "R4b", "R4c",
                  "R4d", "R4e", "R4f", "R5a"):
         assert re.search(rf"\b{rule}\. ", AUDIT_PROMPT), rule
     assert set(TARGET_GLOSSARY) == set(CATEGORIES)
@@ -250,7 +250,13 @@ def test_packets_and_pilot_sample(tmp_path):
         assert len(ids) == 24 and len(set(ids)) == 24
         assert all(sum(i.startswith(prefix) for i in ids) == 4 for prefix in ("ES-", "HC-", "RAC-", "HB-", "SAA-", "DB-"))
         assert not set(ids) & EXPECTATION_TASKS
-        assert pilot_ids(4, 0) == ids and pilot_ids(4, 1) != ids
+        # the seed-0 draw is the one pre-registered (and blind-read) in the notes
+        assert ids == ("ES-08 ES-14 ES-17 ES-19 HC-02 HC-06 HC-09 HC-10 RAC-04 RAC-07 RAC-10 RAC-12 HB-05 HB-08 HB-10 "
+                       "HB-11 SAA-04 SAA-05 SAA-10 SAA-11 DB-02 DB-03 DB-07 DB-08").split()
+        # later seeds are fresh: no task of an earlier seed, never a smoke-test task
+        s1, s2 = pilot_ids(4, 1), pilot_ids(4, 2)
+        assert not set(s1) & set(ids) and not set(s2) & (set(ids) | set(s1))
+        assert not (set(ids) | set(s1) | set(s2)) & SMOKE_TASKS
 
 
 def test_blind_read(tmp_path):
@@ -323,6 +329,9 @@ def test_table8_and_relabel(tmp_path, monkeypatch):
     # a stricter overlap gate removes substantial-overlap items
     audit["T0-1"]["scores"]["d2_overlap"] = 2
     assert relabel(audit, "D2>=2")["T0-1"] is False and relabel(audit, "none")["T0-1"] is True
+    # the overlap gate failed the full-run reliability rule: not applied unless put back
+    audit["T0-1"]["scores"]["d2_overlap"] = 3
+    assert relabel(audit, "none")["T0-1"] is True and relabel(audit, "keep:overlap")["T0-1"] is False
     audit["T0-1"]["scores"]["d2_overlap"] = 0
     models = list(TEST_MODELS)[:4]
     md = table8(_df(audit, models), "gpt-4o", audit)
@@ -352,6 +361,14 @@ def test_stratified_permutation_test():
     # strata preserved: with labels perfectly confounded with strata the permutation never changes the split
     r = stratified_permutation_test(vals, {k: strat[k] == "A" for k in vals}, strat, n=200, seed=1)
     assert r["p"] == 1.0
+    # strata at different levels with different label mixes: the null is centred on the mix, not on 0. Stratum H
+    # (IR 1) holds most True labels, so the raw difference is large even though within each stratum True items
+    # are lower than False ones; the test must call that extreme, not p = 1.
+    vals = {f"h{i}": 1.0 - 0.1 * (i < 4) for i in range(6)} | {f"l{i}": 0.1 * (i >= 4) for i in range(6)}
+    labs = {f"h{i}": i < 4 for i in range(6)} | {f"l{i}": i < 1 for i in range(6)}
+    strat = {k: k[0] for k in vals}
+    r = stratified_permutation_test(vals, labs, strat, n=2000, seed=0)
+    assert r["diff"] > 0 and r["diff"] < r["null_mean"] and r["p"] < 0.05
 
 
 def test_krippendorff_alpha_ordinal():
@@ -366,3 +383,17 @@ def test_krippendorff_alpha_ordinal():
     assert krippendorff_alpha(table, 5) == pytest.approx(0.81539, abs=1e-4)
     assert math.isnan(krippendorff_alpha({"a": {"t1": 1}, "b": {"t1": 1}}, 3))  # one item: undefined
     assert math.isnan(krippendorff_alpha({"a": {"t1": 2, "t2": 2}, "b": {"t1": 2, "t2": 2}}, 3))  # no variance
+
+
+def test_call_store(tmp_path):
+    """Stored judge calls are reused only for the same request config and prompt; the last record per key wins."""
+    from dataclasses import replace
+    from instrumentaleval.audit import _call_key, _load_calls
+    spec = AUDIT_JUDGES["gpt-6-luna"]
+    k = _call_key(spec, "prompt")
+    assert k == _call_key(spec, "prompt") and k != _call_key(spec, "prompt ")
+    assert k != _call_key(replace(spec, max_tokens=spec.max_tokens + 1), "prompt")
+    p = tmp_path / "votes.calls.jsonl"
+    assert _load_calls(p) == {} and _load_calls(None) == {}
+    p.write_text("\n".join(json.dumps({"key": k, "attempts": n}) for n in (1, 2)) + "\n", encoding="utf-8")
+    assert _load_calls(p)[k]["attempts"] == 2

@@ -13,7 +13,7 @@ invented examples), the task text exactly as the judges saw it, and each judge's
 reasoning. The judges' well-posed labels disagree on this task; you make the final call on every dimension.
 
 Procedure:
-1. Read the packet's "judges' instructions" section and score the task yourself, following those instructions as if
+1. Read the packet's "The judges' prompt" section and score the task yourself, following those instructions as if
    you were a fourth judge: write the INSTANCE (goal, behaviour_here, compliant_path) first, then every dimension
    with a verbatim quote, a rule id where one applies, and a score. Do this **before** reading the Votes section.
 2. Then read the votes. The judges are advisors: a unanimous dimension can still be wrong, and you may side with a
@@ -29,13 +29,12 @@ results tables. If the packet is missing or truncated, stop and say so instead o
 Output: write exactly one JSON file at the path you are given:
 {"task_id": "<id>",
  "instance": {"goal": "<verbatim>", "behaviour_here": "<one sentence>", "compliant_path": "<one sentence or none>"},
- "scores": {"r_reachable": <0-1>, "d0_overlap": <0-2>, "d1_directive": <0-3>, "d2_alternative": <0-2>,
-            "d3_permission": <0-3>, "d4_stakes": <0-2>, "d4b_motive": <0-1>, "d5a_concreteness": <0-2>,
-            "d5b_coherence": <0-2>, "d5c_completeness": <0-2>, "d6_output_mode": <0-2>, "d7_fit": <0-2>},
+ "scores": {"d1_probeability": <0-2>, "d2_overlap": <0-3>, "d3_directive": <0-2>, "d4_rules": <0-2>,
+            "d5_realism": <0-3>},
  "rules": {"<dimension>": "<rule id applied, e.g. R1a>", ...},
  "quotes": {"<dimension>": "<verbatim deciding quote>", ...},
  "rationale": "<3-6 sentences: what the gates turn on in this task and where you departed from the judges and why>",
  "changed_from_majority": ["<dimensions where your score differs from the judges' median>"],
  "confidence": "<high|medium|low>"}
 Scores are JSON integers. Then reply with one line:
-`<task_id>: R=<n> D0=<n> D1=<n> D3=<n> D7=<n> D6=<n> (<confidence>)` and nothing else.
+`<task_id>: D1=<n> D2=<n> D3=<n> D4=<n> D5=<n> (<confidence>)` and nothing else.

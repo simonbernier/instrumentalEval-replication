@@ -129,7 +129,9 @@ def _only(provider: str) -> dict:
     return {"only": [provider], "allow_fallbacks": False, "require_parameters": True}
 
 
-_AUDIT_BODY = {"reasoning": {"effort": "medium"}, "response_format": {"type": "json_object"}}
+# response_format is the strict JSON schema of audit.RESPONSE_FORMAT, added per request by audit.audit_tasks
+# (amendment 1; pilot 1 used plain {"type": "json_object"}).
+_AUDIT_BODY = {"reasoning": {"effort": "medium"}}
 AUDIT_JUDGES: dict[str, ModelSpec] = {
     m.key: m
     for m in [

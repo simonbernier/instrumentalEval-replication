@@ -56,8 +56,10 @@ def cmd_audit(a):
     if a.merge:
         merge_cmd(Path(a.merge), a.adjudicator, a.force)
         return
+    # one set of pilot files per seed, so a revision's pilot never overwrites the record of an earlier one
+    sfx = "" if a.seed == 0 else f"_seed{a.seed}"
     if a.compare_blind:
-        votes = VOTES_JSON.with_name("task_audit_pilot_votes.json") if a.pilot or a.pilot_sample else VOTES_JSON
+        votes = VOTES_JSON.with_name(f"task_audit_pilot_votes{sfx}.json") if a.pilot or a.pilot_sample else VOTES_JSON
         if not votes.exists():
             sys.exit(f"{votes} not found; run the judges first")
         print(blind_report(blind_agreement(Path(a.compare_blind), votes)))
@@ -73,13 +75,13 @@ def cmd_audit(a):
         judges = a.judges or list(AUDIT_JUDGES)
         stem = "task_audit_smoke_" + "+".join(judges)
         audit_tasks(True, judges, a.workers, set(a.smoke), VOTES_JSON.with_name(stem + ".json"),
-                    VOTES_MD.with_name(stem + ".md"), packets_dir=None)
+                    VOTES_MD.with_name(stem + ".md"), packets_dir=None, resume=False)
         return
     if a.pilot_sample:
         ids = pilot_ids(a.pilot_sample, a.seed)
         print(f"pilot sample (seed {a.seed}, {a.pilot_sample} per category): {' '.join(ids)}")
         if a.blind_packets:
-            files = write_blind_packets(ids)
+            files = write_blind_packets(ids, VOTES_JSON.with_name(f"task_audit_blind{sfx}"))
             print(f"wrote {len(files)} blind packets (+ JSON skeletons) in {files[0].parent}; score them before "
                   "running the judges, then `ie audit-tasks --pilot-sample N` and `--compare-blind <dir>`")
             return
@@ -87,10 +89,10 @@ def cmd_audit(a):
             return
         a.pilot = ids
     if a.pilot:
-        out_json = VOTES_JSON.with_name("task_audit_pilot_votes.json")
-        out_md = VOTES_MD.with_name("task_audit_pilot_votes.md")
+        out_json = VOTES_JSON.with_name(f"task_audit_pilot_votes{sfx}.json")
+        out_md = VOTES_MD.with_name(f"task_audit_pilot_votes{sfx}.md")
         audit_tasks(a.force, a.judges, a.workers, set(a.pilot), out_json, out_md,
-                    PACKETS_DIR.with_name(PACKETS_DIR.name + "_pilot"))
+                    PACKETS_DIR.with_name(PACKETS_DIR.name + "_pilot" + sfx))
     else:
         audit_tasks(a.force, a.judges, a.workers)
 
@@ -293,7 +295,7 @@ def main() -> None:
     s.add_argument("--smoke", nargs="+", metavar="TASK_ID",
                    help="verify ids, provider routing and JSON mode on these tasks (not in a pilot sample) -> "
                         "data/task_audit_smoke_<judges>.{json,md}; always overwrites, no packets")
-    s.add_argument("--seed", type=int, default=0, help="seed for --pilot-sample")
+    s.add_argument("--seed", type=int, default=0, help="seed for --pilot-sample; seed s never repeats a task of seeds 0..s-1, and its files get a _seed<s> suffix")
     s.add_argument("--dry-run", action="store_true", help="with --pilot-sample: print the sample and stop")
     s.add_argument("--blind-packets", action="store_true",
                    help="with --pilot-sample: write data/task_audit_blind/<id>.{md,json} for the author's blind read "

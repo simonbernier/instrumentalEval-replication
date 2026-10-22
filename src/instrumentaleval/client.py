@@ -1,6 +1,7 @@
 """OpenRouter chat client: one request, with retries, returning everything we want to log."""
 
 import os
+import random
 import time
 
 import openai
@@ -10,6 +11,9 @@ from .models import ModelSpec
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 MAX_ATTEMPTS = 6
+# 429s from an overloaded provider pool (DeepInfra, 2026-10-22) last minutes, not seconds: more attempts, longer
+# waits (15 s doubling to 5 min, ~23 min in all), jittered so parallel workers don't retry in lockstep.
+MAX_ATTEMPTS_RATE_LIMITED = 9
 
 _client: openai.OpenAI | None = None
 
@@ -41,7 +45,9 @@ def chat(spec: ModelSpec, system: str | None, user: str, temperature: float | No
     if spec.extra_body:
         kwargs["extra_body"] = spec.extra_body
 
-    for attempt in range(1, MAX_ATTEMPTS + 1):
+    attempt = 0
+    while True:
+        attempt += 1
         try:
             resp = get_client().chat.completions.create(**kwargs)
             if not resp.choices:
@@ -66,9 +72,10 @@ def chat(spec: ModelSpec, system: str | None, user: str, temperature: float | No
                 openai.NotFoundError):
             raise  # not transient
         except (openai.APIError, EmptyChoiceError) as e:
-            if attempt == MAX_ATTEMPTS:
+            limited = isinstance(e, openai.RateLimitError)
+            if attempt == (MAX_ATTEMPTS_RATE_LIMITED if limited else MAX_ATTEMPTS):
                 raise
-            wait = min(60, 2 ** attempt)
-            print(f"  [{spec.key}] attempt {attempt} failed ({type(e).__name__}: {str(e)[:120]}); retrying in {wait}s")
+            wait = min(300, 15 * 2 ** (attempt - 1)) * random.uniform(0.75, 1.25) if limited else min(60, 2 ** attempt)
+            print(f"  [{spec.key}] attempt {attempt} failed ({type(e).__name__}: {str(e)[:120]}); "
+                  f"retrying in {wait:.0f}s")
             time.sleep(wait)
-    raise AssertionError("unreachable")

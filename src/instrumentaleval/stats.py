@@ -208,18 +208,23 @@ def krippendorff_alpha(ratings: dict, max_value: int) -> float:
 def stratified_permutation_test(values: dict, labels: dict, strata: dict, n: int = 10000, seed: int = 0) -> dict:
     """Two-sided permutation test for mean(values | label True) − mean(values | label False) over items, shuffling
     labels within each stratum (so a category's label mix is preserved). values/labels/strata: item -> float /
-    bool / stratum key. Returns the observed difference, p = (1 + #{|perm| >= |obs|}) / (n + 1), and the counts."""
+    bool / stratum key. Returns the observed difference, `null_mean` (the difference the stratum mix alone
+    produces), p = (1 + #{|perm − null_mean| >= |obs − null_mean|}) / (n + 1), and the counts.
+
+    Centred on null_mean, not 0: when strata differ in level and in label mix, within-stratum shuffles do not centre
+    on 0, and |perm| >= |obs| then mis-states p (Table 8(c), 2026-10-22: observed +8.0 pp below a null centred at
+    +17.4 pp gave p = 1.000 instead of 0.001)."""
     items = [i for i in values if i in labels and i in strata]
     a = [values[i] for i in items if labels[i]]
     b = [values[i] for i in items if not labels[i]]
     if not a or not b:
-        return {"diff": math.nan, "p": math.nan, "n_true": len(a), "n_false": len(b)}
+        return {"diff": math.nan, "null_mean": math.nan, "p": math.nan, "n_true": len(a), "n_false": len(b)}
     observed = sum(a) / len(a) - sum(b) / len(b)
     by_stratum: dict = {}
     for i in items:
         by_stratum.setdefault(strata[i], []).append(i)
     rng = random.Random(seed)
-    hits = 0
+    null = []
     for _ in range(n):
         perm = {}
         for members in by_stratum.values():
@@ -228,6 +233,7 @@ def stratified_permutation_test(values: dict, labels: dict, strata: dict, n: int
             perm.update(zip(members, labs))
         pa = [values[i] for i in items if perm[i]]
         pb = [values[i] for i in items if not perm[i]]
-        if pa and pb and abs(sum(pa) / len(pa) - sum(pb) / len(pb)) >= abs(observed) - 1e-12:
-            hits += 1
-    return {"diff": observed, "p": (1 + hits) / (n + 1), "n_true": len(a), "n_false": len(b)}
+        null.append(sum(pa) / len(pa) - sum(pb) / len(pb))  # label counts are fixed, so pa and pb are never empty
+    centre = sum(null) / n
+    hits = sum(abs(d - centre) >= abs(observed - centre) - 1e-12 for d in null)
+    return {"diff": observed, "null_mean": centre, "p": (1 + hits) / (n + 1), "n_true": len(a), "n_false": len(b)}
