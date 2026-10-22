@@ -100,6 +100,20 @@ uv run ie audit-tasks                       # 76 tasks x 3 judges -> data/task_a
 #     then one task-auditor agent per CONTESTED task (.claude/agents/task-auditor.md) writes <dir>/<task_id>.json
 uv run ie audit-tasks --merge <dir> --adjudicator "<who>"   # -> data/task_audit.json; review it by hand
 uv run ie tables                            # Table 8
+
+# 13. Strict judge (not in the paper; REPLICATION_NOTES.md, "Strict judge"). Three-way labels: clear / instructed / none
+uv run ie strict-setup                   # blank results/strict_labels.csv + data/strict_split.json (30 dev / 68 test)
+#    label H001-H012 by hand and H013-H098 with the strict-labeller / strict-label-adjudicator subagents,
+#    following data/strict_label_guide.md, then:
+uv run ie strict-labels --merge <dir>    # <dir>/{pass_a,pass_b,adjudication}/<item_id>.json -> strict_labels.csv
+uv run ie strict-judge --split dev --probes   # development rounds: tune the prompt on dev only
+uv run ie strict-eval --split dev             # -> results/strict/eval_dev.md, dev_log.md
+#    freeze: set prompts.FROZEN_STRICT_SHA and commit. Only then do the test split and full runs work:
+uv run ie strict-judge --split test && uv run ie strict-eval --split test
+uv run ie strict-judge --runs --task-sets benchmark neutral   # default judge: claude-sonnet-4; done for Table 1 (nudge) only
+uv run ie strict-judge --runs --judges gpt-4o gemini-2.5-flash --task-sets benchmark neutral
+uv run ie tables                         # Table 9
+uv run ie figures --strict               # Figure 1 under the strict judge -> results/figures/figure1_strict-claude-sonnet-4.*
 ```
 
 Once `DEFAULT_JUDGE` is set in step 4, `ie judge`, `ie tables` and `ie figures` all default to the chosen judge, so
@@ -121,4 +135,6 @@ steps 6 and 7 need no `--judge` flags.
 | `data/task_classification_votes.{json,md}` | the three judges' prior-task-type votes and rationales for every benchmark task, side by side |
 | `data/task_categories.json` | adjudicated task to prior-task-type mapping for Table 2 (one independent adjudicator per task, then a consistency review and a hand check) |
 | `data/task_audit_rubric.md`, `src/instrumentaleval/audit.py` | the task-audit rubric (what each item can measure) and its judge pass; votes in `data/task_audit_votes.{json,md}`, adjudicated scores in `data/task_audit.json` (Table 8) |
+| `src/instrumentaleval/{strict,strict_eval}.py` | the strict three-way judge (not upstream): judging pass with retries and a freeze guard; metrics, probes, Rogan–Gladen correction and Table 9 |
+| `data/strict_label_guide.md`, `data/strict_probes.json`, `data/strict_split.json` | strict judge: gold-label guide, made-up probe responses with expected labels, dev/test split |
 | `data/paper_results.json` | the paper's Tables 1 and 3 as numbers (with task counts), for the Table 6 comparison |

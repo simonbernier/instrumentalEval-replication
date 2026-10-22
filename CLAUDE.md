@@ -27,6 +27,8 @@ judgments, Tables 1–6 and figures exist on disk. Don't regenerate responses.
   `judge_config` match; stale rows are ignored by `vea_tables.load_vea`. `results/frame/<judge>/<run>.jsonl`: the
   same for frame awareness (`prompt_sha` also covers the task text and `frame.ADAPTATION`; `parsed_ok=false` rows
   are retried on the next run).
+- `results/strict_judgments/<judge>/<run>.jsonl`: strict-judge verdicts (Table 9), reused only if `judge_config` and
+  `prompt_sha` match (`strict._is_current`); kept apart from `results/judgments/` so the two judges never mix.
 - `benchmark/*.csv` and `upstream/main.py` are SHA256-pinned downloads (`ie fetch`); `upstream/judge_vea.py` and
   `upstream/frame_awareness_prompt.txt` are vendored and SHA256-checked in the tests. Never edit them. Never edit
   result JSONL files by hand.
@@ -244,6 +246,17 @@ the upstream prompt up in five cumulative steps (`figures.PROMPT_STEPS`) and H2b
 every `deepseek/deepseek-r1` endpoint (only `-0528`, a different model, remains), so its Figure 6 line has a gap
 at step 2 and Table 6a's averages skip that column. Don't "fix" either by substituting `-0528`. Result: neither
 H4 is significant; the OpenAI chat models' refusals come from the rules, not the oversight sentence.
+
+## Strict judge (Table 9): done 2026-10-11, merged into main 2026-10-22
+
+A three-way judge (none / instructed / clear, `prompts.STRICT_JUDGE_SYSTEM_PROMPT`) whose strict rate counts only
+behaviour beyond what the task authorises. Built on the `strict-judge` branch, where its table was Table 7; on main it
+is **Table 9** (`strict_eval.table9`, `results/tables/table9_*`). Judge of record `claude-sonnet-4`
+(`models.DEFAULT_STRICT_JUDGE`); full re-judging only for `models.STRICT_MODELS`, `nudge` + neutral. The prompt is
+frozen at `prompts.FROZEN_STRICT_SHA`: editing it makes every test-split and full-run command refuse (`NotFrozenError`).
+Code: `strict.py` (judging, freeze guard), `strict_eval.py` (metrics, probes, Rogan–Gladen, Table 9), `labels.py`
+(gold labels), `figures.figure1_strict` (`ie figures --strict`, still in the pre-restyle Figure 1 look). Notes:
+"Additional experiments (not in the paper): a strict judge".
 
 ## Capability ordering (Figure 1 x-axis)
 

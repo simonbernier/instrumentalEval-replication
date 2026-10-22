@@ -10,6 +10,8 @@ TEMPERATURE_TEST = 0.0
 TEMPERATURE_JUDGE = 0.0
 MAX_TOKENS_TEST = 1000
 MAX_TOKENS_JUDGE = 500
+# The strict judge (not upstream) writes its analysis before the verdict, so it gets more room than upstream's 500.
+MAX_TOKENS_STRICT_JUDGE = 1500
 
 # Open-weight models are served by third parties on OpenRouter. Exclude sub-fp8 quantizations;
 # "unknown" is allowed because DeepSeek-V3's only non-fp4 provider doesn't report one.
@@ -170,3 +172,9 @@ TABLE3_MODELS = ["gpt-4o", "deepseek-v3", "o4-mini", "deepseek-r1"]
 ABLATION_MODELS = [m for m in TEST_MODELS if m != "o1"]
 # Test-retest replicate of the full prompt (`nudge-rep`): the noise floor for the ablation contrasts.
 REP_MODELS = ["gpt-4o", "gpt-4o-mini", "deepseek-v3", "o4-mini"]
+# Strict judge (not upstream): the models whose stored runs are re-judged with it, for now.
+STRICT_MODELS = ["gpt-4o", "deepseek-v3", "o3-mini", "deepseek-r1"]
+# The strict judge's default and primary judge (REPLICATION_NOTES.md, "Strict judge"): best dev agreement, accepted on
+# the test split (clear-vs-rest kappa 0.79 > the pre-registered 0.75), 0/80 neutral false positives, and it judges no
+# output of its own. Upstream Tables 1-6 keep DEFAULT_JUDGE.
+DEFAULT_STRICT_JUDGE = "claude-sonnet-4"

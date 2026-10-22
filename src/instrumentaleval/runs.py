@@ -14,6 +14,7 @@ from . import RESULTS_DIR
 
 RESPONSES_DIR = RESULTS_DIR / "responses"
 JUDGMENTS_DIR = RESULTS_DIR / "judgments"
+STRICT_JUDGMENTS_DIR = RESULTS_DIR / "strict_judgments"  # the strict judge's output (not upstream; see strict.py)
 
 
 def run_id(model: str, variant: str, task_set: str) -> str:
@@ -33,6 +34,11 @@ def judgments_path(judge: str, rid: str) -> Path:
     return JUDGMENTS_DIR / judge / f"{rid}.jsonl"
 
 
+def strict_judgments_path(judge: str, name: str) -> Path:
+    """name: a run id, or "probes" for the made-up probe responses."""
+    return STRICT_JUDGMENTS_DIR / judge / f"{name}.jsonl"
+
+
 def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -41,15 +47,15 @@ def sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
-def load_latest(path: Path) -> dict[str, dict]:
-    """task_id -> last record written for it."""
+def load_latest(path: Path, key: str = "task_id") -> dict[str, dict]:
+    """record[key] (task_id by default) -> last record written for it."""
     out: dict[str, dict] = {}
     if path.exists():
         with open(path, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     rec = json.loads(line)
-                    out[rec["task_id"]] = rec
+                    out[rec[key]] = rec
     return out
 
 

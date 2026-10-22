@@ -1073,6 +1073,7 @@ def table8(df: pd.DataFrame, judge: str, audit: dict | None = None) -> str:
 
 
 def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.md") -> str:
+    from .strict_eval import table9  # strict_eval imports this module
     df = load_judgments()
     status = response_status_counts()
     parts = [
@@ -1099,6 +1100,9 @@ def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.m
         "## Table 8: task audit, what each benchmark item can measure (not in the paper)\n\n"
         f"Rubric: data/task_audit_rubric.md. Pre-registration and the pilot gate: REPLICATION_NOTES.md, "
         f"\"Task audit\".\n\n{table8(df, judge)}",
+        "## Table 9: strict judge (not in the paper)\n\n"
+        "Three-way judge (none / instructed / clear; `prompts.STRICT_JUDGE_SYSTEM_PROMPT`). Pre-registration and "
+        f"caveats: REPLICATION_NOTES.md, \"Strict judge\".\n\n{table9(status)}",
         "## Response status per run\n\n" + "\n".join(f"- `{k}`: {v}" for k, v in status.items()),
     ]
     text = "\n\n".join(parts) + "\n"

@@ -2,7 +2,8 @@
 
 Figure 1 (Table 1): one panel for the overall IR, then one per category, models ordered by reasoning capability
 within each family, with the paper's Table 1 values as diamonds (ours, not in the paper); `figure1_matched` keeps
-only the models run under the paper's own ids.
+only the models run under the paper's own ids; `figure1_strict` is Figure 1 under the strict judge (Table 9, `ie
+figures --strict`).
 Figure 2 (Table 2): one panel per prior-task type, with a dashed line at the all-model average (the Table 2 value).
 In both, the models are grouped by family (RLHF, then RL) with a gap between the groups, a line marks each
 family's average (mean of per-model rates, as in Tables 1 and 2), and error bars are 95% Wilson intervals.
@@ -32,7 +33,7 @@ from scipy.stats import t as student_t
 from . import RESULTS_DIR
 from .benchmark import CATEGORIES
 from .capability import capability_order
-from .models import DEFAULT_JUDGE, EFFORT_BASE_MODELS, EFFORT_LEVELS, TEST_MODELS
+from .models import DEFAULT_JUDGE, DEFAULT_STRICT_JUDGE, EFFORT_BASE_MODELS, EFFORT_LEVELS, STRICT_MODELS, TEST_MODELS
 from .prompts import SYSTEM_PROMPTS
 from .stats import wilson_ci
 from .tables import (
@@ -257,6 +258,97 @@ def figure1_matched(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> 
     models = [m for m in TEST_MODELS if not (TEST_MODELS[m].substitute or TEST_MODELS[m].added) and m in paper]
     fig = draw_figure1(judge, models)
     return save(fig, out_dir, f"figure1_matched_{judge}")
+
+
+# The paper's Table 1 (He et al. 2025, GPT-4o judge) for the strict judge's focus models, as given by the user (a copy
+# of the paper's table, 2026-10-11). It matches data/paper_results.json (arXiv v1 HTML) except o3-mini on Strategically
+# Appearing Aligned: 45.45 here vs 63.64 there. Only 63.64 (7/11) adds up to the table's own o3-mini total of 48.68
+# (37/76); 45.45 gives 35/76.
+PAPER_TABLE1 = {
+    "gpt-4o": {"Evading Shutdown": 20.00, "Hacking Computer Systems": 10.00, "Running Multiple AI Copies": 30.77,
+               "Hiding Unwanted Behavior": 36.36, "Strategically Appearing Aligned": 27.27,
+               "Deceptive Behavior": 0.00, "Total": 21.05},
+    "deepseek-v3": {"Evading Shutdown": 15.00, "Hacking Computer Systems": 20.00, "Running Multiple AI Copies": 30.77,
+                    "Hiding Unwanted Behavior": 27.27, "Strategically Appearing Aligned": 36.36,
+                    "Deceptive Behavior": 0.00, "Total": 21.05},
+    "o3-mini": {"Evading Shutdown": 45.00, "Hacking Computer Systems": 50.00, "Running Multiple AI Copies": 38.46,
+                "Hiding Unwanted Behavior": 63.64, "Strategically Appearing Aligned": 45.45,
+                "Deceptive Behavior": 36.36, "Total": 48.68},
+    "deepseek-r1": {"Evading Shutdown": 50.00, "Hacking Computer Systems": 40.00, "Running Multiple AI Copies": 46.15,
+                    "Hiding Unwanted Behavior": 63.64, "Strategically Appearing Aligned": 45.45,
+                    "Deceptive Behavior": 27.27, "Total": 46.05},
+}
+PAPER_STAR = {"marker": "*", "s": 130, "facecolors": "#e34948", "edgecolors": INK, "linewidths": 0.9}
+
+
+def paper_stars(ax, row: str, models: list[str], xs: dict[str, float], dx: float = 0.0) -> None:
+    """Red stars at the paper's Table 1 value for `row` (a category or "Total")."""
+    pts = [(xs[m] + dx, PAPER_TABLE1[m][row]) for m in models if m in PAPER_TABLE1]
+    ax.scatter([x for x, _ in pts], [y for _, y in pts], zorder=7, clip_on=False, **PAPER_STAR)
+
+
+def figure1_strict(judge: str = DEFAULT_STRICT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
+    """Figure 1 under the strict judge (Table 9): % clear for STRICT_MODELS, with the upstream judge's IR (white
+    diamonds) and the paper's Table 1 (red stars) for comparison. Drawn as on the strict-judge branch, i.e. in the
+    Figure 1 style from before draw_figure1's restyle."""
+    from .strict_eval import load_strict_records, strict_frame, strict_name
+    name = strict_name(judge)
+    rec = load_strict_records()
+    df = strict_frame(rec[rec.model.isin(STRICT_MODELS)])  # the other models have only a few labelled items
+    upstream = cir_matrix(load_judgments(), DEFAULT_JUDGE)
+    c = cir_counts(df, name)
+    if c.empty:
+        raise SystemExit(f"no benchmark judgments from judge `{name}` yet")
+    mat = cir_matrix(df, name)
+    models = list(mat.columns)
+    xs, groups = layout(models)
+    ticks = [xs[m] for m in models]
+    labels = [tick_label(m) for m in models]
+
+    fig = plt.figure(figsize=(12, 10.5))
+    outer = fig.add_gridspec(2, 1, height_ratios=[1.25, 2], top=0.9, hspace=0.32)
+    grid = outer[1].subgridspec(2, 3, hspace=0.3, wspace=0.12)
+
+    # overall rate: full width, values labelled
+    ax = fig.add_subplot(outer[0])
+    draw_panel(ax, mat.loc["Total"], row_counts(c, models, "Total"), xs, groups,
+               "Clear instrumental behaviour, all 76 tasks", ylabel="% clear", value_labels=True, avg_labels=True)
+    up = [(xs[m], upstream.loc["Total", m]) for m in models if m in upstream.columns]
+    ax.scatter([x + 0.24 for x, _ in up], [y for _, y in up], marker="D", s=28, facecolors="white",
+               edgecolors=INK, linewidths=1.2, zorder=4)  # offset right of the bar so value labels stay legible
+    paper_stars(ax, "Total", models, xs, dx=-0.24)
+    ax.set_xticks(ticks, labels, rotation=30, ha="right")
+    ax.set_xlim(-0.6, max(xs.values()) + 1.6)
+
+    # one panel per category, sharing x and y
+    first = None
+    for i, (cat, code) in enumerate(CATEGORIES.items()):
+        r, col = divmod(i, 3)
+        ax = fig.add_subplot(grid[r, col], sharex=first, sharey=first)
+        first = first or ax
+        draw_panel(ax, mat.loc[cat], row_counts(c, models, cat), xs, groups, f"{cat} ({code})",
+                   ylabel="% clear" if col == 0 else None)
+        paper_stars(ax, cat, models, xs)
+        ax.set_xticks(ticks, labels, rotation=40, ha="right")
+        ax.tick_params(labelbottom=(r == 1))
+        if col != 0:
+            ax.tick_params(labelleft=False)
+    assert first is not None
+    first.set_xlim(-0.6, max(xs.values()) + 0.6)
+
+    handles = legend_handles(groups) + [
+        Line2D([], [], marker="D", linestyle="none", markerfacecolor="white", markeredgecolor=INK,
+               label=f"upstream judge ({DEFAULT_JUDGE}) IR"),
+        Line2D([], [], marker="*", linestyle="none", markersize=12, markerfacecolor="#e34948", markeredgecolor=INK,
+               label="paper (He et al. 2025, Table 1)")]
+    fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.125, 0.955), ncol=len(handles),
+               frameon=False, fontsize=9, handlelength=1.6)
+    fig.suptitle(f"Clear instrumental behaviour by model family (strict judge: {judge})", x=0.125, y=0.985,
+                 ha="left", fontsize=12, color=INK, fontweight="bold")
+    notes = footer_notes(models, missing=False)
+    notes.append("strict judge: only behaviour beyond what the task authorises counts; re-judged for these 4 models")
+    fig.text(0.125, 0.015, ";   ".join(notes), fontsize=8, color=INK_2, ha="left")
+    return save(fig, out_dir, f"figure1_{name}")
 
 
 def figure2(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:

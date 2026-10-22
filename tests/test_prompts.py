@@ -1,11 +1,13 @@
 import ast
+import json
 
 import pytest
 
 from instrumentaleval import ROOT
 from instrumentaleval.prompts import (
-    JUDGE_SYSTEM_PROMPT, JUDGE_USER_PROMPT, OVERSIGHT_OPENING, PLAIN_OPENING, SYSTEM_PROMPT, SYSTEM_PROMPT_NO_NUDGE,
-    SYSTEM_PROMPTS, parse_judge_response, system_prompt,
+    CATEGORY_RUBRICS, JUDGE_SYSTEM_PROMPT, JUDGE_USER_PROMPT, OVERSIGHT_OPENING, PLAIN_OPENING,
+    STRICT_JUDGE_SYSTEM_PROMPT, STRICT_JUDGE_USER_PROMPT, SYSTEM_PROMPT, SYSTEM_PROMPT_NO_NUDGE, SYSTEM_PROMPTS,
+    parse_judge_response, parse_strict_judge_response, strict_label, system_prompt,
 )
 
 UPSTREAM = ROOT / "upstream" / "main.py"
@@ -56,6 +58,54 @@ def test_no_nudge_removes_exactly_the_paper_sentences():
 ])
 def test_judge_parser_matches_upstream(text, expected):
     assert parse_judge_response(text) == expected
+
+
+def test_strict_rubrics_cover_every_category_and_format():
+    from instrumentaleval.benchmark import CATEGORIES
+    assert set(CATEGORY_RUBRICS) == set(CATEGORIES)
+    for category, rubric in CATEGORY_RUBRICS.items():
+        system = STRICT_JUDGE_SYSTEM_PROMPT.format(category_rubric=rubric)
+        assert '{"q1_behaviour"' in system and "{category_rubric}" not in system
+        user = STRICT_JUDGE_USER_PROMPT.format(category=category, prompt="T {x}", response="R")
+        assert "<task>\nT {x}\n</task>" in user
+
+
+def _verdict(q1="yes", q2="no", refusal="no", confidence=4, drop=None) -> str:
+    v = {"q1_behaviour": q1, "q1_quote": "I will defer", "q2_authorised": q2, "q2_quote": "", "refusal": refusal,
+         "confidence": confidence}
+    v.pop(drop, None)
+    return "<verdict>" + json.dumps(v) + "</verdict>"
+
+
+@pytest.mark.parametrize("text, label", [
+    ("<analysis>...</analysis>\n" + _verdict(), "clear"),
+    (_verdict(q2="yes").replace("<verdict>", "<verdict>\n```json\n").replace("</verdict>", "\n```\n</verdict>"),
+     "instructed"),
+    (_verdict(q1="no", q2="n/a", refusal="yes", confidence=5), "none"),
+    ("<analysis>quoting <verdict>{}</verdict></analysis>" + _verdict(), "clear"),  # the last block wins
+])
+def test_strict_parser_and_label(text, label):
+    v = parse_strict_judge_response(text)
+    assert v is not None and strict_label(v) == label
+
+
+@pytest.mark.parametrize("text", [
+    "DECISION: convergence",            # no verdict block
+    "<verdict>not json</verdict>",
+    _verdict(q1="Yes"),                 # wrong case
+    _verdict(q2="n/a"),                 # n/a after Q1 yes
+    _verdict(confidence=7),             # out of range
+    _verdict(drop="confidence"),        # missing key
+])
+def test_strict_parser_rejects_malformed(text):
+    assert parse_strict_judge_response(text) is None
+
+
+def test_strict_prompt_is_frozen():
+    # Pre-registered on 2026-10-11 (REPLICATION_NOTES.md, "Strict judge"). Any edit of the strict prompts or category
+    # definitions breaks this test and stops `ie strict-judge` from judging the test split or full runs.
+    from instrumentaleval.prompts import FROZEN_STRICT_SHA, strict_prompt_sha
+    assert strict_prompt_sha() == FROZEN_STRICT_SHA == "88f985352bf38635"
 
 
 def test_existing_variants_keep_their_stored_hashes():
