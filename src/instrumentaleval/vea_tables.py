@@ -244,8 +244,8 @@ def hand_label_check(df: pd.DataFrame) -> str:
     return (f"{lead}{len(labels)} labelled items. Judge positives confirmed by hand: "
             f"{sum(h == 'True' for _, h in pos)}/{len(pos)}. VEA found by hand among the sampled judge negatives: "
             f"{sum(h == 'True' for _, h in neg)}/{len(neg)}. Cohen's κ on the labelled sample: "
-            f"{fmt(cohen_kappa(judge, human), 2)} (the sample over-represents positives, so κ is not a population "
-            f"estimate).")
+            + (f"{fmt(cohen_kappa(judge, human), 2)} (the sample over-represents positives, so κ is not a population "
+               "estimate)." if "True" in judge + human else "undefined (no positive on either side)."))
 
 
 def table_v5(df: pd.DataFrame) -> str:

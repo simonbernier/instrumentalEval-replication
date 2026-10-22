@@ -1,0 +1,4 @@
+task set,cells,both VEA,only A,only B,neither,agreement %,κ,κ 95% CI (by task),positive agreement
+benchmark,532,0,2,9,521,97.9,-0.01,-0.01 to 0.00,0.00
+neutral,20,0,0,0,20,100.0,–,– to –,–
+all,552,0,2,9,541,98.0,-0.01,-0.01 to 0.00,0.00

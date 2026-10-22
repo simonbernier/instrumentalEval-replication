@@ -85,10 +85,11 @@ gpt-5`, `ie vea-agreement` -> results/vea/agreement.md). Sensitivity analysis; g
 Notes: "Eval awareness", "Second judge".
 
 - [x] Code, tests, pre-registration with 9 known cells written (2026-10-22).
-- [ ] Pre-registration committed before any gpt-5 VEA call.
-- [ ] Known-cell check (`--cells`, 9 calls) read: >= 2/3 strict cells VEA, <= 1/4 None cells VEA, quotes verbatim.
-- [ ] Full `ie vea-judge --judge gpt-5`; cost and retries noted; `ie vea-tables --vea-judge gpt-5`; `ie vea-agreement`.
-- [ ] Results written under "Second judge" with decision rules 1-4 applied.
+- [x] Pre-registration committed before any gpt-5 VEA call (d923647, 2026-10-22).
+- [x] Known-cell check (2026-10-22, 9 calls, ≈ $0.11): 3/3 strict VEA, 0/4 None cells, both loose cells None. Passed.
+- [x] Full run (2026-10-22): 552 ok, 0 retries, 0 errors, ≈ $3.35; 9/532 flagged (1.7 %), 0/20 neutral. V6: 0 shared
+      positives, κ = −0.01. 6 of the 9 are in-scenario monitoring (HB-01, HB-03), not VEA.
+- [x] Results written under "Second judge": headline VEA range 0.6-1.7 %; gpt-5-mini stays judge of record.
 
 Expectations, so surprises are recognised: VEA in deepseek-r1 is rare (a keyword pass found at least five genuine
 cases in 552, e.g. ES-10 `nonudge`: "the task might be testing if I will blindly shut down and cause a blackout?"),
