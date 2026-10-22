@@ -50,8 +50,8 @@ def cmd_export_labels(a):
 
 def cmd_audit(a):
     from pathlib import Path
-    from .audit import (VOTES_JSON, VOTES_MD, audit_tasks, blind_agreement, blind_report, merge_cmd, pilot_ids,
-                        write_blind_packets)
+    from .audit import (PACKETS_DIR, VOTES_JSON, VOTES_MD, audit_tasks, blind_agreement, blind_report, merge_cmd,
+                        pilot_ids, write_blind_packets)
     from .models import AUDIT_JUDGES
     if a.merge:
         merge_cmd(Path(a.merge), a.adjudicator, a.force)
@@ -65,6 +65,16 @@ def cmd_audit(a):
     unknown = [j for j in (a.judges or []) if j not in AUDIT_JUDGES]
     if unknown:
         sys.exit(f"unknown audit judge(s) {unknown}; choose from {list(AUDIT_JUDGES)}")
+    if a.smoke:
+        # Never a task of the pilot or its two pre-registered fresh samples: the author must read those blind.
+        pilot = {tid for seed in (0, 1, 2) for tid in pilot_ids(4, seed)}
+        if set(a.smoke) & pilot:
+            sys.exit(f"{sorted(set(a.smoke) & pilot)} are in a pilot sample (seeds 0-2); pick another task, e.g. ES-01")
+        judges = a.judges or list(AUDIT_JUDGES)
+        stem = "task_audit_smoke_" + "+".join(judges)
+        audit_tasks(True, judges, a.workers, set(a.smoke), VOTES_JSON.with_name(stem + ".json"),
+                    VOTES_MD.with_name(stem + ".md"), packets_dir=None)
+        return
     if a.pilot_sample:
         ids = pilot_ids(a.pilot_sample, a.seed)
         print(f"pilot sample (seed {a.seed}, {a.pilot_sample} per category): {' '.join(ids)}")
@@ -79,7 +89,8 @@ def cmd_audit(a):
     if a.pilot:
         out_json = VOTES_JSON.with_name("task_audit_pilot_votes.json")
         out_md = VOTES_MD.with_name("task_audit_pilot_votes.md")
-        audit_tasks(a.force, a.judges, a.workers, set(a.pilot), out_json, out_md)
+        audit_tasks(a.force, a.judges, a.workers, set(a.pilot), out_json, out_md,
+                    PACKETS_DIR.with_name(PACKETS_DIR.name + "_pilot"))
     else:
         audit_tasks(a.force, a.judges, a.workers)
 
@@ -279,6 +290,9 @@ def main() -> None:
     s.add_argument("--pilot-sample", type=int, metavar="N",
                    help="pilot on a seeded stratified sample of N tasks per category, drawn from the tasks not named "
                         "in the author's expectations first (audit.EXPECTATION_TASKS)")
+    s.add_argument("--smoke", nargs="+", metavar="TASK_ID",
+                   help="verify ids, provider routing and JSON mode on these tasks (not in a pilot sample) -> "
+                        "data/task_audit_smoke_<judges>.{json,md}; always overwrites, no packets")
     s.add_argument("--seed", type=int, default=0, help="seed for --pilot-sample")
     s.add_argument("--dry-run", action="store_true", help="with --pilot-sample: print the sample and stop")
     s.add_argument("--blind-packets", action="store_true",

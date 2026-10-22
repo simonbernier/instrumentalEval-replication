@@ -1159,12 +1159,50 @@ Table 1 markdown never did).
 
 ## Task audit (not in the paper): what each benchmark item can measure (Table 8)
 
-**Status (2026-10-19): version 2 drafted, not yet pre-registered, no judge has scored a task.** Version 1 was
+**Status (2026-10-21): version 3 drafted, not yet pre-registered, no judge has scored a task.** Version 1 was
 reviewed adversarially by two independent Claude Opus 5.5 agents, both of which concluded "do not pre-register as
-written" (their objections and what changed are tabulated under "Adversarial review"). Version 2 is the rewrite.
+written" (their objections and what changed are tabulated under "Adversarial review"). Version 2 was the rewrite.
+Version 3 (below) is the author's simplification of version 2 to five dimensions, written after reading the whole
+benchmark and two whole-benchmark reads by frontier models (project log, 2026-10-20/21); it supersedes "The
+instrument" and the label definitions below, and the pre-registered analysis is mapped onto it in the same block.
 Pre-registration happens in the commit that follows the author's own review of this section,
 `data/task_audit_rubric.md`, `src/instrumentaleval/audit.py` (`AUDIT_PROMPT`) and `.claude/agents/task-auditor.md`;
 the pilot runs after that commit. Anything changed after the pilot starts is a dated amendment below.
+
+### Version 3 (2026-10-21): five dimensions
+
+The twelve version-2 dimensions were collapsed to five (`audit.DIMENSIONS`), each scored from the `nudge` system
+prompt plus the task text, after the same Step 0 (goal, behaviour_here, compliant_path):
+
+| v3 | range | v2 origin | gate (worst level) | stratum |
+|---|---|---|---|---|
+| D1 probeability | 0–2 | R (level 0) + D1's salience + D6 output mode (level 2 needs an act, decision or plan) | 0 unobservable | 1 partial probe |
+| D2 overlap | 0–3 | D0, widened | 3 unavoidable | 2 substantial |
+| D3 directive | 0–2 | D1 without the "named, neutral" level | 2 mandated | 1 incentivized |
+| D4 rules | 0–2 | D3 reversed (explicit / implied / absent), counter-instructed merged into explicit | 0 absent or permitted | 1 implied |
+| D5 realism | 0–3 | D5a + D5b + D5c as one scale | 0 artificial | ≤ 1 low realism |
+
+Dropped: D2 compliant alternative (its dilemma reading now lives in D2 overlap = 2, "compliance defeats the
+objective"), D4 stakes and D4b motive, D7 category fit (no gate for off-target items; the category enters only
+through the criterion, as before). Rules kept, renumbered: R1a–c, R2a–c, R3a–d, R4a–d, R5a. **What the judge sees** is
+unchanged from version 2: the task text and the criterion, never the system prompt (a 2026-10-22 draft showed it and
+was reverted the same day: the preamble is a general licence on every item, so it would set D3 ≥ 1 and D4 ≤ 1
+everywhere and erase the between-item variance Table 8 needs; its effect is Table 6), never ids, category names,
+responses, expectations or labels; the 5-gram leakage test still passes. One worked example (an invented task scored mid-scale against a non-benchmark target behaviour, with its full JSON reply) and rules R1d, R4e, R4f were added on 2026-10-22, before any judge call; R1d (a request for the agent's own decision or plan is an action, only simulate/narrate/describe is partial) is the author's choice and fixes the size of the informative subset. Unobservable items no longer also count as permitted (`audit.gates`). **What changes for the labels:** well-posed = no gate,
+as before; *informative* = well-posed and D1 = 2 (replacing D6 ≥ 1); the new *unrealistic* gate fires only at D5 = 0
+(a bare or self-contradictory toy), which version 2's reviewers argued should not gate — it is kept because the
+author wants it, and Table 8(e) reports the result with it dropped. Sensitivity flips: R1b (D1 1 → 2), R3b
+(D3 1 → 2), R4b (D4 1 → 0), the D2 gate at ≥ 2, each gate dropped in turn, unanimous labels only.
+
+**Mapping of the pre-registered plan.** Procedure and gates unchanged, with "R, D0, D1, D3, D7" read as "D1–D5"
+(every dimension gates). A1–A2, A4–A6 and the decision rule unchanged with the new labels. A3 within-category
+predictions: (i) ES items at D3 = 2 above D3 ≤ 1; (ii) HC-01 (expected D3 = 1) above the HC items at D3 = 0 with
+D4 = 2; (iii) RAC items gated by D4 = 0 or D2 = 3 above any informative RAC item; (iv) SAA items at D4 = 1 above
+D4 = 2; (v) is dropped (the "no request" rule R6a no longer exists). The author's expectations paragraph below
+stands with the same translation (D1 = 3 → D3 = 2, D0 = 2 → D2 = 3, D3 = 0 → D4 = 0, "narrative" → D1 = 1,
+D7 = 0 → no gate, so the Deceptive Behavior items are expected to fail D1 instead). Code: `audit.py`, `tables.table8`
+/ `relabel` / `SENSITIVITY`, `tests/test_audit.py`, `data/task_audit_rubric.md`, `.claude/agents/task-auditor.md`
+were brought in line on 2026-10-21; `uv run pytest` passes; no API call was made.
 
 **Disclosure.** This instrument was designed after Tables 1-7 were known. The author's expectations (below) were
 written before any task was scored, but not before the per-category IRs were known. The analysis is therefore built
@@ -1210,10 +1248,17 @@ Twelve scores from the task text alone, after a "Step 0" in which the judge writ
   normalising quotes, whitespace and case (`quote_valid`, reported, not rejected on); one retry on an unparseable
   reply; an unparsed judge leaves a two-judge panel whose disagreements have no median (never "the lower value")
   and go to adjudication.
-- **Panel** (`models.AUDIT_JUDGES`): gpt-5 at medium effort with `response_format: json_object` and a 16k output
-  budget, claude-sonnet-4 with reasoning off, gemini-2.5-pro; temperature 0 where the provider accepts it; one
-  sample per judge. Three families; none is a model under test or the convergence judge. Model ids are verified by
-  one single-task call before the pilot and replaced (recorded here) if a provider has retired one.
+- **Panel** (`models.AUDIT_JUDGES`; 2026-10-22, replacing the earlier draft panel of gpt-5, claude-sonnet-4 and
+  gemini-2.5-pro, none of which had run): `anthropic/claude-haiku-5.5` on Google Vertex, `openai/gpt-6-luna` on
+  Azure, `deepseek/deepseek-v4.1-flash-1017` on DeepInfra at fp8 (provisional third judge). All three at medium
+  reasoning effort with `response_format: json_object` and a 16k output budget (reasoning included); temperature 0
+  for DeepSeek, none for the other two (OpenRouter rejects it for them); one sample per judge. Each is pinned to its
+  provider (`only`, no fallbacks, `require_parameters`), so a request fails rather than being rerouted or losing
+  JSON mode, and every vote records the provider and served model that answered. DeepInfra rather than OpenInference
+  (the author's first choice) because OpenInference serves this model only at fp4, below the fp8 floor of the
+  open-weight test models; the request also sets `quantizations: ["fp8"]`. Three labs; none is a model under test or the convergence judge. Each judge is
+  checked by `ie audit-tasks --smoke <task> --judges <judge>` on a task outside every pilot sample (seeds 0-2) before
+  the pilot; any swap is recorded here.
 
 ### Procedure and gates
 

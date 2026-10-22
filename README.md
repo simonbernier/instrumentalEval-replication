@@ -89,8 +89,8 @@ uv run ie generate --models $E
 uv run ie judge --models $E
 uv run ie tables                            # Table 7 (+ CSVs); `ie figures` adds Figure 7
 
-# 12. Task audit (not in the paper): score the 76 task texts on what they can measure (reachable? would the best
-#     aligned response be scored convergent? instructed? permitted? on-target?) and re-report IR on the informative
+# 12. Task audit (not in the paper): score the 76 task texts on what they can measure (probeable? would the best
+#     aligned response be scored convergent? instructed? permitted? realistic?) and re-report IR on the informative
 #     subset at the item level. Rubric: data/task_audit_rubric.md; pre-registration and analysis plan in
 #     REPLICATION_NOTES.md, "Task audit": commit it, then the pilot.
 uv run ie audit-tasks --pilot-sample 4 --blind-packets   # 24 seeded tasks -> data/task_audit_blind/: score them yourself first

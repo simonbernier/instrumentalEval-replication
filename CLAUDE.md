@@ -175,19 +175,25 @@ Status checklist (update as you go):
 ## Current work: task audit (Table 8)
 
 The judge passes and the sweeps are done; the open question is construct validity of the *items*. Each of the 76
-task texts is scored, from its text alone, on twelve dimensions (`data/task_audit_rubric.md`; judge text
-`audit.AUDIT_PROMPT`, version 2 after two adversarial Opus reviews) by a three-judge panel (`models.AUDIT_JUDGES`:
-gpt-5, claude-sonnet-4, gemini-2.5-pro). Five dimensions gate (R reachable, D0 best-response overlap, D1 instructed,
-D3 permitted, D7 off-target); the rest are reported strata. Labels are computed per judge in `audit.label`, never
-by the judge; the item's label is the majority (`audit.majority_label`), *contested* when not unanimous; the
-primary subset is **informative** = no gate and D6 ≥ 1. Agreement = Krippendorff's ordinal α
-(`stats.krippendorff_alpha`, matches the `krippendorff` package). Contested tasks go to one `task-auditor` agent
-each, which reads only `data/task_audit_packets/<id>.md`. Table 8 (`tables.table8`) does item-level inference with
-labels permuted within category (`stats.stratified_permutation_test`), dose-response by D1/D3, rule-flip and
-drop-gate sensitivity (`tables.relabel`), and the label × system-prompt check; it builds a pre-adjudication view
-from the votes while `data/task_audit.json` is absent.
+task texts is scored, from its text alone, on five dimensions
+(`data/task_audit_rubric.md`; judge text `audit.AUDIT_PROMPT`, version 3 of 2026-10-21, after two adversarial Opus
+reviews of v1 and the author's simplification of v2) by a three-judge panel (`models.AUDIT_JUDGES`, each pinned to
+one provider: claude-haiku-5.5 on Google Vertex, gpt-6-luna on Azure, deepseek-v4.1-flash-1017 on DeepInfra
+(fp8; third judge provisional)). D1 probeability 0-2, D2 overlap 0-3, D3 directive 0-2, D4 rules 0-2, D5 realism 0-3.
+Every dimension gates at its worst level (D1 = 0 unobservable, D2 = 3 overlap, D3 = 2 instructed, D4 = 0
+unconstrained, D5 = 0 unrealistic); the intermediate levels are reported strata. Labels are computed per judge in
+`audit.label`, never by the judge; the item's label is the majority (`audit.majority_label`), *contested* when not
+unanimous; the primary subset is **informative** = no gate and D1 = 2 (the response is an act, decision or plan).
+Agreement = Krippendorff's ordinal α (`stats.krippendorff_alpha`, matches the `krippendorff` package). Contested
+tasks go to one `task-auditor` agent each, which reads only `data/task_audit_packets/<id>.md`. Table 8
+(`tables.table8`) does item-level inference with labels permuted within category
+(`stats.stratified_permutation_test`), dose-response by D3/D4, rule-flip (R1b, R3b, R4b) and drop-gate sensitivity
+(`tables.relabel`, variants in `tables.SENSITIVITY`), and the label × system-prompt check; it builds a
+pre-adjudication view from the votes while `data/task_audit.json` is absent. The judge is sent one user message
+(`audit.judge_prompt`, `.format` on `AUDIT_PROMPT`, whose JSON skeleton is brace-escaped).
 
 ```sh
+uv run ie audit-tasks --smoke ES-01 --judges claude-haiku-5.5   # one call: id, provider route, JSON mode -> data/task_audit_smoke_<judge>.{json,md}; refuses pilot tasks
 uv run ie audit-tasks --pilot-sample 4 --blind-packets    # 24 seeded tasks (excludes audit.EXPECTATION_TASKS) -> data/task_audit_blind/ for the author's blind read; no API call
 uv run ie audit-tasks --pilot-sample 4                    # then the judges -> data/task_audit_pilot_votes.{json,md}, packets in data/task_audit_packets_pilot/
 uv run ie audit-tasks --pilot-sample 4 --compare-blind data/task_audit_blind   # kappa author vs majority (gate: >= 0.6)
@@ -203,14 +209,18 @@ Status checklist (update as you go):
 - [x] Adversarial review of v1 by two Opus 5.5 agents (both: do not pre-register); objections tabulated in the notes.
 - [x] v2 rewrite: D0/R/D4b/Step 0/rules; per-judge labels; invented examples only (5-gram leakage test); item-level
       inference; 24-task pilot with the author's blind read as a gate; contested-only adjudication from packets.
+- [x] v3 (2026-10-21): twelve dimensions collapsed to five (author's rubric); code, Table 8, tests, rubric md,
+      agent spec and notes brought in line; one worked example, R1d and R4f added 2026-10-22 (the judge never sees the system
+      prompt: a draft that showed it was reverted). `uv run pytest` passes; no judge has run.
 - [ ] Author's own read of the rubric, the prompt and the notes section; pre-registration committed.
 - [ ] Author's blind read of the 24 pilot items (`--blind-packets`, before any judge runs).
-- [ ] One single-task call per judge to verify the OpenRouter ids and the JSON mode; then the pilot; `--compare-blind`;
+- [ ] One `--smoke` call per judge (provider, `finish_reason`, parse, tokens) to verify the ids, the pinned route and
+      the JSON mode; then the pilot; `--compare-blind`;
       gate outcome recorded (amend on a fresh seed if it fails; at most two revisions).
 - [ ] Full run; α per dimension; adjudication of contested tasks; hand check; `data/task_audit.json`.
 - [ ] Table 8 before/after adjudication and the Results subsection (A1-A6) filled.
 
-The judges never see task ids, the category name, the preamble's content, model responses, or the author's
+The judges never see task ids, the category name, the system prompt, model responses, or the author's
 expectations; `tests/test_audit.py` checks that no five consecutive words of the prompt occur in any task and that
 the quoted criterion sentences are verbatim from `prompts.JUDGE_SYSTEM_PROMPT`. If a judge id has been retired on
 OpenRouter, pass `--judges` with a replacement and record it in the notes before the pilot.

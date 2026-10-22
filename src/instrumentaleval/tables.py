@@ -816,11 +816,20 @@ def table7(df: pd.DataFrame, judge: str) -> str:
 # ---------------------------------------------------------------- Table 8: task audit (not in the paper)
 
 AUDIT_PATH = DATA_DIR / "task_audit.json"
-GATE_LABELS = {"not_reachable": "not reachable", "overlap": "best-response overlap", "instructed": "instructed",
-               "unconstrained": "permitted", "off_target": "off-target"}
-STRATUM_LABELS = {"partial_overlap": "partial overlap", "ambiguous_permission": "ambiguous permission",
-                  "counter_instructed": "counter-instructed", "dilemma": "dilemma", "benign_motive": "benign motive",
-                  "narrative": "narrative", "low_realism": "low realism"}
+GATE_LABELS = {"unobservable": "unobservable (D1 = 0)", "overlap": "best-response overlap (D2 = 3)",
+               "instructed": "instructed (D3 = 2)", "unconstrained": "permitted (D4 = 0)",
+               "unrealistic": "unrealistic (D5 = 0)"}
+STRATUM_LABELS = {"partial_probe": "partial probe (D1 = 1)", "substantial_overlap": "substantial overlap (D2 = 2)",
+                  "incentivized": "incentivized (D3 = 1)", "implied_rules": "implied rules (D4 = 1)",
+                  "low_realism": "low realism (D5 ≤ 1)"}
+# Sensitivity variants of Table 8(e): the rules whose flip changes a gate, each gate dropped in turn, a stricter
+# overlap gate, and unanimous judge labels only.
+SENSITIVITY = (("as adjudicated", "none"), ("R1b flipped (peer-system signal → central)", "R1b"),
+               ("R3b flipped (handle-it-for-the-goal → instructed)", "R3b"),
+               ("R4b flipped (general licence → permitted)", "R4b"), ("D2 gate at ≥ 2", "D2>=2"),
+               ("drop gate: unobservable", "drop:unobservable"), ("drop gate: overlap", "drop:overlap"),
+               ("drop gate: instructed", "drop:instructed"), ("drop gate: permitted", "drop:unconstrained"),
+               ("drop gate: unrealistic", "drop:unrealistic"), ("unanimous judge labels only", "unanimous"))
 PERMUTATIONS = 10000
 
 
@@ -858,8 +867,8 @@ def item_test(sub: pd.DataFrame, informative: dict[str, bool], category: dict[st
 
 
 def relabel(audit: dict, flip: str) -> dict[str, bool]:
-    """task_id -> informative under a sensitivity variant: a rule flip (R1a: D1 2->3; R3b: D3 1->0; R6a: D6 1->0 where
-    the adjudicator or a judge majority applied the rule), a dropped gate, D0 gating at >= 1, or unanimous labels only."""
+    """task_id -> informative under a sensitivity variant: a rule flip (R1b: D1 1->2; R3b: D3 1->2; R4b: D4 1->0 where
+    the adjudicator or a judge majority applied the rule), a dropped gate, D2 gating at >= 2, or unanimous labels only."""
     from .audit import label as audit_label
     out = {}
     for tid, e in audit.items():
@@ -870,20 +879,20 @@ def relabel(audit: dict, flip: str) -> dict[str, bool]:
             for d in sc:
                 rs = [v.get(d, "") for v in jr.values() if v.get(d)]
                 rules_applied[d] = max(set(rs), key=rs.count) if rs else None
-        if flip == "R1a" and rules_applied.get("d1_directive") == "R1a" and sc["d1_directive"] == 2:
-            sc["d1_directive"] = 3
-        if flip == "R3b" and rules_applied.get("d3_permission") == "R3b" and sc["d3_permission"] == 1:
-            sc["d3_permission"] = 0
-        if flip == "R6a" and rules_applied.get("d6_output_mode") == "R6a" and sc["d6_output_mode"] == 1:
-            sc["d6_output_mode"] = 0
+        if flip == "R1b" and rules_applied.get("d1_probeability") == "R1b" and sc["d1_probeability"] == 1:
+            sc["d1_probeability"] = 2
+        if flip == "R3b" and rules_applied.get("d3_directive") == "R3b" and sc["d3_directive"] == 1:
+            sc["d3_directive"] = 2
+        if flip == "R4b" and rules_applied.get("d4_rules") == "R4b" and sc["d4_rules"] == 1:
+            sc["d4_rules"] = 0
         lab = audit_label(sc)
         g = dict(lab["gates"])
         if flip.startswith("drop:"):
             g[flip[5:]] = False
-        if flip == "D0>=1":
-            g["overlap"] = sc["d0_overlap"] >= 1
+        if flip == "D2>=2":
+            g["overlap"] = sc["d2_overlap"] >= 2
         wp = not any(g.values())
-        inf = wp and sc["d6_output_mode"] >= 1
+        inf = wp and sc["d1_probeability"] == 2
         if flip == "unanimous" and e["majority"].get("contested"):
             inf = None
         out[tid] = inf
@@ -929,8 +938,9 @@ def table8(df: pd.DataFrame, judge: str, audit: dict | None = None) -> str:
     fl = pd.DataFrame(rows).T
     save_csv(fl, "table8_flags")
     sections.append("**(a) Tasks by subset, gate and stratum, per category** (adjudicated scores; gates may overlap; "
-                    "strata are descriptive). `informative` = no gate and the response is not a description "
-                    "(D6 ≥ 1), the primary subset.\n\n" + md_table(fl, "Category"))
+                    "strata are descriptive). `informative` = no gate and the behaviour is central (D1 = 2: the "
+                    "response is an act, decision or plan, not a description), the primary subset.\n\n"
+                    + md_table(fl, "Category"))
 
     sub = df[(df.judge == judge) & (df.variant == "nudge") & (df.task_set == "benchmark") & df.model.isin(TEST_MODELS)]
     sub = sub.assign(subset=sub.task_id.map(subset))
@@ -977,33 +987,28 @@ def table8(df: pd.DataFrame, judge: str, audit: dict | None = None) -> str:
                     f"category). Categories with ≥ 3 items of each label: {spread}/6.{downgrade} Category composition "
                     "of each subset is in (a).")
 
-    # (d) dose-response within category: per-item IR by D1 level, and by D3 level
+    # (d) dose-response within category: per-item IR by D3 directive level, and by D4 rule level
     vals = per_item_ir(sub)
     rows = {}
     for cat in CATEGORIES:
         ids = [t for t in vals if cat_of.get(t) == cat and t in scored]
         row = {}
-        for lvl in range(4):
-            g = [vals[t] for t in ids if audit[t]["scores"]["d1_directive"] == lvl]
-            row[f"D1={lvl}"] = f"{fmt(100 * np.mean(g), 1)} (n={len(g)})" if g else "–"
-        for lvl in range(4):
-            g = [vals[t] for t in ids if audit[t]["scores"]["d3_permission"] == lvl]
+        for lvl in range(3):
+            g = [vals[t] for t in ids if audit[t]["scores"]["d3_directive"] == lvl]
             row[f"D3={lvl}"] = f"{fmt(100 * np.mean(g), 1)} (n={len(g)})" if g else "–"
+        for lvl in range(3):
+            g = [vals[t] for t in ids if audit[t]["scores"]["d4_rules"] == lvl]
+            row[f"D4={lvl}"] = f"{fmt(100 * np.mean(g), 1)} (n={len(g)})" if g else "–"
         rows[cat] = row
     dose = pd.DataFrame(rows).T
     save_csv(dose, f"table8_dose_{judge}")
-    sections.append("**(d) Per-item IR (mean over models, %) by D1 directive level and D3 permission level within each "
+    sections.append("**(d) Per-item IR (mean over models, %) by D3 directive level and D4 rule level within each "
                     "category** (descriptive; the within-category item predictions in the notes are read here).\n\n"
                     + md_table(dose, "Category"))
 
-    # (e) sensitivity: rule flips, dropped gates, D0 >= 1, unanimous only (adjudicated scores only)
+    # (e) sensitivity: rule flips, dropped gates, D2 >= 2, unanimous only (adjudicated scores only)
     rows = {}
-    for name, flip in () if not adjudicated else (("as adjudicated", "none"), ("R1a flipped (handle-it → instructed)", "R1a"),
-                       ("R3b flipped (general licence → permitted)", "R3b"), ("R6a flipped (no request → description)", "R6a"),
-                       ("D0 gate at ≥ 1", "D0>=1"), ("drop gate: overlap", "drop:overlap"),
-                       ("drop gate: instructed", "drop:instructed"), ("drop gate: permitted", "drop:unconstrained"),
-                       ("drop gate: off-target", "drop:off_target"), ("drop gate: not reachable", "drop:not_reachable"),
-                       ("unanimous judge labels only", "unanimous")):
+    for name, flip in SENSITIVITY if adjudicated else ():
         lab = informative if flip == "none" else relabel(scored, flip)
         rr = item_test(sub, lab, cat_of)
         rows[name] = {"informative items": sum(lab.values()), "flagged items": sum(not v for v in lab.values()),

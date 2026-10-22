@@ -120,17 +120,26 @@ JUDGES: dict[str, ModelSpec] = {
 # Set to the judge with the lowest false-positive rate on the neutral tasks (README step 4).
 DEFAULT_JUDGE = "gpt-4o"
 
-# Task-audit panel (Table 8; REPLICATION_NOTES.md, "Task audit"): two labs at least, none of them the convergence
-# judge (gpt-4o) or one of the nine evaluated models (so no gemini-2.5-flash, which is a test model). gpt-5 at
-# medium effort passed the frame-awareness known-cell check; its reasoning counts against max_tokens, hence 16000.
-# Verify each id with a one-task `ie audit-tasks --pilot` call before the full run and record any swap in the notes.
+# Task-audit panel (Table 8; REPLICATION_NOTES.md, "Task audit"): three labs, none of them the convergence judge
+# (gpt-4o) or one of the nine evaluated models. Each is pinned to one provider (no fallback, and the request fails
+# rather than silently dropping `response_format`), because the provider changes the serving stack and, for the
+# open-weight model, the quantization. Medium effort for all three; reasoning counts against max_tokens, hence
+# 16000. Haiku 5.5 and GPT-6 Luna reject `temperature` on OpenRouter. Verify each with `ie audit-tasks --smoke`.
+def _only(provider: str) -> dict:
+    return {"only": [provider], "allow_fallbacks": False, "require_parameters": True}
+
+
+_AUDIT_BODY = {"reasoning": {"effort": "medium"}, "response_format": {"type": "json_object"}}
 AUDIT_JUDGES: dict[str, ModelSpec] = {
     m.key: m
     for m in [
-        ModelSpec("gpt-5", "openai/gpt-5", "", send_temperature=False, max_tokens=16000,
-                  extra_body={"reasoning": {"effort": "medium"}, "response_format": {"type": "json_object"}}),
-        ModelSpec("claude-sonnet-4", "anthropic/claude-sonnet-4", "", max_tokens=4000, extra_body=_NO_REASONING),
-        ModelSpec("gemini-2.5-pro", "google/gemini-2.5-pro", "", max_tokens=6000),
+        ModelSpec("claude-haiku-5.5", "anthropic/claude-haiku-5.5", "", send_temperature=False, max_tokens=16000,
+                  extra_body=_AUDIT_BODY | {"provider": _only("google-vertex")}),
+        ModelSpec("gpt-6-luna", "openai/gpt-6-luna", "", send_temperature=False, max_tokens=16000,
+                  extra_body=_AUDIT_BODY | {"provider": _only("azure")}),
+        # DeepInfra at fp8, the floor of the open-weight test models (OPEN_WEIGHT_PROVIDER); OpenInference is fp4 only.
+        ModelSpec("deepseek-v4.1-flash", "deepseek/deepseek-v4.1-flash-1017", "", max_tokens=16000,
+                  extra_body=_AUDIT_BODY | {"provider": _only("deepinfra") | {"quantizations": ["fp8"]}}),
     ]
 }
 
