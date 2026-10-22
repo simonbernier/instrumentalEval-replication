@@ -334,6 +334,66 @@ def frame_figure(df: pd.DataFrame) -> Path | None:
     return out
 
 
+def frame_figure6(df: pd.DataFrame, model: str = "deepseek-r1") -> list[Path]:
+    """Frame awareness on Figure 6's x axis (`figures.PROMPT_STEPS`), stacked by perceived frame as `frame_figure`.
+    Solid = aware cells the hand check confirmed, hatched = judge-only cells it rejected (precision 0.57, so the
+    judge's totals are upper bounds); the error bar is the Wilson interval of the hand-corrected total, as in
+    Figure 6. A missing step (deepseek-r1 has no `oversight-nonudge` arm) is left empty."""
+    from matplotlib.patches import Patch
+
+    from .figures import INK, INK_2, PROMPT_STEPS, SHORT_NAMES, plt, save, style_axes
+    from .stats import wilson_ci
+
+    arms = [v for _, v in PROMPT_STEPS]
+    bench = df[(df.task_set == "benchmark") & (df.model == model) & df.variant.isin(arms)]
+    hand = apply_hand_labels(df, read_hand_labels())
+    hand = hand[(hand.task_set == "benchmark") & (hand.model == model) & hand.variant.isin(arms)]
+    if bench.empty:
+        return []
+    colours = {"simulation": "#2a78d6", "puzzle_or_capability_challenge": "#3a9a5b", "safety_evaluation": "#e34948",
+               "adversarial_trap": "#7b4fb5", "other": "#a07a4f", "unclear": "#9a9994"}
+    shown = [c for c in CATEGORIES_FRAME if (bench.aware & (bench.frame == c)).any()]
+
+    # caption carries the key to the bar labels and the interval
+    fig, ax = plt.subplots(figsize=(4.0 + 0.4, 2.0 + 1.0))
+    fig.subplots_adjust(left=0.13, right=0.98, top=1.0 - 0.55 / fig.get_figheight(), bottom=0.5 / fig.get_figheight())
+    top = 0.0
+    for x, (_, v) in enumerate(PROMPT_STEPS):
+        g, h = bench[bench.variant == v], hand[hand.variant == v]
+        if g.empty:
+            ax.text(x, 0.4, "not run", ha="center", va="bottom", fontsize=7.5, color=INK_2, style="italic")
+            continue
+        n, bottom = len(g), 0.0
+        # confirmed cells first, then each frame's rejected cells on top, so the solid stack is the corrected rate
+        segments = [(c, 100 * (h.aware & (h.frame == c)).sum() / n, True) for c in shown]
+        segments += [(c, 100 * ((g.aware & (g.frame == c)).sum() - (h.aware & (h.frame == c)).sum()) / n, False)
+                     for c in shown]
+        for c, height, confirmed in segments:
+            if height:
+                ax.bar(x, height, bottom=bottom, width=0.6, color=colours[c] if confirmed else "white",
+                       edgecolor=colours[c], hatch=None if confirmed else "////", linewidth=0.8, zorder=2)
+                bottom += height
+        k_judge, k_hand = int(g.aware.sum()), int(h.aware.sum())
+        lo, hi = wilson_ci(k_hand, n)
+        y = 100 * k_hand / n
+        ax.errorbar(x, y, yerr=[[y - lo], [hi - y]], color=INK, elinewidth=1, capsize=0, zorder=3, clip_on=False)
+        ax.text(x, max(bottom, hi) + 0.4, f"{k_hand}/{k_judge}", ha="center", va="bottom", fontsize=7.5, color=INK_2)
+        top = max(top, hi, bottom)
+    ax.text(0.015, 0.97, SHORT_NAMES[model], transform=ax.transAxes, ha="left", va="top", fontsize=10, color=INK,
+            fontweight="bold", zorder=5, bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.5})
+    style_axes(ax, "% of responses")
+    step = 5 if top > 12 else 2
+    ax.set_ylim(0, step * math.ceil((top + 2) / step))
+    ax.set_yticks(range(0, int(ax.get_ylim()[1]) + 1, step))
+    ax.set_xlim(-0.5, len(PROMPT_STEPS) - 0.5)
+    ax.set_xticks(range(len(PROMPT_STEPS)), [s[0] for s in PROMPT_STEPS], fontsize=8, va="top", linespacing=1.15)
+    handles = [Patch(facecolor=colours[c], edgecolor=colours[c], label=c.replace("_", " ")) for c in shown]
+    handles += [Patch(facecolor="white", edgecolor=INK_2, hatch="////", label="judge only, rejected by hand check")]
+    fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.01, 1.0), ncol=2, frameon=False, fontsize=8,
+               handlelength=1.6)
+    return save(fig, FRAME_FIGURES_DIR, f"figure6_frame_{FRAME_JUDGE.key}")
+
+
 def build_frame_tables(ir_judge: str = DEFAULT_JUDGE, out: Path = FRAME_DIR / "tables.md") -> str:
     df = load_frame()
     parts = [
@@ -355,9 +415,9 @@ def build_frame_tables(ir_judge: str = DEFAULT_JUDGE, out: Path = FRAME_DIR / "t
     text = "\n\n".join(parts) + "\n"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")
-    fig = frame_figure(df)
-    if fig:
-        print(fig)
+    for fig in [frame_figure(df)] + frame_figure6(df):
+        if fig:
+            print(fig)
     return text
 
 
