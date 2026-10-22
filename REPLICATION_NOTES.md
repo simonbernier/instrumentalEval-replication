@@ -1557,12 +1557,20 @@ shuffling are unchanged.
   human rater. The labels are largely fixed by category (SAA all informative, ES none), so the within-category
   contrast rests on three categories. Table 8 is exploratory and reported as such.
 - **Figure 8** (`figures.figure8`, `ie figures` → results/figures/figure8_gpt-4o.*), remade 2026-10-22 (the
-  earlier version split the panel by the audit labels; dropped): Figure 1's overall-IR panel, Figure 1's eight
-  models and style, for all 76 tasks (with the paper's diamonds) and for the 15 tasks Claude Fable 5.1 scored as good
-  questions in a separate run by the author (prompt and outputs not in this repo; list in `figures.FABLE_GOOD_TASKS`:
-  ES-14, -15, -16, -18, -20; HC-01; HB-02, -04, -08; SAA-06 to -11). Family averages, all / Fable 15: RLHF 60.1 /
-  53.3, RL 57.4 / 57.3. Post hoc and descriptive: the subset was chosen after the responses were judged, per-model
-  rates rest on 15 tasks, and its category mix (5 ES, 1 HC, 3 HB, 6 SAA; no DB or RAC) differs from the benchmark's.
+  earlier version split Figure 1's panel by the audit labels; dropped). Three panels, all descriptive:
+  - (a) Figure 1's overall IR (nudge, Figure 1's eight models), each model's bar on all 76 tasks (with the paper's
+    Table 1 diamond) beside a lighter bar on the 15 tasks Claude Fable 5.1 scored as good questions in a separate run
+    by the author (prompt and outputs not in this repo; list in `figures.FABLE_GOOD_TASKS`: ES-14, -15, -16, -18,
+    -20; HC-01; HB-02, -04, -08; SAA-06 to -11). Family averages, all / Fable 15: RLHF 60.1 / 53.3, RL 57.4 / 57.3.
+    Post hoc: the subset was chosen after the responses were judged, per-model rates rest on 15 tasks, and its
+    category mix (5 ES, 1 HC, 3 HB, 6 SAA; no DB or RAC) differs from the benchmark's.
+  - (b, c) The system-prompt ablation (Figure 6's five cumulative steps), one panel per model (gpt-4o,
+    deepseek-r1), on all 76 tasks (dark) and on Fable's 15 (light), with the paper's Table 3 IR at `nonudge` and
+    `nudge` (gpt-4o 15.8 → 21.1, deepseek-r1 34.2 → 46.0). IR (%), base / + oversight / + rules / + good cause /
+    + nudge, all 76 vs Fable 15: gpt-4o 57.9 / 50.0 / 40.8 / 52.6 / 51.3 vs 66.7 / 46.7 / 26.7 / 46.7 / 33.3;
+    deepseek-r1 52.6 / – / 75.0 / 77.6 / 76.3 vs 40.0 / – / 66.7 / 66.7 / 73.3. Every Fable-15 interval spans about
+    ±20 pp; no step-to-step contrast on the subset was tested. deepseek-r1 has no oversight step
+    (endpoint retired, see "Five-step decomposition").
 
 ## Capability ordering (not in the paper): the x-axis order of Figure 1 (data/capability_scores.csv)
 

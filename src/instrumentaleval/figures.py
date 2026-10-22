@@ -542,12 +542,36 @@ FABLE_GOOD_TASKS = ("ES-14", "ES-15", "ES-16", "ES-18", "ES-20", "HC-01", "HB-02
                     "SAA-06", "SAA-07", "SAA-08", "SAA-09", "SAA-10", "SAA-11")
 
 
-# Figure 8 (b): the two models with both a stored ablation and the paper's Table 3. Colour = model (its Figure 1
-# family colour), line = source (solid ours, dotted paper), marker = model x source. The two models sit left / right
-# of each step so their intervals never overlap; value labels go diagonally outward ((x, y) signs per source,
-# ours then paper), away from the line segments that arrive at or leave each point.
-ABLATION_MODELS = {"gpt-4o": {"marker": "o", "paper_marker": "D", "dx": -0.1, "labels": ((-1, -1), (-1, -1))},
-                   "deepseek-r1": {"marker": "^", "paper_marker": "s", "dx": 0.1, "labels": ((1, -1), (1, -1))}}
+# Figure 8 (b, c): the two models with both a stored ablation and the paper's Table 3, one panel each, in panel (a)'s
+# code: dark = all 76 tasks, light = FABLE_GOOD_TASKS, red diamond = the paper. The two task sets sit left / right of
+# each step so their intervals never overlap.
+ABLATION_MODELS = ("gpt-4o", "deepseek-r1")
+
+
+def label_y(lines: list[tuple[list[float], list[float]]], placed: list[tuple[float, float, float]], x0: float,
+            y0: float, side: int, off: float) -> float:
+    """Centre height of the value label of point (x0, y0), whose text starts `off` steps to its `side` (+1 right,
+    -1 left) and spans about 0.3 steps: the nearest of 4.5, 8.5, 12.5, 16.5 IR points above or below that keeps 4.5
+    points (the text is about 5 tall) clear of every line ((xs, ys) pairs, NaN breaks a line) and of the labels
+    already `placed` (x from, x to, centre), else the clearest of them. Appends the choice to `placed`."""
+    xa_, xb_ = sorted((x0 + side * off, x0 + side * (off + 0.3)))
+
+    def gap(yc: float) -> float:
+        best = math.inf
+        for xq in (xa_ + 0.05 * k for k in range(7)):
+            for xs, ys in lines:
+                for xa, ya, xb, yb in zip(xs, ys, xs[1:], ys[1:]):
+                    if xa <= xq <= xb and not (math.isnan(ya) or math.isnan(yb)):
+                        best = min(best, abs(ya + (yb - ya) * (xq - xa) / (xb - xa) - yc))
+        for pa, pb, pc in placed:  # two labels need about a label height between their centres
+            if pa < xb_ and xa_ < pb:
+                best = min(best, abs(pc - yc) - 1)
+        return best
+
+    cands = [y for d in (4.5, 8.5, 12.5, 16.5) for y in (y0 + d, y0 - d) if 3 <= y <= 100]
+    yc = next((y for y in cands if gap(y) >= 4.5), max(cands, key=gap))
+    placed.append((xa_, xb_, yc))
+    return yc
 
 
 def tint(color: str, w: float) -> tuple[float, ...]:
@@ -557,9 +581,9 @@ def tint(color: str, w: float) -> tuple[float, ...]:
 
 def figure8(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
     """(a) Figure 1's overall IR, each model's all-76 bar (the paper's IR as diamonds) beside its bar on
-    FABLE_GOOD_TASKS, family averages in the legend; per-model rates on the subset rest on 15 tasks and its category
-    mix differs. (b) The system-prompt ablation (Figure 6's cumulative steps, all 76 tasks) for gpt-4o and
-    deepseek-r1, with the paper's Table 3 IR without and with the nudge. deepseek-r1 has no oversight arm."""
+    FABLE_GOOD_TASKS, family averages in the legend. (b, c) The system-prompt ablation (Figure 6's cumulative steps)
+    for gpt-4o and deepseek-r1 on both task sets, with the paper's Table 3 IR without and with the nudge (all 76 tasks).
+    Rates on the subset rest on 15 tasks and its category mix differs; deepseek-r1 has no oversight arm."""
     df = load_judgments()
     bench = df[(df.judge == judge) & (df.task_set == "benchmark")]
     sub = bench[(bench.variant == "nudge") & bench.model.isin(FIGURE1_MODELS)]
@@ -569,7 +593,9 @@ def figure8(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
     xs, groups = layout(models)
     paper = paper_table1()
 
-    fig, (ax, bx) = plt.subplots(2, 1, figsize=(12, 10.2), gridspec_kw={"hspace": 0.3, "height_ratios": [1.1, 1]})
+    fig = plt.figure(figsize=(12, 10.6))
+    grid = fig.add_gridspec(2, 2, height_ratios=[1.1, 1], hspace=0.32, wspace=0.07)
+    ax = fig.add_subplot(grid[0, :])
 
     # (a) side by side per model: dark = all 76 tasks, light tint of the same colour = Fable's 15
     sets = (("all 76 tasks", sub, -0.2, 0.0),
@@ -604,43 +630,62 @@ def figure8(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
     ax.legend(handles=handles, loc="upper center", ncol=3, frameon=True, framealpha=0.95, edgecolor=GRID,
               fontsize=8.5, handlelength=1.8, columnspacing=1.4)
 
-    # (b) cumulative prompt steps: ours (solid, Wilson intervals), the paper's Table 3 at nonudge and nudge (dotted)
+    # (b, c) cumulative prompt steps per model, both task sets, and the paper's Table 3 at nonudge and nudge
     steps, t3 = [v for _, v in PROMPT_STEPS], paper_table3()
-    dotted = (0, (1.5, 1.5))
-    handles = []
-    for m, st in ABLATION_MODELS.items():
+    paper_red = "#b8302f"  # PAPER_MARKER's red, darkened for text
+    first = None
+    for col, (m, title) in enumerate(zip(ABLATION_MODELS, ("(b) System-prompt ablation: gpt-4o",
+                                                           "(c) System-prompt ablation: deepseek-r1"))):
+        bx = fig.add_subplot(grid[1, col], sharey=first)
+        first = first or bx
         color = FIGURE1_COLORS[TEST_MODELS[m].family]
-        kn = {v: (int(g.conv.sum()), len(g)) for v, g in bench[bench.model == m].groupby("variant") if v in steps}
-        x = [i + st["dx"] for i in range(len(steps))]
-        y = [100 * kn[v][0] / kn[v][1] if v in kn else math.nan for v in steps]
-        bx.plot(x, y, color=color, linewidth=1.8, zorder=3)  # a missing step breaks the line instead of bridging it
-        pts = [(xi, yi, wilson_ci(*kn[v])) for xi, yi, v in zip(x, y, steps) if v in kn]
-        ours = dict(marker=st["marker"], markersize=7, markeredgecolor="white", markeredgewidth=0.8)
-        bx.errorbar([p[0] for p in pts], [p[1] for p in pts],
-                    yerr=[[yi - lo for _, yi, (lo, _) in pts], [hi - yi for _, yi, (_, hi) in pts]],
-                    color=color, ecolor=color, elinewidth=1.1, capsize=0, linestyle="none", zorder=4, **ours)
-        theirs = dict(marker=st["paper_marker"], markersize=7.5, markerfacecolor="white", markeredgecolor=color,
-                      markeredgewidth=1.8)
-        px = [steps.index("nonudge") + st["dx"], steps.index("nudge") + st["dx"]]
-        py = [t3[m]["without"]["ir"], t3[m]["with"]["ir"]]
-        bx.plot(px, py, color=color, linewidth=1.5, linestyle=dotted, zorder=4, **theirs)
-        for xy, (sx, sy) in (([p[:2] for p in pts], st["labels"][0]), (list(zip(px, py)), st["labels"][1])):
-            for xi, yi in xy:
-                bx.text(xi + 0.05 * sx, yi + 2.5 * sy, f"{yi:.1f}", ha="left" if sx > 0 else "right",
-                        va="bottom" if sy > 0 else "top", fontsize=7.5, color=color, fontweight="bold", zorder=5,
-                        bbox={"facecolor": "white", "edgecolor": "none", "pad": 0.6})
-        for i, v in enumerate(steps):
-            if v not in kn:
-                bx.text(i + st["dx"], 75, f"no {m} run\n(endpoint retired)", ha="center", va="center", fontsize=7.5,
-                        color=INK_2, style="italic")
-        handles += [Line2D([], [], color=color, linewidth=1.8, label=f"{m}, this replication", **ours),
-                    Line2D([], [], color=color, linewidth=1.5, linestyle=dotted, label=f"{m}, paper (Table 3)",
-                           **theirs)]
-    style_axes(bx, "IR (%)")
-    bx.set_xlim(-0.5, len(steps) - 0.5)
-    bx.set_xticks(range(len(steps)), [s[0] for s in PROMPT_STEPS], fontsize=9, linespacing=1.15)
-    bx.set_title("(b) System-prompt ablation, all 76 tasks: IR as the upstream prompt is built up step by step",
-                 loc="left", fontsize=10, color=INK, fontweight="bold")
-    bx.legend(handles=handles, loc="lower left", ncol=2, frameon=True, framealpha=0.95, edgecolor=GRID, fontsize=8.5,
-              handlelength=3.2, columnspacing=1.4)
+        d = bench[bench.model == m]
+        handles, lines, labels = [], [], []  # labels: (x, y, side, colour, offset beyond the marker)
+        for name, s, dx, w, marker, ls in (("all 76 tasks", d, -0.12, 0.0, "o", "-"),
+                                           (f"Fable 5.1's {len(FABLE_GOOD_TASKS)} good tasks",
+                                            d[d.task_id.isin(FABLE_GOOD_TASKS)], 0.12, 0.45, "s", (0, (5, 2)))):
+            kn = {v: (int(g.conv.sum()), len(g)) for v, g in s.groupby("variant") if v in steps}
+            x = [i + dx for i in range(len(steps))]
+            ys = [100 * kn[v][0] / kn[v][1] if v in kn else math.nan for v in steps]
+            line = tint(color, w)
+            pt = dict(marker=marker, markersize=6.5, markerfacecolor=line if w == 0 else tint(color, 0.62),
+                      markeredgecolor="white" if w == 0 else color, markeredgewidth=0.8 if w == 0 else 1.3)
+            bx.plot(x, ys, color=line, linewidth=1.8, linestyle=ls, zorder=3)  # a missing step breaks the line
+            have = [i for i, v in enumerate(steps) if v in kn]
+            cis = [wilson_ci(*kn[steps[i]]) for i in have]
+            bx.errorbar([x[i] for i in have], [ys[i] for i in have],
+                        yerr=[[ys[i] - lo for i, (lo, _) in zip(have, cis)], [hi - ys[i] for i, (_, hi) in zip(have, cis)]],
+                        linestyle="none", ecolor=line, elinewidth=1.1, capsize=0, zorder=4, **pt)
+            lines.append((x, ys))
+            # dark series labelled on its left, light series on its right, the light labels a shade darker than the line
+            labels += [(x[i], ys[i], 1 if dx > 0 else -1, tint(color, 0.25) if w else color, 0.06) for i in have]
+            handles.append(Line2D([], [], color=line, linewidth=1.8, linestyle=ls, label=name, **pt))
+            if s is d:
+                for i, v in enumerate(steps):
+                    if v not in kn:
+                        bx.text(i, 62, f"no {m} run\n(endpoint retired)", ha="center", va="center", fontsize=7.5,
+                                color=INK_2, style="italic")
+        # the paper's values are over all 76 tasks: on the dark series' side, as in panel (a)
+        px, py = [i - 0.12 for i in range(len(steps))], [math.nan] * len(steps)
+        py[steps.index("nonudge")], py[steps.index("nudge")] = t3[m]["without"]["ir"], t3[m]["with"]["ir"]
+        bx.plot(px, py, color=paper_red, linewidth=1.2, zorder=5, **PAPER_MARKER | {"linestyle": (0, (1.5, 1.5))})
+        lines.append((px, py))
+        labels += [(xi, yi, -1, paper_red, 0.1) for xi, yi in zip(px, py) if not math.isnan(yi)]
+        placed = []
+        for xi, yi, side, c, off in labels:
+            bx.text(xi + side * off, label_y(lines, placed, xi, yi, side, off), f"{yi:.1f}",
+                    ha="left" if side > 0 else "right", va="center", fontsize=7.5, color=c, fontweight="bold",
+                    zorder=6, bbox={"facecolor": "white", "edgecolor": "none", "pad": 0.6})
+        handles += [Line2D([], [], color=paper_red, linewidth=1.2, label="paper (Table 3, all 76 tasks)",
+                           **PAPER_MARKER | {"linestyle": (0, (1.5, 1.5))}),
+                    Line2D([], [], color=INK_2, linewidth=1.1, label="95% Wilson interval")]
+        style_axes(bx, "IR (%)" if col == 0 else None)
+        bx.set_ylim(0, 125)  # headroom for the legend; the axis itself stops at 100
+        bx.spines["left"].set_bounds(0, 100)
+        bx.tick_params(labelleft=col == 0)
+        bx.set_xlim(-0.55, len(steps) - 0.45)
+        bx.set_xticks(range(len(steps)), [s[0] for s in PROMPT_STEPS], fontsize=8.5, linespacing=1.15)
+        bx.set_title(title, loc="left", fontsize=10, color=INK, fontweight="bold")
+        bx.legend(handles=handles, loc="upper center", ncol=2, frameon=True, framealpha=0.95, edgecolor=GRID,
+                  fontsize=8.5, handlelength=3.2, columnspacing=1.2)
     return save(fig, out_dir, f"figure8_{judge}")
