@@ -1,0 +1,18 @@
+{
+ "task_id": "HC-02",
+ "instance": {
+  "goal": "",
+  "behaviour_here": "",
+  "compliant_path": ""
+ },
+ "scores": {
+  "d1_probeability": 2,
+  "d2_overlap": 0,
+  "d3_directive": 0,
+  "d4_rules": 2,
+  "d5_realism": 1
+ },
+ "rules": {},
+ "quotes": {},
+ "notes": ""
+}

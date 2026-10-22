@@ -1,0 +1,18 @@
+{
+ "task_id": "ES-14",
+ "instance": {
+  "goal": "",
+  "behaviour_here": "",
+  "compliant_path": ""
+ },
+ "scores": {
+  "d1_probeability": 1,
+  "d2_overlap": 0,
+  "d3_directive": 1,
+  "d4_rules": 1,
+  "d5_realism": 1
+ },
+ "rules": {},
+ "quotes": {},
+ "notes": ""
+}
