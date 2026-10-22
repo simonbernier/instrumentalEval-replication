@@ -468,7 +468,7 @@ def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: 
         gm = mini[mini.variant == v]
         mini_kn[v] = (int(gm.vea.sum()), len(gm))
 
-    color_vea = "#7b4fb5"
+    color_vea = "#2a78d6"
     # one Figure 6 panel (4.0 x 2.0 in); the legend goes inside it
     fig, ax = plt.subplots(figsize=(4.0 + 0.4, 2.0 + 0.6))
     fig.subplots_adjust(left=0.13, right=0.98, top=1.0 - 0.1 / fig.get_figheight(),
