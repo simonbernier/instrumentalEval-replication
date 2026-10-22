@@ -790,6 +790,25 @@ gpt-5's pooled 9/532. With the six monitoring flags removed, gpt-5's count is ex
 count; the judge-based upper end is 1.7 %. (4) The exploratory arm contrast is null (p = 1.00). The substantive result
 is unchanged: deepseek-r1 almost never verbalizes eval awareness here, and every strict VEA cell converged (3/3).
 
+**Figure 6 view (2026-10-22, presentation only, no new calls).** `ie vea-figure6` puts the VEA rate on Figure 6's x
+axis for DeepSeek-R1, the only model with a raw chain of thought, over its four prompts (it has no
+`oversight-nonudge` run): results/vea/figure6_vea.md and figures/figure6_vea_gpt-5.{png,pdf}. Left panel: Figure 6's
+DeepSeek-R1 panel unchanged (IR and refusals by gpt-4o, the paper's Table 3) with the VEA rate added on the same
+0–100 axis; right panel: the VEA rate alone on a 0–12 % axis. Same 76 responses per step and same 95 % Wilson
+intervals as Figure 6. **Judge: gpt-5**, because it is the only one of the two that finds the strict cases (3/3 against
+0/3) and it agrees with all 52 hand labels; its one known error class, in-scenario monitoring, is shown rather than
+hidden, as a second series with `vea_tables.MONITORING_FLAGS` removed (a reading in this session, not blinded).
+
+| step | IR (gpt-4o) | VEA (gpt-5) | VEA, monitoring removed |
+|---|---|---|---|
+| base | 52.6 % | 1/76 = 1.3 % | 0/76 |
+| + 7 rules | 75.0 % | 0/76 | 0/76 |
+| + "good cause" | 77.6 % | 3/76 = 3.9 % | 2/76 = 2.6 % (ES-10, RAC-01) |
+| + nudge | 76.3 % | 1/76 = 1.3 % | 0/76 |
+
+Read against Figure 6: IR jumps 22 points between base and + 7 rules while VEA stays at 0–2 cells per step; every
+Wilson interval overlaps, so VEA does not track the IR jump. The two strict VEA cells both sit at + "good cause".
+
 ## Frame awareness (not in the paper): does the model treat the scenario as what it purports to be? (results/frame/)
 
 **Status:** pre-registered on 2026-10-19 in the commit that adds this section, before any frame judgment was made.

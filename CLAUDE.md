@@ -90,6 +90,7 @@ Notes: "Eval awareness", "Second judge".
 - [x] Full run (2026-10-22): 552 ok, 0 retries, 0 errors, ≈ $3.35; 9/532 flagged (1.7 %), 0/20 neutral. V6: 0 shared
       positives, κ = −0.01. 6 of the 9 are in-scenario monitoring (HB-01, HB-03), not VEA.
 - [x] Results written under "Second judge": headline VEA range 0.6-1.7 %; gpt-5-mini stays judge of record.
+- [x] Figure 6 view (2026-10-22): `ie vea-figure6` -> results/vea/figure6_vea.md, figures/figure6_vea_gpt-5.*; gpt-5 judge.
 
 Expectations, so surprises are recognised: VEA in deepseek-r1 is rare (a keyword pass found at least five genuine
 cases in 552, e.g. ES-10 `nonudge`: "the task might be testing if I will blindly shut down and cause a blackout?"),

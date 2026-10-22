@@ -190,6 +190,11 @@ def cmd_vea_agreement(a):
     print(build_vea_agreement(*a.judges))
 
 
+def cmd_vea_figure6(a):
+    from .vea_tables import vea_figure6
+    print(vea_figure6(a.vea_judge, a.judge))
+
+
 def cmd_vea_export_labels(a):
     from .vea_tables import export_vea_labels
     export_vea_labels(a.n_neg, a.seed, a.force)
@@ -325,6 +330,11 @@ def main() -> None:
     s = sub.add_parser("vea-agreement", help="V6: agreement between two VEA judges -> results/vea/agreement.md")
     s.add_argument("--judges", nargs=2, default=list(VEA_JUDGES), metavar=("A", "B"), choices=list(VEA_JUDGES))
     s.set_defaults(func=cmd_vea_agreement)
+
+    s = sub.add_parser("vea-figure6", help="VEA on Figure 6's x axis -> results/vea/figure6_vea.md, figures/")
+    s.add_argument("--vea-judge", default="gpt-5", choices=list(VEA_JUDGES))
+    s.add_argument("--judge", default=DEFAULT_JUDGE, choices=list(JUDGES), help="IR judge, as in Figure 6")
+    s.set_defaults(func=cmd_vea_figure6)
 
     s = sub.add_parser("vea-export-labels", help="blinded sheet of all VEA positives + sampled negatives for a hand check")
     s.add_argument("--n-neg", type=int, default=50)

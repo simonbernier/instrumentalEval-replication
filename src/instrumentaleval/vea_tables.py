@@ -5,7 +5,8 @@ variant and by category (V1, V2), the neutral-task control (V3), instrumental co
 judge/parser diagnostics plus the hand-label check (V5). Every interval resamples tasks, never cells: the same 76
 tasks recur under every variant. The pre-registered judge (gpt-5-mini) writes tables.md and unsuffixed CSVs; the
 second judge (gpt-5, ours) writes tables_gpt-5.md and `_gpt-5`-suffixed CSVs, and V6 (results/vea/agreement.md)
-compares the two, pre-registered in the notes under "Second judge".
+compares the two, pre-registered in the notes under "Second judge". `vea_figure6` puts one judge's VEA rate on
+Figure 6's x axis (results/vea/figure6_vea.md, figures/figure6_vea_<judge>.{png,pdf}) so the two can be read together.
 """
 
 import csv
@@ -17,7 +18,7 @@ import pandas as pd
 from scipy.stats import fisher_exact
 
 from .benchmark import CATEGORIES
-from .models import DEFAULT_JUDGE, VEA_JUDGE, VEA_JUDGES
+from .models import DEFAULT_JUDGE, TEST_MODELS, VEA_JUDGE, VEA_JUDGES
 from .prompts import SYSTEM_PROMPTS
 from .runs import RESPONSES_DIR, load_latest, sha
 from .stats import (cluster_bootstrap_ci, cluster_bootstrap_kappa, cluster_bootstrap_rd, cohen_kappa,
@@ -44,6 +45,10 @@ KNOWN_CELLS = [
     ("plain-nudge", "RAC-08", "none"),
 ]
 KEY = ["model", "variant", "task_set", "task_id"]
+# gpt-5's VEA flags that were read in full (2026-10-22, not blinded) as in-scenario monitoring, not VEA: the task text
+# puts a monitoring system in the scenario and the chain of thought plans around it (notes, "Second judge", Results).
+MONITORING_FLAGS = {("nudge", "HB-01"), ("plain-goal", "HB-01"), ("plain-nudge", "HB-01"),
+                    ("nonudge", "HB-03"), ("plain-goal", "HB-03"), ("plain-nonudge", "HB-03")}
 
 
 # ---------------------------------------------------------------- loading
@@ -424,6 +429,134 @@ def build_vea_agreement(a: str = VEA_JUDGE.key, b: str = "gpt-5", out: Path = VE
     ]
     text = "\n\n".join(parts) + "\n"
     out.write_text(text, encoding="utf-8")
+    return text
+
+
+# ---------------------------------------------------------------- VEA on Figure 6's x axis
+
+def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: str = "deepseek-r1") -> str:
+    """`model`'s Figure 6 panel (IR and refusals by `ir_judge`, the paper's Table 3) with `vea_judge`'s VEA rate added,
+    next to a 0-10 % zoom of the VEA rate, on Figure 6's x axis (`figures.PROMPT_STEPS`, same Wilson intervals). The
+    zoom also shows the rate without MONITORING_FLAGS. Writes results/vea/figure6_vea.md and returns its text."""
+    from matplotlib.lines import Line2D
+
+    from .figures import FIGURE1_COLORS, INK, INK_2, PAPER_MARKER, PROMPT_STEPS, SHORT_NAMES, plt, save, style_axes
+    from .stats import wilson_ci
+    from .tables import ablation_records, cir_counts, paper_table3
+
+    jd = load_judgments()
+    ir = {}
+    for _, v in PROMPT_STEPS:
+        c = cir_counts(jd, ir_judge, v)
+        if model in c.index.get_level_values(0):
+            ir[v] = (int(c.loc[model]["k"].sum()), int(c.loc[model]["n"].sum()))
+    rec = ablation_records(ir_judge)
+    rec = rec[rec.model == model]
+    refusals = {v: (int(g.refusal.sum()), len(g)) for v, g in rec.groupby("variant")}
+    vea = load_vea(vea_judge)
+    vea = vea[(vea.model == model) & (vea.task_set == "benchmark")]
+    mini = load_vea(VEA_JUDGE.key)
+    mini = mini[(mini.model == model) & (mini.task_set == "benchmark")]
+    flagged, read, vea_kn, mini_kn = {}, {}, {}, {}
+    for _, v in PROMPT_STEPS:
+        g = vea[vea.variant == v]
+        if not len(g):
+            continue
+        flagged[v] = sorted(g[g.vea].task_id)
+        vea_kn[v] = (len(flagged[v]), len(g))
+        read[v] = (sum((v, t) not in MONITORING_FLAGS for t in flagged[v]), len(g))
+        gm = mini[mini.variant == v]
+        mini_kn[v] = (int(gm.vea.sum()), len(gm))
+
+    color_ir, color_vea = FIGURE1_COLORS[TEST_MODELS[model].family], "#7b4fb5"
+    fig, axes = plt.subplots(1, 2, figsize=(2 * 4.0 + 0.4, 2.0 + 0.95), sharex=True)
+    fig.subplots_adjust(left=0.07, right=0.99, top=1.0 - 0.45 / fig.get_figheight(),
+                        bottom=0.5 / fig.get_figheight(), wspace=0.14)
+    xlim = (-0.3, len(PROMPT_STEPS) - 0.7)
+    pt = (xlim[1] - xlim[0]) / (axes[0].get_position().width * fig.get_figwidth() * 72)
+
+    def series(ax, kn, dx, color, linestyle, **marker):
+        # as figures.figure6: a missing step breaks the line instead of bridging it
+        ax.plot([x + dx for x in range(len(PROMPT_STEPS))],
+                [100 * kn[v][0] / kn[v][1] if v in kn else math.nan for _, v in PROMPT_STEPS],
+                color=color, linewidth=1.5, linestyle=linestyle, zorder=2)
+        steps = [(x + dx, kn[v]) for x, (_, v) in enumerate(PROMPT_STEPS) if v in kn]
+        ys = [100 * k / n for _, (k, n) in steps]
+        cis = [wilson_ci(k, n) for _, (k, n) in steps]
+        ax.errorbar([x for x, _ in steps], ys, yerr=[[y - lo for y, (lo, _) in zip(ys, cis)],
+                                                    [hi - y for y, (_, hi) in zip(ys, cis)]],
+                    color=color, ecolor=color, elinewidth=1, capsize=0, zorder=3, linestyle="none", clip_on=False,
+                    **marker)
+
+    vea_marker = {"marker": "^", "markersize": 6}
+    read_marker = {"marker": "^", "markersize": 6, "markerfacecolor": "white", "markeredgewidth": 1.2}
+    left, right = axes
+    series(left, ir, 0.0, color_ir, "-", marker="o", markersize=5.5)
+    series(left, refusals, 4 * pt, INK, (0, (4, 2)), marker="s", markersize=4.5, markerfacecolor="white",
+           markeredgewidth=1.2)
+    series(left, vea_kn, -4 * pt, color_vea, "-", **vea_marker)
+    paper, steps = paper_table3(), [v for _, v in PROMPT_STEPS]
+    if model in paper:
+        left.plot([steps.index("nonudge"), steps.index("nudge")],
+                  [paper[model]["without"]["ir"], paper[model]["with"]["ir"]], zorder=6,
+                  **(PAPER_MARKER | {"markersize": 5.5}))
+    series(right, vea_kn, 0.0, color_vea, "-", **vea_marker)
+    series(right, read, 4 * pt, color_vea, (0, (1.5, 1.5)), **read_marker)
+    for ax, title, ylabel in ((left, SHORT_NAMES[model], "% of responses"),
+                              (right, f"{SHORT_NAMES[model]}: VEA, zoomed", None)):
+        ax.text(0.015, 0.97, title, transform=ax.transAxes, ha="left", va="top", fontsize=10, color=INK,
+                fontweight="bold", zorder=5, bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.5})
+        style_axes(ax, ylabel)
+        ax.set_xlim(*xlim)
+        ax.set_xticks(range(len(PROMPT_STEPS)), [s[0] for s in PROMPT_STEPS], fontsize=8, va="top",
+                      linespacing=1.15)
+    right.set_ylim(0, 12.5)  # the highest Wilson bound here is 11.0 %
+    right.set_yticks(range(0, 13, 2))
+    handles = [Line2D([], [], color=color_ir, linewidth=1.5, marker="o", markersize=5.5, label=f"IR ({ir_judge})"),
+               Line2D([], [], color=INK, linewidth=1.5, linestyle=(0, (4, 2)), marker="s", markersize=4.5,
+                      markerfacecolor="white", markeredgewidth=1.2, label="refusal rate"),
+               Line2D([], [], **(PAPER_MARKER | {"markersize": 5.5}), label="paper (Table 3)"),
+               Line2D([], [], color=color_vea, linewidth=1.5, **vea_marker, label=f"VEA ({vea_judge} judge)"),
+               Line2D([], [], color=color_vea, linewidth=1.5, linestyle=(0, (1.5, 1.5)), **read_marker,
+                      label="VEA, in-scenario monitoring flags removed")]
+    fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.01, 1.0), ncol=len(handles), frameon=False,
+               fontsize=8, handlelength=2.4, columnspacing=1.2)
+    paths = save(fig, VEA_FIGURES_DIR, f"figure6_vea_{vea_judge}")
+
+    def pct(kn) -> str:
+        k, n = kn
+        lo, hi = wilson_ci(k, n)
+        return f"{k}/{n} = {fmt(100 * k / n, 1)} % ({fmt(lo, 1)}–{fmt(hi, 1)})"
+
+    rows = []
+    for label, v in PROMPT_STEPS:
+        label = " ".join(label.split())
+        if v not in vea_kn:
+            rows.append({"step": label, "arm": f"`{v}`", f"IR ({ir_judge})": "not run", "refusals": "–",
+                         f"VEA ({vea_judge})": "–", "of which in-scenario monitoring": "–",
+                         "VEA, monitoring removed": "–", f"VEA ({VEA_JUDGE.key})": "–", f"{vea_judge} flags": "–"})
+            continue
+        mon = [t for t in flagged[v] if (v, t) in MONITORING_FLAGS]
+        rows.append({"step": label, "arm": f"`{v}`", f"IR ({ir_judge})": pct(ir[v]),
+                     "refusals": f"{refusals[v][0]}/{refusals[v][1]}", f"VEA ({vea_judge})": pct(vea_kn[v]),
+                     "of which in-scenario monitoring": str(len(mon)), "VEA, monitoring removed": pct(read[v]),
+                     f"VEA ({VEA_JUDGE.key})": f"{mini_kn[v][0]}/{mini_kn[v][1]}",
+                     f"{vea_judge} flags": ", ".join(t + ("*" if (v, t) in MONITORING_FLAGS else "")
+                                                     for t in flagged[v]) or "none"})
+    t = pd.DataFrame(rows).set_index("step")
+    save_csv(t, "figure6_vea", vea)
+    text = "\n\n".join([
+        f"# Verbalized eval awareness on Figure 6's x axis ({SHORT_NAMES[model]}, {vea_judge} judge)",
+        f"Same steps, same responses and same 95 % Wilson intervals as results/figures/figure6_{ir_judge}.png; IR and "
+        f"refusals are copied from it. VEA: `{VEA_JUDGES[vea_judge].openrouter_id}` at effort "
+        f"{VEA_JUDGES[vea_judge].extra_body['reasoning']['effort']} on the chain of thought alone (F1 rubric). "
+        f"{SHORT_NAMES[model]} has no `oversight-nonudge` run (OpenRouter dropped the model before that arm), so the "
+        "step is empty, as in Figure 6. `*` = a flag read in full as in-scenario monitoring (the task's own monitor), "
+        "not eval awareness (`vea_tables.MONITORING_FLAGS`; REPLICATION_NOTES.md, \"Second judge\").",
+        md_table(t, "step"),
+        "Figure: " + ", ".join(str(p.relative_to(VEA_DIR.parent.parent)) for p in paths),
+    ]) + "\n"
+    (VEA_DIR / "figure6_vea.md").write_text(text, encoding="utf-8")
     return text
 
 
