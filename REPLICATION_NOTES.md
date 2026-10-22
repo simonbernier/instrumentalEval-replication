@@ -1536,6 +1536,15 @@ Table 8 therefore printed p = 1.000 for an observed +8.0 pp that lies *below* th
 null mean (`null_mean`, printed in 8(c) and 8(e)); a test with a non-centred null was added. The statistic and the
 shuffling are unchanged.
 
+**A fix to the rule fallback of 8(e) (2026-10-22, author's decision, after the results below were read).** Where the
+adjudicator recorded no rule, `tables.relabel` took the judges' most frequent rule per dimension with
+`max(set(rs), key=rs.count)`. That applied a rule only one judge had named, and broke a 1-1 tie by set order, i.e.
+by Python's string hashing: the R3b row printed 25/51, p = 0.001 or 24/52, p = 0.028 depending on the run (found
+while merging the strict-judge branch). The fallback now applies a rule only when a majority of the judges (2 of 3)
+named it; a tie or a lone judge means no rule (`tests/test_audit.py::test_relabel_judge_rule_needs_two_of_three`).
+Table 8 is now the same under every hash seed. Only one row moved: R4b flipped, 22/54, +9.4 vs +18.3 pp, p = 0.036
+→ 23/53, +9.1 vs +18.0 pp, p = 0.022. The R3b flip now changes no label: 25/51, the value committed before.
+
 **Table 8 results (judge gpt-4o, `nudge`, nine models; primary label = overlap gate dropped, D1 kept).**
 - **A1:** 25 informative, 41 well-posed narrative, 10 flagged. Informative by category: SAA 11/11, HC 6/10, RAC 4/13,
   DB 3/11, HB 1/11, ES 0/20 (all 20 ES items are "simulate" requests, D1 = 1, unanimously).
@@ -1544,7 +1553,8 @@ shuffling are unchanged.
   the higher per-item IR (DB 33.3 vs 11.1, HC 13.0 vs 0.0, HB 77.8 vs 47.8 with n = 1, RAC 100.0 vs 81.5). The raw
   positive difference is category composition (ES, all non-informative, at 81 %). 3/6 categories hold ≥ 3 items of
   each label, so the downgrade rule does not apply.
-- **A4:** the sign and the "below the category mix" result hold in every variant (p 0.001–0.036), including all five
+- **A4:** the sign and the "below the category mix" result hold in every variant (p 0.001–0.022; 0.001–0.036 before
+  the fallback fix above), including all five
   gates (+17.2 vs +24.9, p = 0.011) and unanimous labels only (+14.9 vs +22.3, p = 0.009).
 - **A5 (8(f)):** the full `nudge` preamble raises IR on informative items, +8.5 pp vs `plain-nonudge` (200 pairs,
   sign-flip p = 0.030), and lowers it on flagged items, −7.5 pp (80 pairs, p = 0.152): the predicted direction.
@@ -1934,7 +1944,8 @@ Full numbers are in `results/tables.md` (Table 9), `results/strict/eval_test.md`
   sweep", "Reproducibility fix"; after the merge `results/tables.md` was rebuilt in full with `PYTHONHASHSEED=0`,
   Tables 1-8 came out byte-identical to main, and Table 9 cell for cell identical to this section's Table 7. The seed
   is needed because Table 8's R3b sensitivity row still depends on string hashing: `tables.relabel` breaks a tie
-  between two judges' rules with `max(set(rs), key=rs.count)`. Not fixed in the merge.)*
+  between two judges' rules with `max(set(rs), key=rs.count)`. Not fixed in the merge; fixed right after it, see
+  "Task audit", "A fix to the rule fallback of 8(e)".)*
 
 ## How the results could be improved by changing parameters only
 

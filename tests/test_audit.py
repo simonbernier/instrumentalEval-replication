@@ -292,6 +292,28 @@ def test_audit_from_votes(tmp_path):
     assert audit_from_votes(tmp_path / "absent.json") == {}
 
 
+def test_relabel_judge_rule_needs_two_of_three(tmp_path):
+    votes = _votes()
+    for tid in votes:
+        (tmp_path / f"{tid}.json").write_text(json.dumps({
+            "task_id": tid, "scores": votes[tid]["votes"]["a"]["scores"], "rules": {}}), encoding="utf-8")
+    audit = merge_audit(tmp_path, votes, "test")
+    e = audit["T0-2"]  # no adjudicator rule, so relabel falls back to the judges' rules
+    e["rules"] = {}
+    e["scores"]["d3_directive"] = 1
+    e["label"] = label(e["scores"])
+    assert e["label"]["informative"]
+    none = {d: "" for d in e["scores"]}
+
+    def r3b_flip(*rules):
+        e["judge_rules"] = {j: none | {"d3_directive": r} for j, r in zip("abc", rules)}
+        return relabel(audit, "R3b")["T0-2"]
+
+    assert r3b_flip("R3b", "R3b", "") is False  # 2 of 3: the rule applies, so the flip makes the item instructed
+    assert r3b_flip("R3b", "R3a", "") is True   # a 1-1 tie (was decided by set order, i.e. string hashing): no rule
+    assert r3b_flip("R3b", "", "") is True      # one judge alone: no rule
+
+
 def _df(audit, models, rate_flagged=0.9, rate_informative=0.3, seed=0):
     import random
     rng = random.Random(seed)

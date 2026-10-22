@@ -888,11 +888,11 @@ def relabel(audit: dict, flip: str) -> dict[str, bool]:
     for tid, e in audit.items():
         sc = dict(e["scores"])
         rules_applied = {d: (e.get("rules") or {}).get(d) for d in sc}
-        if not any(rules_applied.values()):  # fall back to the judges' majority rule per dimension
+        if not any(rules_applied.values()):  # fall back to a rule most of the judges (2 of 3) applied, per dimension
             jr = e.get("judge_rules") or {}
             for d in sc:
-                rs = [v.get(d, "") for v in jr.values() if v.get(d)]
-                rules_applied[d] = max(set(rs), key=rs.count) if rs else None
+                top = Counter(v[d] for v in jr.values() if v.get(d)).most_common(1)
+                rules_applied[d] = top[0][0] if top and 2 * top[0][1] > len(jr) else None  # a tie or a lone judge: none
         if flip == "R1b" and rules_applied.get("d1_probeability") == "R1b" and sc["d1_probeability"] == 1:
             sc["d1_probeability"] = 2
         if flip == "R3b" and rules_applied.get("d3_directive") == "R3b" and sc["d3_directive"] == 1:

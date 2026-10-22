@@ -3,7 +3,7 @@ as adjudicated,25,51,8.0,17.4,0.001
 "all five gates (overlap gate kept, as pre-registered)",22,54,17.2,24.9,0.011
 R1b flipped (peer-system signal → central),25,51,8.0,17.4,0.001
 R3b flipped (handle-it-for-the-goal → instructed),25,51,8.0,17.4,0.001
-R4b flipped (general licence → permitted),22,54,9.4,18.3,0.036
+R4b flipped (general licence → permitted),23,53,9.1,18.0,0.022
 D2 gate at ≥ 2,21,55,20.7,27.8,0.007
 drop gate: unobservable,25,51,8.0,17.4,0.001
 drop gate: overlap,25,51,8.0,17.4,0.001
