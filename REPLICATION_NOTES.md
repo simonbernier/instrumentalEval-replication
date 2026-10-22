@@ -1569,8 +1569,15 @@ shuffling are unchanged.
     `nudge` (gpt-4o 15.8 → 21.1, deepseek-r1 34.2 → 46.0). IR (%), base / + oversight / + rules / + good cause /
     + nudge, all 76 vs Fable 15: gpt-4o 57.9 / 50.0 / 40.8 / 52.6 / 51.3 vs 66.7 / 46.7 / 26.7 / 46.7 / 33.3;
     deepseek-r1 52.6 / – / 75.0 / 77.6 / 76.3 vs 40.0 / – / 66.7 / 66.7 / 73.3. Every Fable-15 interval spans about
-    ±20 pp; no step-to-step contrast on the subset was tested. deepseek-r1 has no oversight step
-    (endpoint retired, see "Five-step decomposition").
+    ±20 pp; no step-to-step contrast on the subset was tested. deepseek-r1 has no oversight step (endpoint retired,
+    see "Five-step decomposition"); its lines bridge the gap. Error bars are 95% Wilson intervals (stated in the
+    caption, not the legend).
+  - Post hoc check (2026-10-22), are gpt-4o's drops refusals? Per-task transitions, Table 6c's refusal heuristic
+    (`tables.is_refusal`): base → + oversight (−7.9 pp; Fable −20.0) has no refusal at either step, so none of it;
+    + oversight → + rules (−9.2 pp) loses 11 convergent tasks, 3 of them to refusals (on Fable all 3 losses are
+    plain no-convergence); + good cause → + nudge on Fable (−13.3 pp) is 2 convergent tasks turned refusals, while
+    on all 76 the 5 such refusals are offset by gains (−1.3 pp). Refusal rates, all 76: 0 / 0 / 10.5 / 5.3 / 11.8 %;
+    Fable 15: 0 / 0 / 13.3 / 0 / 20.0 %. deepseek-r1 refuses at most once per arm.
 
 ## Capability ordering (not in the paper): the x-axis order of Figure 1 (data/capability_scores.csv)
 

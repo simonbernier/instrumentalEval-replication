@@ -544,8 +544,8 @@ FABLE_GOOD_TASKS = ("ES-14", "ES-15", "ES-16", "ES-18", "ES-20", "HC-01", "HB-02
 
 # Figure 8 (b, c): the two models with both a stored ablation and the paper's Table 3, one panel each, in panel (a)'s
 # code: dark = all 76 tasks, light = FABLE_GOOD_TASKS, red diamond = the paper. The two task sets sit left / right of
-# each step so their intervals never overlap.
-ABLATION_MODELS = ("gpt-4o", "deepseek-r1")
+# each step so their intervals never overlap. Value: the legend's corner, the one each panel's data leaves empty.
+ABLATION_MODELS = {"gpt-4o": "upper right", "deepseek-r1": "lower right"}
 
 
 def label_y(lines: list[tuple[list[float], list[float]]], placed: list[tuple[float, float, float]], x0: float,
@@ -618,8 +618,7 @@ def figure8(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
                                  label=f"{fam} models, {name} (avg {sum(y) / len(y):.1f})"))
     on_paper = [m for m in models if m in paper and not TEST_MODELS[m].substitute]
     ax.plot([xs[m] - 0.2 for m in on_paper], [paper[m]["ir"] for m in on_paper], zorder=6, **PAPER_MARKER)
-    handles += [Line2D([], [], **PAPER_MARKER, label="paper (Table 1, all 76 tasks)"),
-                Line2D([], [], color=INK, linewidth=1, label="95% Wilson interval")]
+    handles.append(Line2D([], [], **PAPER_MARKER, label="paper (Table 1, all 76 tasks)"))
     style_axes(ax, "IR (%)")
     ax.set_ylim(0, 132)  # headroom for the legend; the axis itself stops at 100
     ax.spines["left"].set_bounds(0, 100)
@@ -650,20 +649,21 @@ def figure8(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
             line = tint(color, w)
             pt = dict(marker=marker, markersize=6.5, markerfacecolor=line if w == 0 else tint(color, 0.62),
                       markeredgecolor="white" if w == 0 else color, markeredgewidth=0.8 if w == 0 else 1.3)
-            bx.plot(x, ys, color=line, linewidth=1.8, linestyle=ls, zorder=3)  # a missing step breaks the line
             have = [i for i, v in enumerate(steps) if v in kn]
+            # a missing step (deepseek-r1's oversight arm) is bridged; the note below marks it
+            lines.append(([x[i] for i in have], [ys[i] for i in have]))
+            bx.plot(*lines[-1], color=line, linewidth=1.8, linestyle=ls, zorder=3)
             cis = [wilson_ci(*kn[steps[i]]) for i in have]
             bx.errorbar([x[i] for i in have], [ys[i] for i in have],
                         yerr=[[ys[i] - lo for i, (lo, _) in zip(have, cis)], [hi - ys[i] for i, (_, hi) in zip(have, cis)]],
                         linestyle="none", ecolor=line, elinewidth=1.1, capsize=0, zorder=4, **pt)
-            lines.append((x, ys))
             # dark series labelled on its left, light series on its right, the light labels a shade darker than the line
             labels += [(x[i], ys[i], 1 if dx > 0 else -1, tint(color, 0.25) if w else color, 0.06) for i in have]
             handles.append(Line2D([], [], color=line, linewidth=1.8, linestyle=ls, label=name, **pt))
             if s is d:
                 for i, v in enumerate(steps):
                     if v not in kn:
-                        bx.text(i, 62, f"no {m} run\n(endpoint retired)", ha="center", va="center", fontsize=7.5,
+                        bx.text(i, 18, f"no {m} run\n(endpoint retired)", ha="center", va="center", fontsize=7.5,
                                 color=INK_2, style="italic")
         # the paper's values are over all 76 tasks: on the dark series' side, as in panel (a)
         px, py = [i - 0.12 for i in range(len(steps))], [math.nan] * len(steps)
@@ -676,16 +676,13 @@ def figure8(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
             bx.text(xi + side * off, label_y(lines, placed, xi, yi, side, off), f"{yi:.1f}",
                     ha="left" if side > 0 else "right", va="center", fontsize=7.5, color=c, fontweight="bold",
                     zorder=6, bbox={"facecolor": "white", "edgecolor": "none", "pad": 0.6})
-        handles += [Line2D([], [], color=paper_red, linewidth=1.2, label="paper (Table 3, all 76 tasks)",
-                           **PAPER_MARKER | {"linestyle": (0, (1.5, 1.5))}),
-                    Line2D([], [], color=INK_2, linewidth=1.1, label="95% Wilson interval")]
+        handles.append(Line2D([], [], color=paper_red, linewidth=1.2, label="paper (Table 3, all 76 tasks)",
+                              **PAPER_MARKER | {"linestyle": (0, (1.5, 1.5))}))
         style_axes(bx, "IR (%)" if col == 0 else None)
-        bx.set_ylim(0, 125)  # headroom for the legend; the axis itself stops at 100
-        bx.spines["left"].set_bounds(0, 100)
         bx.tick_params(labelleft=col == 0)
         bx.set_xlim(-0.55, len(steps) - 0.45)
         bx.set_xticks(range(len(steps)), [s[0] for s in PROMPT_STEPS], fontsize=8.5, linespacing=1.15)
         bx.set_title(title, loc="left", fontsize=10, color=INK, fontweight="bold")
-        bx.legend(handles=handles, loc="upper center", ncol=2, frameon=True, framealpha=0.95, edgecolor=GRID,
-                  fontsize=8.5, handlelength=3.2, columnspacing=1.2)
+        bx.legend(handles=handles, loc=ABLATION_MODELS[m], frameon=True, framealpha=0.95, edgecolor=GRID, fontsize=8.5,
+                  handlelength=3.2)
     return save(fig, out_dir, f"figure8_{judge}")
