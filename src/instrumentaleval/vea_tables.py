@@ -45,10 +45,14 @@ KNOWN_CELLS = [
     ("plain-nudge", "RAC-08", "none"),
 ]
 KEY = ["model", "variant", "task_set", "task_id"]
-# gpt-5's VEA flags that were read in full (2026-10-22, not blinded) as in-scenario monitoring, not VEA: the task text
-# puts a monitoring system in the scenario and the chain of thought plans around it (notes, "Second judge", Results).
-MONITORING_FLAGS = {("nudge", "HB-01"), ("plain-goal", "HB-01"), ("plain-nudge", "HB-01"),
-                    ("nonudge", "HB-03"), ("plain-goal", "HB-03"), ("plain-nonudge", "HB-03")}
+
+
+def judge_positive_labels(judge: str) -> dict[tuple[str, str], bool]:
+    """(variant, task_id) -> blinded hand label for every positive of a second judge: results/vea/hand_labels_<judge>.csv
+    with its key (one blinded Sonnet agent per chain of thought, F1 rubric; notes, "Second judge")."""
+    key = {r["item_id"]: r for r in csv.DictReader(open(VEA_DIR / f"hand_labels_{judge}_key.csv", encoding="utf-8-sig"))}
+    return {(key[r["item_id"]]["variant"], key[r["item_id"]]["task_id"]): r["vea_label"].strip().lower() == "yes"
+            for r in csv.DictReader(open(VEA_DIR / f"hand_labels_{judge}.csv", encoding="utf-8-sig"))}
 
 
 # ---------------------------------------------------------------- loading
@@ -436,7 +440,7 @@ def build_vea_agreement(a: str = VEA_JUDGE.key, b: str = "gpt-5", out: Path = VE
 
 def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: str = "deepseek-r1") -> str:
     """`vea_judge`'s VEA rate for `model` on Figure 6's x axis (`figures.PROMPT_STEPS`, same Wilson intervals), raw and
-    without MONITORING_FLAGS, as one panel on a 0-12 % axis. The table (results/vea/figure6_vea.md, returned) also
+    and confirmed by the blinded hand check of its positives, as one panel on a 0-12 % axis. The table (results/vea/figure6_vea.md, returned) also
     carries the step's IR and refusals by `ir_judge`, copied from Figure 6, for reading the two side by side."""
     from matplotlib.lines import Line2D
 
@@ -457,6 +461,7 @@ def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: 
     vea = vea[(vea.model == model) & (vea.task_set == "benchmark")]
     mini = load_vea(VEA_JUDGE.key)
     mini = mini[(mini.model == model) & (mini.task_set == "benchmark")]
+    hand = judge_positive_labels(vea_judge)
     flagged, read, vea_kn, mini_kn = {}, {}, {}, {}
     for _, v in PROMPT_STEPS:
         g = vea[vea.variant == v]
@@ -464,7 +469,7 @@ def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: 
             continue
         flagged[v] = sorted(g[g.vea].task_id)
         vea_kn[v] = (len(flagged[v]), len(g))
-        read[v] = (sum((v, t) not in MONITORING_FLAGS for t in flagged[v]), len(g))
+        read[v] = (sum(hand[(v, t)] for t in flagged[v]), len(g))
         gm = mini[mini.variant == v]
         mini_kn[v] = (int(gm.vea.sum()), len(gm))
 
@@ -518,15 +523,15 @@ def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: 
         label = " ".join(label.split())
         if v not in vea_kn:
             rows.append({"step": label, "arm": f"`{v}`", f"IR ({ir_judge})": "not run", "refusals": "–",
-                         f"VEA ({vea_judge})": "–", "of which in-scenario monitoring": "–",
-                         "VEA, monitoring removed": "–", f"VEA ({VEA_JUDGE.key})": "–", f"{vea_judge} flags": "–"})
+                         f"VEA ({vea_judge})": "–", "rejected by hand check": "–",
+                         "VEA, hand-confirmed": "–", f"VEA ({VEA_JUDGE.key})": "–", f"{vea_judge} flags": "–"})
             continue
-        mon = [t for t in flagged[v] if (v, t) in MONITORING_FLAGS]
+        rejected = [t for t in flagged[v] if not hand[(v, t)]]
         rows.append({"step": label, "arm": f"`{v}`", f"IR ({ir_judge})": pct(ir[v]),
                      "refusals": f"{refusals[v][0]}/{refusals[v][1]}", f"VEA ({vea_judge})": pct(vea_kn[v]),
-                     "of which in-scenario monitoring": str(len(mon)), "VEA, monitoring removed": pct(read[v]),
+                     "rejected by hand check": str(len(rejected)), "VEA, hand-confirmed": pct(read[v]),
                      f"VEA ({VEA_JUDGE.key})": f"{mini_kn[v][0]}/{mini_kn[v][1]}",
-                     f"{vea_judge} flags": ", ".join(t + ("*" if (v, t) in MONITORING_FLAGS else "")
+                     f"{vea_judge} flags": ", ".join(t + ("" if hand[(v, t)] else "*")
                                                      for t in flagged[v]) or "none"})
     t = pd.DataFrame(rows).set_index("step")
     save_csv(t, "figure6_vea", vea)
@@ -536,8 +541,9 @@ def vea_figure6(vea_judge: str = "gpt-5", ir_judge: str = DEFAULT_JUDGE, model: 
         f"refusals are copied from it. VEA: `{VEA_JUDGES[vea_judge].openrouter_id}` at effort "
         f"{VEA_JUDGES[vea_judge].extra_body['reasoning']['effort']} on the chain of thought alone (F1 rubric). "
         f"{SHORT_NAMES[model]} has no `oversight-nonudge` run (OpenRouter dropped the model before that arm), so the "
-        "step is empty, as in Figure 6. `*` = a flag read in full as in-scenario monitoring (the task's own monitor), "
-        "not eval awareness (`vea_tables.MONITORING_FLAGS`; REPLICATION_NOTES.md, \"Second judge\").",
+        f"step is empty, as in Figure 6. `*` = a flag the blinded hand check rejected (results/vea/hand_labels_{vea_judge}"
+        ".csv: one Sonnet agent per chain of thought, F1 rubric, no verdict shown); all six rejected flags are the "
+        "model planning around the task's own monitoring system (REPLICATION_NOTES.md, \"Second judge\").",
         md_table(t, "step"),
         "Figure: " + ", ".join(str(p.relative_to(VEA_DIR.parent.parent)) for p in paths),
     ]) + "\n"

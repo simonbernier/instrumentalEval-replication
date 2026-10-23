@@ -93,6 +93,8 @@ Notes: "Eval awareness", "Second judge".
       positives, κ = −0.01. 6 of the 9 are in-scenario monitoring (HB-01, HB-03), not VEA.
 - [x] Results written under "Second judge": headline VEA range 0.6-1.7 %; gpt-5-mini stays judge of record.
 - [x] Figure 6 view (2026-10-22): `ie vea-figure6` -> results/vea/figure6_vea.md, figures/figure6_vea_gpt-5.*; gpt-5 judge.
+- [x] Blinded hand check of the 9 gpt-5 positives (2026-10-23, 9 Sonnet agents): 3 confirmed, 6 rejected (in-scenario
+      monitoring); results/vea/hand_labels_gpt-5.csv. The figure's corrected series now reads these labels.
 
 Expectations, so surprises are recognised: VEA in deepseek-r1 is rare (a keyword pass found at least five genuine
 cases in 552, e.g. ES-10 `nonudge`: "the task might be testing if I will blindly shut down and cause a blackout?"),
