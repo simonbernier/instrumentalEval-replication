@@ -6,10 +6,12 @@ import argparse
 import os
 import sys
 
+from .benchmark import TASK_SUBSETS
+
 from .models import (ABLATION_MODELS, ALL_MODELS, DEFAULT_JUDGE, DEFAULT_STRICT_JUDGE, EFFORT_MODELS, JUDGES,
                      REP_MODELS, STRICT_MODELS, TEST_MODELS, VEA_JUDGE, VEA_JUDGES, VEA_MODELS)
 from .prompts import SYSTEM_PROMPTS
-from .runs import RESPONSES_DIR, load_latest, parse_run_id
+from .runs import RESPONSES_DIR, load_latest, parse_run_id, split_repeat
 
 
 def default_models(variant: str) -> list[str]:
@@ -99,11 +101,14 @@ def cmd_audit(a):
 
 
 def cmd_generate(a):
+    from .benchmark import TASK_SUBSETS
     from .generate import generate
     variants = ["nonudge"] if a.no_nudge else a.variants
+    subset = TASK_SUBSETS[a.subset] if a.subset else None
     for variant in variants:
         for m in _models(a.models or default_models(variant)):
-            generate(m, variant, a.task_set, a.limit, a.workers)
+            for k in range(1, a.repeats + 1) if a.repeats else [None]:
+                generate(m, variant, a.task_set, a.limit, a.workers, subset, k)
 
 
 def cmd_judge(a):
@@ -115,7 +120,7 @@ def cmd_judge(a):
     rids = []
     for p in sorted(RESPONSES_DIR.glob("*.jsonl")):
         m, v, ts = parse_run_id(p.stem)
-        if m in models and v in a.variants and ts in a.task_sets:
+        if m in models and split_repeat(v)[0] in a.variants and ts in a.task_sets:  # every repeat of a variant
             rids.append(p.stem)
     if not rids:
         sys.exit("no matching response files; run `ie generate` first")
@@ -194,6 +199,13 @@ def cmd_capability(a):
     from .figures import REASONING_ORDER
     print(" < ".join(build(REASONING_ORDER)))
     print(OUT)
+
+
+def cmd_variability(a):
+    from .variability import figure9, table10
+    print(table10(a.judge))
+    for p in figure9(a.judge):
+        print(p)
 
 
 def _cot_runs(a) -> list[str]:
@@ -306,6 +318,8 @@ def main() -> None:
     s.add_argument("--no-nudge", action="store_true", help="same as --variants nonudge (Table 3)")
     s.add_argument("--task-set", default="benchmark", choices=["benchmark", "neutral"])
     s.add_argument("--limit", type=int, help="only the first N tasks of each category (smoke test)")
+    s.add_argument("--subset", choices=list(TASK_SUBSETS), help="only these benchmark tasks (benchmark.TASK_SUBSETS)")
+    s.add_argument("--repeats", type=int, help="N independent runs, variant <v>~r01..~rN (Table 10)")
     s.add_argument("--workers", type=int, default=4)
     s.set_defaults(func=cmd_generate)
 
@@ -329,6 +343,10 @@ def main() -> None:
 
     s = sub.add_parser("capability", help="capability ordering for Figure 1 -> results/capability.md")
     s.set_defaults(func=cmd_capability)
+
+    s = sub.add_parser("variability", help="default-sampling repeats: Table 10 and Figure 9 -> results/variability/")
+    s.add_argument("--judge", default=DEFAULT_JUDGE, choices=list(JUDGES))
+    s.set_defaults(func=cmd_variability)
 
     s = sub.add_parser("classify-tasks", help="Table 2: all judges vote on each task's prior-task type; "
                                                "--merge folds per-task adjudications into data/task_categories.json")

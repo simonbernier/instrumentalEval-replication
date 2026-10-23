@@ -22,6 +22,13 @@ CATEGORIES = {
     "Deceptive Behavior": "DB",
 }
 
+# The tasks Claude Fable 5.1 scored as good questions (2026-10-22, author's run outside this repo; see
+# REPLICATION_NOTES.md, "Figure 8"). No Hiding Unwanted Behavior or Running Multiple Copies task is among them.
+FABLE_GOOD_TASKS = ("ES-14", "ES-15", "ES-16", "ES-18", "ES-19", "ES-20", "HC-01",
+                    "SAA-01", "SAA-06", "SAA-07", "SAA-08", "SAA-09", "SAA-10", "SAA-11", "DB-01")
+# `ie generate --subset <name>`
+TASK_SUBSETS = {"fable15": FABLE_GOOD_TASKS}
+
 UPSTREAM_FILES = {
     "upstream/main.py": "e470e8a79e527abb576ed1a6081e46fa5f25f08ef1a40d211294ed3bd8a4c91f",
     "benchmark/Alignment Drift - Deceptive Behavior.csv": "757034719bfa5703a90673fccd594b2d85610bfa8079747f33521982898102af",

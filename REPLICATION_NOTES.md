@@ -1582,7 +1582,7 @@ Table 8 is now the same under every hash seed. Only one row moved: R4b flipped, 
   earlier version split Figure 1's panel by the audit labels; dropped). Three panels, all descriptive:
   - (a) Figure 1's overall IR (nudge, Figure 1's eight models), each model's bar on all 76 tasks (with the paper's
     Table 1 diamond) beside a lighter bar on the 15 tasks Claude Fable 5.1 scored as good questions in a separate run
-    by the author (prompt and outputs not in this repo; list in `figures.FABLE_GOOD_TASKS`: ES-14, -15, -16, -18,
+    by the author (prompt and outputs not in this repo; list in `benchmark.FABLE_GOOD_TASKS`: ES-14, -15, -16, -18,
     -19, -20; HC-01; SAA-01, -06 to -11; DB-01). The list was replaced the same day when Fable 5.1 revised its choice
     (first list: ES-14, -15, -16, -18, -20; HC-01; HB-02, -04, -08; SAA-06 to -11; family averages then RLHF 53.3,
     RL 57.3). Family averages, all / Fable 15: RLHF 60.1 / 55.6, RL 57.4 / 62.7.
@@ -1602,6 +1602,110 @@ Table 8 is now the same under every hash seed. Only one row moved: R4b flipped, 
     losses are plain no-convergence); + good cause → + nudge on Fable (−6.7 pp) is 1 convergent task turned refusal,
     while on all 76 the 5 such refusals are offset by gains (−1.3 pp). Refusal rates, all 76: 0 / 0 / 10.5 / 5.3 /
     11.8 %; Fable 15: 0 / 0 / 13.3 / 0 / 6.7 %. deepseek-r1 refuses at most once per arm.
+
+## Default-sampling repeats (not in the paper): run-to-run variability on the 15 Fable tasks (Table 10, Figure 9)
+
+**Status:** pre-registered on 2026-10-23 in the commit that adds this section, before any repeat was generated (the
+only network traffic so far was reading OpenRouter's public endpoint listings and the vendors' documentation). Commit
+it before `ie generate ... --repeats`; add the results under "Results" below.
+
+**Question.** Every stored rate is a single run at upstream's T = 0, and Figure 8's subset rates rest on 15 tasks ×
+1 run. Two things are unknown: (1) how far one run's IR on these tasks moves when the request is repeated under the
+sampling settings the vendors publish as defaults, which is how the models are normally used; (2) whether Figure 8's
+model ordering and the shape of its prompt-step lines (panels b, c) survive repeated sampling. The author asked for
+ten repeats per cell with each vendor's own sampling defaults and the reasoning settings of the stored runs, and
+for the five prompt steps on gpt-4o and DeepSeek-R1.
+
+### Design
+
+- **Arms** (`models.SAMPLING_MODELS`, separate model keys `<model>@default`; reasoning exactly as in the stored run,
+  checked by `tests/test_variability.py`):
+
+  | Arm | Sampling sent | Source (accessed 2026-10-23) | Reasoning | Cap |
+  |---|---|---|---|---|
+  | gpt-4o@default | T = 1.0 | OpenAI API spec, `temperature` `default: 1` (github.com/openai/openai-openapi, openapi.yaml); OpenAI publishes no other recommendation | none | 16 384 (model max) |
+  | qwen-2.5-72b@default | T = 0.7, top_p 0.8, top_k 20, repetition_penalty 1.05 | Qwen's `generation_config.json` (huggingface.co/Qwen/Qwen2.5-72B-Instruct) | none | 16 384 (endpoint max) |
+  | deepseek-v3@default | T = 0.3 | DeepSeek-V3-0324 model card, "Temperature": the model temperature in DeepSeek's app is 0.3, and their API maps the default API T = 1.0 to model T = 0.3 (huggingface.co/deepseek-ai/DeepSeek-V3-0324). Judgment call, see below | none | 16 000 (endpoint max) |
+  | deepseek-r1-0528@default | T = 0.6, top_p 0.95 | DeepSeek-R1-0528 `generation_config.json` and model card ("temperature of 0.6, a top-p value of 0.95") | `reasoning.max_tokens` 8000, as stored deepseek-r1 | 32 000 |
+  | gemini-2.5-flash@default | T = 1.0, top_p 0.95 | Vertex AI model page for Gemini 2.5 Flash: "Temperature: 0.0-2.0 (default 1.0)", "topP: 0.0-1.0 (default 0.95)", topK 64 fixed | `reasoning.max_tokens` 8000, as stored | 32 000 |
+  | o1@default, o3-mini@default, o4-mini@default | nothing (the API rejects `temperature`; sampling is fixed by OpenAI) | — | default effort (medium), as stored | 32 000 |
+
+  The repo's other settings are unchanged: same OpenRouter ids as the stored runs, open-weight providers at fp8 or
+  better (`OPEN_WEIGHT_PROVIDER`). New: `provider.require_parameters` for the open-weight arms and Gemini, so
+  OpenRouter cannot route a request to a provider that would silently drop a sampling parameter (not for gpt-4o,
+  whose Azure endpoint lists no `max_tokens`, as in the stored run). Providers that qualify today: qwen DeepInfra
+  fp8 only (the stored run was Novita 40 / DeepInfra 36, Novita has left), deepseek-v3 StreamLake (as stored),
+  r1-0528 SiliconFlow fp8 or StreamLake (DeepInfra is fp4), Gemini Google AI Studio (stored: "Google").
+- **Why T = 0.3 for deepseek-v3.** OpenRouter's `deepseek/deepseek-chat` is the original DeepSeek-V3 checkpoint
+  served from raw weights by StreamLake, which applies no API-to-model temperature mapping. The original V3 card gives
+  no sampling recommendation (its demo command uses 0.7 as an example); DeepSeek's API default of 1.0 is on their
+  mapped scale and corresponds to a model temperature of 0.3, the value DeepSeek states it uses in its own products
+  for the V3 line. Sending 1.0 to StreamLake would sample hotter than DeepSeek ever serves the model.
+- **Prompts, tasks, repeats.** `nudge` (upstream's prompt) for all eight arms; the other four steps of Figure 6
+  (`plain-nonudge`, `oversight-nonudge`, `nocause-nonudge`, `nonudge`) for gpt-4o@default and deepseek-r1-0528@default
+  (`models.SAMPLING_ABLATION_MODELS`). The 15 tasks of `benchmark.FABLE_GOOD_TASKS` (`--subset fable15`). Ten
+  repeats (`models.SAMPLING_REPEATS`), each an independent request without a seed, each its own response file
+  (`<model>__<variant>~rNN__benchmark.jsonl`, `runs.repeat_variant`), so "last record per task wins" keeps every
+  repeat. Why ten: the per-model rate's standard error is dominated by the 15 tasks, not by the repeats (≈ 13 pp
+  with one run, ≈ 9 pp with 10, ≈ 8.5 pp with 20 at IR ≈ 50 %), and ten repeats estimate one run's SD to about
+  ±25 % (9 df).
+- **Judge:** `gpt-4o` with upstream's prompts at T = 0, unchanged, so that the variability measured is the test
+  model's and not the judge's.
+- **Deviation, accepted by the author (2026-10-23): deepseek-r1-0528 for deepseek-r1** in this experiment only. Every
+  `deepseek/deepseek-r1` endpoint is gone (see "Five-step decomposition"); -0528 is a later checkpoint, so its rows are
+  compared with the stored deepseek-r1 run only descriptively and are labelled as a different model. It also gives
+  the R1 line an oversight step, which the stored line lacks.
+- **Isolation.** The arms are not in `TEST_MODELS`, so Tables 1–9 and Figures 1–8 never see them. `ModelSpec` gained
+  a `temperature` field (default 0.0) that is recorded in `prompt_config` exactly where the stored runs keep their
+  T = 0; checked before this commit: 0 of 5,354 stored records would be regenerated.
+- **Smoke test, then the full run.** `ie generate --models <8 arms> --subset fable15 --limit 1 --repeats 2` plus the
+  four extra steps for the two ablation arms (the first task of each category in the subset: ES-14, HC-01, SAA-01,
+  DB-01; 128 calls), judged and read before the full run: no rejected parameter, providers as listed, cap hits,
+  repeats 1 and 2 not identical, o-series reasoning tokens near the stored runs', and the cost projection. Those
+  responses are made with the final settings and stay as repeats 1-2 of those four tasks.
+- **Size and cost:** 8 × 15 × 10 = 1,200 generations at `nudge` + 2 × 4 × 15 × 10 = 1,200 at the other steps, and
+  2,400 judge calls. From the stored runs' token counts on these tasks: ≈ $23 (o1 ≈ $11, judge ≈ $5, deepseek-r1 ≈
+  $3, which -0528's longer reasoning may double). If the smoke test projects more than $60, stop and report first.
+
+### Pre-registered analysis (`ie variability` → results/variability/tables.md, tables/, Figure 9)
+
+The unit of inference is the task (15 clusters; all repeats of a task stay together), rates are on valid answers
+(upstream's rule), and everything except R4 is descriptive.
+
+- **Preconditions (Table 10a), read before any IR.** (P1) Sampling happened: in each arm at least 50 % of the tasks
+  with two or more valid answers have not-all-identical responses; an arm that fails is reported as "not sampled"
+  and left out of R1-R3. (P2) Effort kept: each o-series arm's median reasoning tokens lie within ×2/3 to ×3/2 of the
+  stored run's median on the same 15 tasks; an arm that fails is reported as "effort moved" and its comparison with
+  the stored run is not interpreted. Empty answers, errors, cap hits, providers and heuristic refusals are counted per
+  arm.
+- **R1 (the main result): run-to-run spread.** Per model at `nudge`: IR pooled over the ten repeats with a 95 % task
+  bootstrap CI (`stats.cluster_bootstrap_ci`); each repeat's 15-task IR, its mean, SD and range; the number of tasks
+  that converge in every, some or no repeat (Table 10b), and the task × model grid of convergent repeats (10c). The
+  repeat SD is the answer to "how far does one run move".
+- **R2: is the stored single T = 0 run representative?** Per model, whether the stored IR on the 15 tasks lies within
+  the range of the ten repeats, and the Spearman ρ between the eight stored and pooled rates (the R1 pair compares two
+  checkpoints). Descriptive; temperature, completion cap and (qwen) provider all differ between the two.
+- **R3: families.** RL − RLHF as the mean of model rates (five RL, three RLHF), pooled over repeats, with a 95 % CI
+  from resampling tasks (`variability.family_gap`). Stored value on the subset for comparison: 62.7 − 55.6 = +7.1 pp.
+  Descriptive: with models fixed, a CI that excludes 0 speaks for these eight models on these 15 tasks only.
+- **R4 (the only tests): prompt steps.** For gpt-4o@default and deepseek-r1-0528@default, the four adjacent-step
+  contrasts each (base → + oversight → + rules → + good cause → + nudge): Δ = mean over the 15 tasks of the per-task
+  difference in convergence rate across repeats, two-sided sign-flip p over tasks (`stats.sign_flip_test`, 20,000
+  draws, seed 0), Holm over all eight contrasts; "changes IR" if Holm p < 0.05, else "no change detected" (Table
+  10e). Read against the stored T = 0 lines on the subset (Figure 8): gpt-4o 66.7 / 46.7 / 20.0 / 46.7 / 40.0,
+  deepseek-r1 46.7 / – / 60.0 / 66.7 / 66.7. Refusal rate per step (`tables.is_refusal`), descriptive, to see whether
+  gpt-4o's fall at "+ 7 rules" is again plain no-convergence, as in the stored subset, or refusals, as on all 76.
+- **Power, stated in advance.** With per-task rate differences of SD ≈ 0.3 the SE of Δ is ≈ 8 pp over 15 tasks, so an
+  adjacent step needs a shift of roughly 25-30 pp to pass Holm over eight; smaller shifts come out as "no change
+  detected", which is not evidence that the step does nothing.
+- **What this cannot say.** The 15 tasks were picked after the stored runs were judged (Figure 8), so nothing here
+  generalises to the benchmark; inference is to tasks like these 15. Default sampling versus T = 0 changes several
+  things at once (temperature, cap, for qwen the provider, for R1 the checkpoint), so R2 describes, it does not
+  attribute.
+
+### Results
+
+Not run yet.
 
 ## Capability ordering (not in the paper): the x-axis order of Figure 1 (data/capability_scores.csv)
 

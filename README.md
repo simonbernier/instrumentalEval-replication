@@ -114,6 +114,16 @@ uv run ie strict-judge --runs --task-sets benchmark neutral   # default judge: c
 uv run ie strict-judge --runs --judges gpt-4o gemini-2.5-flash --task-sets benchmark neutral
 uv run ie tables                         # Table 9
 uv run ie figures --strict               # Figure 1 under the strict judge -> results/figures/figure1_strict-claude-sonnet-4.*
+
+# 14. Default-sampling repeats (not in the paper; REPLICATION_NOTES.md, "Default-sampling repeats"): the Figure 8
+#     models with each vendor's sampling defaults, 10 repeats on the 15 Fable tasks; gpt-4o and deepseek-r1-0528 also
+#     on the five prompt steps. Commit the pre-registration first; the smoke test (--limit 1 --repeats 2) comes first.
+D="gpt-4o@default qwen-2.5-72b@default deepseek-v3@default deepseek-r1-0528@default o3-mini@default gemini-2.5-flash@default o1@default o4-mini@default"
+uv run ie generate --models $D --subset fable15 --repeats 10
+uv run ie generate --models gpt-4o@default deepseek-r1-0528@default --subset fable15 --repeats 10 \
+    --variants plain-nonudge oversight-nonudge nocause-nonudge nonudge
+uv run ie judge --models $D --variants nudge plain-nonudge oversight-nonudge nocause-nonudge nonudge
+uv run ie variability                    # Table 10 -> results/variability/tables.md, tables/; Figure 9 -> figures/
 ```
 
 Once `DEFAULT_JUDGE` is set in step 4, `ie judge`, `ie tables` and `ie figures` all default to the chosen judge, so
@@ -135,6 +145,7 @@ steps 6 and 7 need no `--judge` flags.
 | `data/task_classification_votes.{json,md}` | the three judges' prior-task-type votes and rationales for every benchmark task, side by side |
 | `data/task_categories.json` | adjudicated task to prior-task-type mapping for Table 2 (one independent adjudicator per task, then a consistency review and a hand check) |
 | `data/task_audit_rubric.md`, `src/instrumentaleval/audit.py` | the task-audit rubric (what each item can measure) and its judge pass; votes in `data/task_audit_votes.{json,md}`, adjudicated scores in `data/task_audit.json` (Table 8) |
+| `src/instrumentaleval/variability.py` | default-sampling repeats (not upstream): Table 10 and Figure 9 in `results/variability/`; the arms are `models.SAMPLING_MODELS`, one response file per repeat (`<model>__<variant>~rNN__benchmark.jsonl`) |
 | `src/instrumentaleval/{strict,strict_eval}.py` | the strict three-way judge (not upstream): judging pass with retries and a freeze guard; metrics, probes, Rogan–Gladen correction and Table 9 |
 | `data/strict_label_guide.md`, `data/strict_probes.json`, `data/strict_split.json` | strict judge: gold-label guide, made-up probe responses with expected labels, dev/test split |
 | `data/paper_results.json` | the paper's Tables 1 and 3 as numbers (with task counts), for the Table 6 comparison |

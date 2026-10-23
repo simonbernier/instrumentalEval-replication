@@ -30,6 +30,8 @@ class ModelSpec:
     substitute: bool = False
     added: bool = False  # not in the paper at all
     send_temperature: bool = True
+    # Not in request_config(): generate.py records it in prompt_config, which is where the stored runs keep it.
+    temperature: float = TEMPERATURE_TEST
     max_tokens: int = MAX_TOKENS_TEST
     extra_body: dict = field(default_factory=dict)
     # What the stored `reasoning` field holds (checked in REPLICATION_NOTES.md, "Eval awareness"): "raw" = the
@@ -96,7 +98,49 @@ EFFORT_MODELS: dict[str, ModelSpec] = {
                                   extra_body={"reasoning": {"effort": effort}})
     for base in EFFORT_BASE_MODELS for effort in EFFORT_LEVELS
 }
-ALL_MODELS = TEST_MODELS | EFFORT_MODELS
+
+# Default-sampling repeats (Table 10, Figure 9, not in the paper; REPLICATION_NOTES.md, "Default-sampling repeats"):
+# the Figure 8 models with each vendor's published sampling defaults instead of upstream's T = 0, reasoning settings as
+# in the stored runs, ten repeats (`ie generate --repeats 10`) on the 15 Fable tasks (`--subset fable15`). Sources for
+# every value are in the notes. Kept out of TEST_MODELS like the sweep arms. deepseek-r1-0528 stands in for
+# deepseek-r1, whose endpoints are retired (deviation accepted by the author for this experiment only). The cap is
+# 32 000 or the endpoint's maximum output where that is lower; require_parameters keeps OpenRouter from routing to a
+# provider that would silently drop a sampling parameter (not for gpt-4o: Azure lists no max_tokens, as in the
+# stored run).
+SAMPLING_REPEATS = 10
+SAMPLING_MAX_TOKENS = 32000
+_HONOUR = OPEN_WEIGHT_PROVIDER | {"require_parameters": True}
+SAMPLING_MODELS: dict[str, ModelSpec] = {
+    m.key: m
+    for m in [
+        ModelSpec("gpt-4o@default", "openai/gpt-4o-2024-08-06", "", "RLHF", added=True, temperature=1.0,
+                  max_tokens=16384),
+        ModelSpec("qwen-2.5-72b@default", "qwen/qwen-2.5-72b-instruct", "", "RLHF", added=True, temperature=0.7,
+                  max_tokens=16384,
+                  extra_body={"top_p": 0.8, "top_k": 20, "repetition_penalty": 1.05, "provider": _HONOUR}),
+        ModelSpec("deepseek-v3@default", "deepseek/deepseek-chat", "", "RLHF", added=True, temperature=0.3,
+                  max_tokens=16000, extra_body={"provider": _HONOUR}),
+        ModelSpec("deepseek-r1-0528@default", "deepseek/deepseek-r1-0528", "", "RL", added=True, temperature=0.6,
+                  max_tokens=SAMPLING_MAX_TOKENS,
+                  extra_body={"top_p": 0.95, "reasoning": {"max_tokens": REASONING_BUDGET}, "provider": _HONOUR}),
+        ModelSpec("o3-mini@default", "openai/o3-mini", "", "RL", added=True, send_temperature=False,
+                  max_tokens=SAMPLING_MAX_TOKENS),
+        ModelSpec("gemini-2.5-flash@default", "google/gemini-2.5-flash", "", "RL", added=True, temperature=1.0,
+                  max_tokens=SAMPLING_MAX_TOKENS,
+                  extra_body={"top_p": 0.95, "reasoning": {"max_tokens": REASONING_BUDGET},
+                              "provider": {"require_parameters": True}}),
+        ModelSpec("o1@default", "openai/o1", "", "RL", added=True, send_temperature=False,
+                  max_tokens=SAMPLING_MAX_TOKENS),
+        ModelSpec("o4-mini@default", "openai/o4-mini", "", "RL", added=True, send_temperature=False,
+                  max_tokens=SAMPLING_MAX_TOKENS),
+    ]
+}
+# each arm -> the stored T = 0 run it is read against (Figure 8's light bars)
+SAMPLING_REFERENCE = {k: "deepseek-r1" if k.startswith("deepseek-r1") else k.partition("@")[0]
+                      for k in SAMPLING_MODELS}
+# the two models of Figure 8 (b, c) that also get the four other prompt steps
+SAMPLING_ABLATION_MODELS = ["gpt-4o@default", "deepseek-r1-0528@default"]
+ALL_MODELS = TEST_MODELS | EFFORT_MODELS | SAMPLING_MODELS
 
 
 def effort_of(key: str) -> tuple[str, str | None]:

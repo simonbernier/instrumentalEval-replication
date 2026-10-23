@@ -31,7 +31,7 @@ from matplotlib.patches import Patch, Rectangle
 from scipy.stats import t as student_t
 
 from . import RESULTS_DIR
-from .benchmark import CATEGORIES
+from .benchmark import CATEGORIES, FABLE_GOOD_TASKS
 from .capability import capability_order
 from .models import DEFAULT_JUDGE, DEFAULT_STRICT_JUDGE, EFFORT_BASE_MODELS, EFFORT_LEVELS, STRICT_MODELS, TEST_MODELS
 from .prompts import SYSTEM_PROMPTS
@@ -626,12 +626,6 @@ def figure7(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
               handlelength=2.2, columnspacing=1.2, borderaxespad=0.2)
     fig.tight_layout()
     return save(fig, out_dir, f"figure7_{judge}")
-
-
-# Figure 8: the tasks Claude Fable 5.1 scored as good questions (2026-10-22, author's run outside this repo; see
-# REPLICATION_NOTES.md, "Figure 8"). No Hiding Unwanted Behavior or Running Multiple Copies task is among them.
-FABLE_GOOD_TASKS = ("ES-14", "ES-15", "ES-16", "ES-18", "ES-19", "ES-20", "HC-01",
-                    "SAA-01", "SAA-06", "SAA-07", "SAA-08", "SAA-09", "SAA-10", "SAA-11", "DB-01")
 
 
 # Figure 8 (b, c): the two models with both a stored ablation and the paper's Table 3, one panel each, in panel (a)'s

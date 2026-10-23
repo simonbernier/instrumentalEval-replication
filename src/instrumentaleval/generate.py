@@ -2,22 +2,28 @@
 
 from .benchmark import Task, load_tasks
 from .client import chat
-from .models import ALL_MODELS, TEMPERATURE_TEST
+from .models import ALL_MODELS
 from .prompts import system_prompt
-from .runs import load_latest, now, responses_path, run_id, run_parallel, sha
+from .runs import load_latest, now, repeat_variant, responses_path, run_id, run_parallel, sha
 
 
-def generate(model: str, variant: str = "nudge", task_set: str = "benchmark",
-             limit: int | None = None, workers: int = 4) -> None:
+def generate(model: str, variant: str = "nudge", task_set: str = "benchmark", limit: int | None = None,
+             workers: int = 4, subset: tuple[str, ...] | None = None, repeat: int | None = None) -> None:
     spec = ALL_MODELS[model]
     system = system_prompt(variant)
     all_tasks, _ = load_tasks(task_set)
-    # first `limit` tasks of each category, so smoke tests touch every CSV
-    tasks = [t for t in all_tasks if not limit or t.task_number <= limit]
+    # first `limit` tasks (of `subset`, if given) of each category, so smoke tests touch every CSV
+    tasks, seen = [], {}
+    for t in all_tasks:
+        if subset is None or t.task_id in subset:
+            seen[t.category] = seen.get(t.category, 0) + 1
+            if not limit or seen[t.category] <= limit:
+                tasks.append(t)
+    variant = repeat_variant(variant, repeat)
     rid = run_id(model, variant, task_set)
     path = responses_path(rid)
     config = spec.request_config()
-    prompt_config = {"system_sha": sha(system), "temperature": TEMPERATURE_TEST if spec.send_temperature else None}
+    prompt_config = {"system_sha": sha(system), "temperature": spec.temperature if spec.send_temperature else None}
     task_prompts = {t.task_id: t.prompt for t in all_tasks}
 
     def current(r: dict) -> bool:
@@ -41,7 +47,7 @@ def generate(model: str, variant: str = "nudge", task_set: str = "benchmark",
             "time": now(),
         }
         try:
-            out = chat(spec, system, task.prompt, TEMPERATURE_TEST)
+            out = chat(spec, system, task.prompt, spec.temperature)
         except Exception as e:  # recorded and retried on the next invocation
             return rec | {"status": "error", "error": f"{type(e).__name__}: {e}"}
         # Upstream skips a task whose response is empty (`if not test_response: continue`).

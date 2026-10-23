@@ -270,6 +270,21 @@ cross-source ρ). `figures.REASONING_ORDER` is only the fallback while the CSV i
 Epoch reasoning run at our setting: it is placed by ECI against ECI (amendment A2, post hoc, backed by the AA
 index) and is tied with o3-mini. AA index rows for other model versions are kept with `usable=no`.
 
+## Current work: default-sampling repeats (Table 10, Figure 9)
+
+How far does one run move? The eight Figure 8 models with each vendor's published sampling defaults instead of
+upstream's T = 0 (`models.SAMPLING_MODELS`, keys `<model>@default`; reasoning as in the stored runs), ten repeats on
+the 15 Fable tasks (`benchmark.FABLE_GOOD_TASKS`, `--subset fable15`); gpt-4o and deepseek-r1-0528 also on Figure 6's
+five steps. **deepseek-r1-0528 stands in for deepseek-r1 here only** (author's deviation; never in Tables 1–9). Each
+repeat is its own run file, variant `<v>~rNN` (`runs.repeat_variant`); `ie judge --variants nudge` judges every
+repeat. Code: `variability.py` (Table 10a–e, Figure 9), `tests/test_variability.py`. Pre-registration, sources for
+every sampling value, decision rule: `REPLICATION_NOTES.md`, "Default-sampling repeats". Runbook: README step 14.
+
+- [x] Code, tests, pre-registration written (2026-10-23); 0/5,354 stored records affected by `ModelSpec.temperature`.
+- [ ] Pre-registration committed before any repeat is generated.
+- [ ] Smoke test (`--limit 1 --repeats 2`, 128 calls) judged and read: parameters accepted, providers, P1/P2, cost.
+- [ ] Full run (2,400 generations + 2,400 judge calls, ≈ $25-35) and `ie variability`; Results filled.
+
 ## Things that look like bugs but aren't
 
 - `ie status` / `ie vea-judge` report "nothing to do": the stored records are current; that's resumability working.

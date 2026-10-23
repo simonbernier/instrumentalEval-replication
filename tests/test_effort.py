@@ -8,15 +8,16 @@ from instrumentaleval import tables
 from instrumentaleval.benchmark import CATEGORIES
 from instrumentaleval.cli import default_models
 from instrumentaleval.models import (
-    ALL_MODELS, EFFORT_BASE_MODELS, EFFORT_LEVELS, EFFORT_MODELS, MAX_TOKENS_TEST, SWEEP_REASONING_BUDGET,
-    TEST_MODELS, effort_of,
+    ALL_MODELS, EFFORT_BASE_MODELS, EFFORT_LEVELS, EFFORT_MODELS, MAX_TOKENS_TEST, SAMPLING_MODELS,
+    SWEEP_REASONING_BUDGET, TEST_MODELS, effort_of,
 )
 from instrumentaleval.prompts import SYSTEM_PROMPTS
 
 
 def test_effort_registry():
     assert list(EFFORT_MODELS) == [f"{b}@{e}" for b in EFFORT_BASE_MODELS for e in EFFORT_LEVELS]
-    assert not set(EFFORT_MODELS) & set(TEST_MODELS) and set(ALL_MODELS) == set(TEST_MODELS) | set(EFFORT_MODELS)
+    assert not set(EFFORT_MODELS) & set(TEST_MODELS) and set(ALL_MODELS) == set(TEST_MODELS) | set(EFFORT_MODELS) | set(
+        SAMPLING_MODELS)
     for key, spec in EFFORT_MODELS.items():
         base, effort = effort_of(key)
         assert spec.openrouter_id == TEST_MODELS[base].openrouter_id and spec.family == "RL" and spec.added
