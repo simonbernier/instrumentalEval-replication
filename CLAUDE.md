@@ -281,9 +281,12 @@ repeat. Code: `variability.py` (Table 10a–e, Figure 9), `tests/test_variabilit
 every sampling value, decision rule: `REPLICATION_NOTES.md`, "Default-sampling repeats". Runbook: README step 14.
 
 - [x] Code, tests, pre-registration written (2026-10-23); 0/5,354 stored records affected by `ModelSpec.temperature`.
-- [ ] Pre-registration committed before any repeat is generated.
-- [ ] Smoke test (`--limit 1 --repeats 2`, 128 calls) judged and read: parameters accepted, providers, P1/P2, cost.
-- [ ] Full run (2,400 generations + 2,400 judge calls, ≈ $25-35) and `ie variability`; Results filled.
+- [x] Pre-registration committed before any repeat is generated (f82acb0, 2026-10-23).
+- [x] Smoke test (128 calls, 2026-10-23) judged and read: all ok, providers as planned, P1/P2 pass, projected $31.
+- [x] Full run (2026-10-23, ≈ $11.7): 1,950 responses, 0 errors; **OpenAI retired o1, o3-mini and o4-mini mid-run**
+      (404 "deprecated"), so those arms are incomplete and left out of 10b-10e (`variability._cells`, deviation in the
+      notes). R1: repeat SD 4.5-7.7 pp; R4: no step passes Holm. Results filled.
+- Author's decision (2026-10-23): **not used in the report** (five of eight models). Kept as a record only.
 
 ## Things that look like bugs but aren't
 
@@ -300,3 +303,16 @@ every sampling value, decision rule: `REPLICATION_NOTES.md`, "Default-sampling r
 - `ie generate`, `ie judge` and `ie status` handle `o4-mini@high`-style runs, but Tables 1–6 and Figures 1–6 never
   show them: the sweep arms live in `EFFORT_MODELS`, not `TEST_MODELS`, by design (Table 7 is where they appear).
 - Some pytest cases skip: they need `benchmark/*.csv` or `upstream/main.py` (`ie fetch`).
+- `o1@default`, `o3-mini@default`, `o4-mini@default` response files are full of `error` records (404 "deprecated"):
+  OpenAI shut the models down on 2026-10-23 (announced 2026-04-22). Re-running `ie generate` on them only adds more
+  errors; leave them.
+
+## Model shutdowns ahead (OpenAI deprecations page, checked 2026-10-23)
+
+Any new generation or judging with these must happen before the date; OpenRouter keeps listing a model after the
+shutdown, so check developers.openai.com/api/docs/deprecations, not OpenRouter, before planning a run.
+
+- **gpt-5** (frame judge, second VEA judge) and **gpt-5-mini** (VEA judge of record): shutdown **2026-12-11**
+  (replacements gpt-5.6-sol / gpt-5.6-terra).
+- **gpt-4o-2024-08-06** (test model and convergence judge of record for every table) and **gpt-4o-mini-2024-07-18**:
+  shutdown **2027-01-14** (replacement gpt-6-luna). After that, no new response can be judged with the same judge.

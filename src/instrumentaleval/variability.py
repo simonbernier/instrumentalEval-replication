@@ -19,7 +19,8 @@ from .benchmark import FABLE_GOOD_TASKS
 from .capability import capability_order
 from .figures import (FIGURE1_COLORS, GRID, INK, INK_2, PROMPT_STEPS, REASONING_ORDER, layout, plt, save, style_axes,
                       tint)
-from .models import DEFAULT_JUDGE, SAMPLING_ABLATION_MODELS, SAMPLING_MODELS, SAMPLING_REFERENCE, TEST_MODELS
+from .models import (DEFAULT_JUDGE, SAMPLING_ABLATION_MODELS, SAMPLING_MODELS, SAMPLING_REFERENCE, SAMPLING_REPEATS,
+                     TEST_MODELS)
 from .runs import JUDGMENTS_DIR, RESPONSES_DIR, load_latest, parse_run_id, sha, split_repeat
 from .stats import cluster_bootstrap_ci, holm, sign_flip_test
 from .tables import fmt, is_refusal, load_judgments, md_table
@@ -121,7 +122,12 @@ def reference_reasoning(model: str, step: str) -> float:
 
 
 def _cells(rep: pd.DataFrame, model: str, step: str) -> dict[tuple[int, str], int]:
+    """The judged cells of an arm, empty unless all SAMPLING_REPEATS repeats were judged: OpenAI retired o1, o3-mini
+    and o4-mini between the smoke test and the full run (2026-10-23), and their two smoke repeats on four tasks
+    must not stand in for an arm (notes, "Default-sampling repeats", Results)."""
     g = rep[(rep.model == model) & (rep.step == step) & rep.conv.notna()]
+    if g.repeat.nunique() < SAMPLING_REPEATS:
+        return {}
     return {(int(r.repeat), r.task_id): int(bool(r.conv)) for r in g.itertuples()}
 
 
@@ -152,6 +158,8 @@ def run_check(rep: pd.DataFrame) -> pd.DataFrame:
         med = float(rt.median()) if len(rt) else math.nan
         ref = reference_reasoning(SAMPLING_REFERENCE[model], step)
         flags = []
+        if g[g.conv.notna()].repeat.nunique() < SAMPLING_REPEATS:
+            flags.append(f"incomplete ({g[g.conv.notna()].repeat.nunique()}/{SAMPLING_REPEATS} repeats judged)")
         if not math.isnan(distinct) and distinct < MIN_DISTINCT_SHARE:
             flags.append("not sampled")
         if not SAMPLING_MODELS[model].send_temperature and not math.isnan(ref) and not (
@@ -340,5 +348,7 @@ def figure9(judge: str = DEFAULT_JUDGE) -> list:
         bx.set_xlim(-0.4, len(STEPS) - 0.6)
         bx.set_title(f"({'bc'[col]}) System-prompt steps: {m.removesuffix('@default')}", loc="left", fontsize=10,
                      color=INK, fontweight="bold")
-        bx.legend(loc="lower right", frameon=True, framealpha=0.95, edgecolor=GRID, fontsize=8.5)
+        # the corner each panel's data leaves empty (gpt-4o's stored line dips to 20 % at "+ 7 rules")
+        bx.legend(loc="upper right" if col == 0 else "lower right", frameon=True, framealpha=0.95, edgecolor=GRID,
+                  fontsize=8.5)
     return save(fig, VAR_DIR / "figures", f"figure9_{judge}")

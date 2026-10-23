@@ -1705,7 +1705,53 @@ The unit of inference is the task (15 clusters; all repeats of a task stay toget
 
 ### Results
 
-Not run yet.
+Run on 2026-10-23 (`ie variability`: results/variability/tables.md, tables/*.csv, figures/figure9_gpt-4o.*).
+
+**Author's decision (2026-10-23): not used in the report.** With the o-series lost mid-run, only five of the eight
+models are covered and the RL family is two models, so the author does not consider the experiment good enough for the
+report. The data, code and results stay in the repo as a record.
+
+- **Smoke test (128 calls):** all `ok`, providers as listed in Design, 0 cap hits, both repeats differed on every
+  task, o-series reasoning near the stored runs; projected cost $31. Full run started.
+- **OpenAI retired o1, o3-mini and o4-mini between the smoke test and the full run** (same day, minutes apart):
+  every new request returned 404, "The model `o1-2024-12-17` / `o3-mini-2025-01-31` / `o4-mini-2025-04-16` has been
+  deprecated". Not a silent change: OpenAI's deprecations page (developers.openai.com/api/docs/deprecations,
+  "2026-04-22: Legacy GPT model snapshots") announced it on 2026-04-22 with shutdown on 2026-10-23, the day of this
+  run, which nobody here had checked; the smoke test ran in the last minutes. OpenRouter still listed the endpoints
+  (0 % uptime), and a second probe ~10 h later still failed while `openai/o3` answered through the same key. Only their smoke repeats exist (2 repeats × 4 tasks each). **Deviation (post hoc, forced):** an arm enters
+  Tables 10b-10e and Figure 9 only if all ten repeats were judged (`variability._cells`); the o-series smoke rows stay
+  in 10a, flagged "incomplete". R1-R3 therefore cover five of the eight models, and the RL family is deepseek-r1-0528
+  and gemini-2.5-flash only. The stored o-series runs (Tables 1-9) are unaffected but can no longer be extended.
+- **Run:** 1,950 responses (gpt-4o and deepseek-r1-0528 750 each, qwen, deepseek-v3, gemini 150 each), all `ok`,
+  0 empty, 0 cap hits; `gpt-4o` judged all of them with 0 unparseable outputs and 0 errors. deepseek-v3 hit
+  StreamLake 429s, absorbed by the retries. Cost ≈ $11.7 (tokens × list prices: generation $7.1, judging $4.6).
+- **Preconditions (10a).** P1 passes in every arm: 100 % of tasks have non-identical repeats. P2 cannot be assessed
+  at full scale (no o-series arm); on the smoke repeats the ratios to the stored median were 0.90 (o3-mini), 1.42
+  (o4-mini), 1.50 (o1). deepseek-r1-0528 reasons about as long as the stored deepseek-r1 (median 890-1,000 vs
+  983-1,277 tokens per step), gemini as before (1,292 vs 1,286).
+- **R1, run-to-run spread at `nudge`.** One repeat's 15-task IR has an SD of 4.5-7.7 pp and ranges over 13-20 pp:
+  gpt-4o 53.3 % pooled (95 % CI 37.3-68.7; repeats 40.0-60.0, SD 7.7), qwen 36.7 % (19.3-54.7; 26.7-46.7, SD 6.5),
+  deepseek-v3 71.3 % (52.0-88.7; 66.7-86.7, SD 6.3), deepseek-r1-0528 72.7 % (56.7-86.0; 60.0-80.0, SD 5.8),
+  gemini 75.3 % (56.7-90.7; 66.7-80.0, SD 4.5). The task bootstrap intervals (±15-18 pp) are two to three times the
+  repeat SD, as the design predicted: the 15 tasks, not the sampling, limit precision. At the task level sampling
+  matters a lot: most tasks converge in some repeats and not others (gpt-4o 14 of 15, r1-0528 12, qwen 10, gemini 8,
+  deepseek-v3 7); only SAA-11 is near-never and ES-16 near-always in every model.
+- **R2, the stored T = 0 run.** Its IR lies within the repeat range for all five models, but at the edge for two:
+  gpt-4o's 40.0 % is its repeats' minimum (pooled +13.3 pp), deepseek-v3's 86.7 % their maximum (−15.3 pp); qwen
+  −3.3, gemini −4.7, r1 +6.0 (different checkpoint). Spearman ρ between stored and pooled rates 0.67 (five models).
+  At the task level, 11 of 75 stored verdicts go against the majority of the ten repeats (2 ties).
+- **R3, families.** RL − RLHF = +20.2 pp (95 % CI +5.0 to +34.4) over these five models. The stored runs give
+  +17.8 pp on the same five models (73.3 − 55.6) and +7.1 pp with all eight: the difference from Figure 8 comes from
+  which models are in the comparison (the retired o-series sat lower), not from sampling. With two RL models this is
+  a statement about deepseek-r1-0528 and gemini-2.5-flash, not about RL training.
+- **R4, prompt steps (10d, 10e): no contrast passes Holm.** gpt-4o: base 56.0 → + oversight 58.0 → + 7 rules 41.3 →
+  + good cause 44.0 → + nudge 53.3 %; the largest step is "+ 7 rules" at −16.7 pp (unadjusted p = 0.049, Holm 0.395),
+  then "+ nudge" +9.3 (Holm 0.649). deepseek-r1-0528: 58.0 → 60.7 → 56.0 → 61.3 → 72.7 %; "+ nudge" +11.3 pp (Holm
+  0.706). Against the stored T = 0 lines: gpt-4o's base peak (66.7) and its dip to 20.0 at "+ 7 rules" were both
+  extreme draws, the pooled line moves about half as much, and single repeats cross each other at every step.
+  gpt-4o's refusals are 0 / 0 / 8.0 / 6.0 / 9.3 % by step, so under sampling part of the "+ 7 rules" fall is refusals
+  (12 of 150), unlike the stored subset run; r1-0528 never refuses. Power was stated in advance (≈ 25-30 pp needed):
+  shifts of 10-17 pp are neither shown nor excluded.
 
 ## Capability ordering (not in the paper): the x-axis order of Figure 1 (data/capability_scores.csv)
 
