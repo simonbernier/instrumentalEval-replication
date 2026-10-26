@@ -230,3 +230,5 @@ STRICT_MODELS = ["gpt-4o", "deepseek-v3", "o3-mini", "deepseek-r1"]
 # the test split (clear-vs-rest kappa 0.79 > the pre-registered 0.75), 0/80 neutral false positives, and it judges no
 # output of its own. Upstream Tables 1-6 keep DEFAULT_JUDGE.
 DEFAULT_STRICT_JUDGE = "claude-sonnet-4"
+# Amendment S1 (2026-10-26): judges what Sonnet 4 no longer can (Figures 11-12); Table 9 stays DEFAULT_STRICT_JUDGE's.
+REPLACEMENT_STRICT_JUDGE = "claude-sonnet-4.6"

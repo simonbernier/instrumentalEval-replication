@@ -318,6 +318,7 @@ Three-way judge (none / instructed / clear; `prompts.STRICT_JUDGE_SYSTEM_PROMPT`
 | gpt-4o | 68 (0) | 84 [65–94] (21/25) | 78 [59–89] (21/27) | 90 | 0.69 [0.49–0.85] | 85 | 83 | 0.68 [0.49–0.85] | 0.70 [0.53–0.85] | 0.84 |
 | claude-sonnet-4 | 68 (0) | 83 [66–93] (25/30) | 93 [77–98] (25/27) | 88 | 0.79 [0.63–0.91] | 91 | 91 | 0.82 [0.67–0.94] | 0.80 [0.65–0.92] | 0.94 |
 | gemini-2.5-flash | 68 (0) | 84 [67–93] (26/31) | 96 [82–99] (26/27) | 88 | 0.82 [0.67–0.94] | 88 | 100 | 0.85 [0.71–0.97] | 0.85 [0.72–0.95] | 0.93 |
+| claude-sonnet-4.6 | 68 (0) | 89 [72–96] (24/27) | 89 [72–96] (24/27) | 93 | 0.82 [0.66–0.94] | 94 | 89 | 0.82 [0.68–0.94] | 0.82 [0.69–0.93] | 0.94 |
 
 **(b) False-positive rate on the neutral tasks** (gpt-4o, deepseek-v3, o3-mini, deepseek-r1)
 
@@ -326,6 +327,7 @@ Three-way judge (none / instructed / clear; `prompts.STRICT_JUDGE_SYSTEM_PROMPT`
 | gpt-4o | 0.0 [0.0–4.6] (0/80) | 0.0 [0.0–4.6] (0/80) | 0 |
 | claude-sonnet-4 | 0.0 [0.0–4.6] (0/80) | 0.0 [0.0–4.6] (0/80) | 0 |
 | gemini-2.5-flash | 6.2 [2.7–13.8] (5/80) | 6.2 [2.7–13.8] (5/80) | 0 |
+| claude-sonnet-4.6 | 0.0 [0.0–4.6] (0/80) | 0.0 [0.0–4.6] (0/80) | 0 |
 
 **(c) Table 1 under the strict judge** (`strict-claude-sonnet-4`: CIR = % clear)
 

@@ -266,10 +266,15 @@ are sampled. It is a separate judge: Table 9 stays the Sonnet 4 record (`strict_
 rows to 9(a)-(b) only, and feeds Figure 10's strict layer if it passes. Notes: "Amendment S1".
 
 - [x] Probes of settings (2026-10-26, ~25 calls, dev item H017 only), amendment, code, test written.
-- [ ] Amendment committed before any Sonnet 4.6 verdict.
-- [ ] Validation: test split (68), probes (54), neutral (80). Rule: κ > 0.75 and neutral FPR < 5 %.
-- [ ] If accepted: the eight Figure 1 models' stored `nudge` runs (608), then the repeats at `nudge` (750, five
-      models); Figure 10 strict layer. Each step only after the author has seen its cost estimate.
+- [x] Amendment committed before any Sonnet 4.6 verdict (a3624a7, 2026-10-26).
+- [x] Validation (2026-10-26, ≈ $2.1): **accepted**, test κ 0.82 [0.66-0.94], neutral FPR 0/80, probes 52/54;
+      agrees with Sonnet 4 on 59/68 test items. It thought on only 7 % of verdicts at medium effort.
+- [x] Judged (2026-10-26, author's go after the estimates): the eight models' stored `nudge` runs (608, 1 missing)
+      and the repeats at `nudge` (750); ≈ $18.65 for all 1,447 Sonnet 4.6 verdicts. Agrees with Sonnet 4 on 87 %.
+- [x] The strict layer became two figures at the author's request (`recommendations.py`): Figure 11 (76 tasks,
+      gpt-4o judge vs strict) and Figure 12 (original protocol vs all changes). The strict judge lowers every
+      model on the 76 tasks but raises the rates on Fable's 15 (never `instructed` there; more SAA reports called
+      clear). Notes: "Amendment S1", results after the validation.
 
 ## Capability ordering (Figure 1 x-axis)
 
