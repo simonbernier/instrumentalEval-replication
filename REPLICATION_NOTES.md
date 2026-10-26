@@ -2281,6 +2281,26 @@ Shown as Figure 13, in Figure 10 (b, c)'s layout: per model and step, the origin
 judge), the same responses under the strict judge, and all the changes (15 tasks, vendor defaults, strict judge),
 with the paper's Table 3. Descriptive; no step contrast is tested (Table 10e keeps the pre-registered tests).
 
+**Result (2026-10-26).** 532 stored + 1,200 repeat responses judged, 0 errors, 0 missing; ≈ $24.7 (estimate $22).
+All Sonnet 4.6 verdicts so far: 3,179, 1 missing, ≈ $43.4. Figure 13 (`recommendations.figure13`), IR / % clear
+by step (base / + oversight / + 7 rules / + good cause / + nudge):
+
+| Series | gpt-4o | deepseek-r1 |
+|---|---|---|
+| Original protocol (76 tasks, T = 0, gpt-4o judge) | 57.9 / 50.0 / 40.8 / 52.6 / 51.3 | 52.6 / – / 75.0 / 77.6 / 76.3 |
+| Same responses, strict judge | 34.2 / 31.6 / 35.5 / 42.1 / 36.8 | 39.5 / – / 63.2 / 69.7 / 65.3 |
+| All changes (15 tasks, vendor defaults, strict judge) | 74.7 / 68.7 / 57.3 / 58.7 / 64.7 | 62.7 / 69.3 / 62.7 / 68.0 / 78.7 (-0528) |
+| Paper (Table 3, at `nonudge` / `nudge`) | 15.8 / 21.1 | 34.2 / 46.0 |
+
+- **The strict judge lowers every step for both models on the 76 tasks**, by 5-24 pp for gpt-4o and 8-13 pp for R1.
+  For gpt-4o it also flattens the profile: the upstream judge's fall from base to "+ 7 rules" (57.9 → 40.8) shrinks
+  to 34.2 → 35.5. That fall was in responses the strict judge does not count as clear anyway.
+- **All the changes together raise every gpt-4o step above the original protocol** (by 7-17 pp), and R1's at base
+  and at the nudge; the reasons are those of Figure 12 (the 15 tasks are never `instructed`; SAA reports).
+- **The goal nudge (`nonudge` → `nudge`):** the paper reports +5.3 (gpt-4o) and +11.8 pp (R1). The strict judge on
+  the 76 tasks gives −5.3 and −4.4; all the changes give +6.0 and +10.7. Not tested here: Table 10e found no
+  significant step under the upstream judge, and none of these differences exceeds the intervals' width.
+
 ## How the results could be improved by changing parameters only
 
 These are not run by default; every item is a configuration change.

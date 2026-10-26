@@ -275,6 +275,9 @@ rows to 9(a)-(b) only, and feeds Figure 10's strict layer if it passes. Notes: "
       gpt-4o judge vs strict) and Figure 12 (original protocol vs all changes). The strict judge lowers every
       model on the 76 tasks but raises the rates on Fable's 15 (never `instructed` there; more SAA reports called
       clear). Notes: "Amendment S1", results after the validation.
+- [x] Prompt steps (2026-10-26, author; scope committed in 0de0b98 before any verdict): gpt-4o and DeepSeek-R1's four
+      other steps, stored 76-task runs (532) and repeats (1,200), ≈ $24.7 → Figure 13 (`recommendations.figure13`).
+      Strict judge lowers every step on the 76 tasks; all changes together raise gpt-4o's every step.
 
 ## Capability ordering (Figure 1 x-axis)
 

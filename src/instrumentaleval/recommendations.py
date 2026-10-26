@@ -1,8 +1,9 @@
-"""Figures 10-12 (not in the paper): the original protocol beside the changes the report recommends.
+"""Figures 10-13 (not in the paper): the original protocol beside the changes the report recommends.
 
 Figure 10: Fable's 15 tasks + vendor-default sampling (upstream judge), in Figure 8's layout. Figure 11: all 76 tasks
 at T = 0, upstream judge vs the strict judge. Figure 12: the original protocol vs all of it at once: the 15 tasks,
-vendor-default sampling and the strict judge. The strict judge is amendment S1's claude-sonnet-4.6 (Sonnet 4, the
+vendor-default sampling and the strict judge. Figure 13: Figure 10 (b, c)'s prompt steps with the strict judge added
+(the 76 tasks re-judged, and all the changes at once). The strict judge is amendment S1's claude-sonnet-4.6 (Sonnet 4, the
 frozen judge of Table 9, is no longer served). All of it is ours; every interval is a 95% bootstrap over tasks
 (stats.cluster_bootstrap_ci), the stored T = 0 runs' included. Notes: "Default-sampling repeats" ("Figure 10") and
 "Strict judge" ("Amendment S1").
@@ -46,22 +47,22 @@ def _upstream(judge: str) -> tuple[pd.DataFrame, list[str]]:
     return bench, sorted(set(bench[bench.variant == "nudge"].model) & set(FIGURE1_MODELS), key=order.index)
 
 
-def strict_cells(judge: str = REPLACEMENT_STRICT_JUDGE) -> tuple[dict, dict]:
-    """(stored, repeats) at `nudge`: model -> cells of the strict judge's verdicts (1 = clear) on the stored T = 0 run,
-    complete runs only (parse errors count as judged, and are left out as missing); arm -> cells on the repeats, an
-    arm only when all SAMPLING_REPEATS repeats were judged."""
+def strict_cells(step: str = "nudge", judge: str = REPLACEMENT_STRICT_JUDGE) -> tuple[dict, dict]:
+    """(stored, repeats) at one prompt step: model -> cells of the strict judge's verdicts (1 = clear) on the stored
+    T = 0 run, complete runs only (parse errors count as judged, and are left out as missing); arm -> cells on the
+    repeats, an arm only when all SAMPLING_REPEATS repeats were judged."""
     rec = load_strict_records()
     rec = rec[(rec.judge == judge) & (rec.task_set == "benchmark")]
     stored, repeats, judged = {}, {}, {}
     for r in rec.itertuples():
-        step, k = split_repeat(r.variant)
-        if step != "nudge":
+        v, k = split_repeat(r.variant)
+        if v != step:
             continue
         if k is None:
             judged[r.model] = judged.get(r.model, 0) + 1
         if r.status == "ok":
             (stored if k is None else repeats).setdefault(r.model, {})[(k or 1, r.task_id)] = int(r.label == "clear")
-    n_ok = {m: sum(x["status"] == "ok" for x in load_latest(RESPONSES_DIR / f"{m}__nudge__benchmark.jsonl").values())
+    n_ok = {m: sum(x["status"] == "ok" for x in load_latest(RESPONSES_DIR / f"{m}__{step}__benchmark.jsonl").values())
             for m in stored}
     stored = {m: c for m, c in stored.items() if judged[m] == n_ok[m]}
     repeats = {m: c for m, c in repeats.items() if len({k for k, _ in c}) == SAMPLING_REPEATS}
@@ -145,66 +146,80 @@ def figure10(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:
                 "(a) Instrumental Rate with the goal nudge: original protocol (all 76 tasks, T = 0) and both changes "
                 "(Fable's 15 tasks, vendor-default sampling)", SHUT_DOWN, "repeats", _r1_label(models))
 
-    t3 = paper_table3()
-    paper_red = "#b8302f"  # PAPER_MARKER's red, darkened for text
     first = None
     for col, (base, (arm, legend_loc)) in enumerate(FIGURE10_ABLATION.items()):
         bx = fig.add_subplot(grid[1, col], sharey=first)
         first = first or bx
-        c = FIGURE1_COLORS[TEST_MODELS[base].family]
-        handles, lines, labels = [], [], []  # labels: (x, y, side, colour, offset beyond the marker)
         cells = {s: _cells(rep, arm, s) for s in STEPS}
-        # thin lines behind everything: the single repeats, on the light series' side
-        for k in sorted({k for v in cells.values() for k, _ in v}):
-            ys = [100 * statistics.mean(v for (kk, _), v in cells[s].items() if kk == k)
-                  if any(kk == k for kk, _ in cells[s]) else math.nan for s in STEPS]
-            bx.plot([i + 0.12 for i in range(len(STEPS))], ys, color=tint(c, 0.8), linewidth=0.7, zorder=1)
-        series = ((f"{base}, all 76 tasks, T = 0", {s: _stored_cells(bench, base, s) for s in STEPS}, -0.12, 0.0,
-                   "o", "-"),
-                  (f"{arm.removesuffix('@default')}, Fable's 15 tasks, vendor defaults", cells, 0.12, 0.45, "s",
-                   (0, (5, 2))))
-        for name, sums, dx, w, marker, ls in series:
-            have = [i for i, s in enumerate(STEPS) if sums[s]]
-            st = {i: repeat_summary(sums[STEPS[i]]) for i in have}
-            x, ys = [i + dx for i in have], [st[i]["rate"] for i in have]
-            line = tint(c, w)
-            pt = dict(marker=marker, markersize=6.5, markerfacecolor=line if w == 0 else tint(c, 0.62),
-                      markeredgecolor="white" if w == 0 else c, markeredgewidth=0.8 if w == 0 else 1.3)
-            lines.append((x, ys))  # a missing step (deepseek-r1's oversight arm) is bridged; the note marks it
-            bx.plot(x, ys, color=line, linewidth=1.8, linestyle=ls, zorder=3)
-            bx.errorbar(x, ys, yerr=[[st[i]["rate"] - st[i]["lo"] for i in have],
-                                     [st[i]["hi"] - st[i]["rate"] for i in have]],
-                        linestyle="none", ecolor=line, elinewidth=1.1, capsize=0, zorder=4, **pt)
-            # dark series labelled on its left, light series on its right, the light labels a shade darker
-            labels += [(xi, yi, 1 if dx > 0 else -1, tint(c, 0.25) if w else c, 0.06) for xi, yi in zip(x, ys)]
-            handles.append(Line2D([], [], color=line, linewidth=1.8, linestyle=ls, label=name, **pt))
-            for i, s in enumerate(STEPS):
-                if w == 0 and not sums[s]:
-                    bx.text(i - 0.12, 92, f"no {base} run\n(endpoint retired)", ha="center", va="center",
-                            fontsize=7.5, color=INK_2, style="italic")
-        handles.append(Line2D([], [], color=tint(c, 0.8), linewidth=0.7, label="single repeats"))
-        # the paper's values are over all 76 tasks: on the dark series' side, as in panel (a)
-        px, py = [i - 0.12 for i in range(len(STEPS))], [math.nan] * len(STEPS)
-        py[STEPS.index("nonudge")], py[STEPS.index("nudge")] = t3[base]["without"]["ir"], t3[base]["with"]["ir"]
-        bx.plot(px, py, color=paper_red, linewidth=1.2, zorder=5, **PAPER_MARKER | {"linestyle": (0, (1.5, 1.5))})
-        lines.append((px, py))
-        labels += [(xi, yi, -1, paper_red, 0.1) for xi, yi in zip(px, py) if not math.isnan(yi)]
-        placed = []
-        for xi, yi, side, colour, off in labels:
-            bx.text(xi + side * off, label_y(lines, placed, xi, yi, side, off), f"{yi:.1f}",
-                    ha="left" if side > 0 else "right", va="center", fontsize=7.5, color=colour, fontweight="bold",
-                    zorder=6, bbox={"facecolor": "white", "edgecolor": "none", "pad": 0.6})
-        handles.append(Line2D([], [], color=paper_red, linewidth=1.2, label="paper (Table 3, all 76 tasks, T = 0)",
-                              **PAPER_MARKER | {"linestyle": (0, (1.5, 1.5))}))
-        style_axes(bx, "IR (%)" if col == 0 else None)
-        bx.tick_params(labelleft=col == 0)
-        bx.set_xlim(-0.55, len(STEPS) - 0.45)
-        bx.set_xticks(range(len(STEPS)), [s[0] for s in PROMPT_STEPS], fontsize=8.5, linespacing=1.15)
-        bx.set_title(f"({'bc'[col]}) System-prompt steps: {base}", loc="left", fontsize=10, color=INK,
-                     fontweight="bold")
-        bx.legend(handles=handles, loc=legend_loc, frameon=True, framealpha=0.95, edgecolor=GRID, fontsize=8,
-                  handlelength=3.2)
+        step_panel(bx, col, base, f"({'bc'[col]}) System-prompt steps: {base}", legend_loc, cells, 0.12, [
+            (f"{base}, all 76 tasks, T = 0", {s: _stored_cells(bench, base, s) for s in STEPS}, -0.12, "dark"),
+            (f"{arm.removesuffix('@default')}, Fable's 15 tasks, vendor defaults", cells, 0.12, "light")])
     return save(fig, out_dir, f"figure10_{judge}")
+
+
+# the three looks a step-panel series can take: (line tint, marker, linestyle, marker face, marker edge, edge width)
+SERIES_STYLES = {"dark": (0.0, "o", "-", None, "white", 0.8),
+                 "hollow": (0.0, "o", (0, (1, 1.2)), "white", None, 1.4),
+                 "light": (0.45, "s", (0, (5, 2)), 0.62, None, 1.3)}
+
+
+def step_panel(bx, col: int, base: str, title: str, legend_loc: str, thin: dict, thin_dx: float,
+               series: list[tuple[str, dict, float, str]]) -> None:
+    """One model's prompt steps (Figure 10 (b, c), Figure 13): each series (name, step -> cells, x offset, style) as
+    a line with its 95% task-bootstrap interval and value labels, left of its points when its offset is negative,
+    right otherwise; `thin` (step -> repeat cells) as one faint line per repeat; the paper's Table 3 at `nonudge` and
+    `nudge` on the first series' side; an empty `thin` draws none. A step a series lacks (deepseek-r1's oversight
+    arm) is bridged and noted."""
+    c = FIGURE1_COLORS[TEST_MODELS[base].family]
+    handles, lines, labels = [], [], []  # labels: (x, y, side, colour, offset beyond the marker)
+    for k in sorted({k for v in thin.values() for k, _ in v}):  # behind everything
+        ys = [100 * statistics.mean(v for (kk, _), v in thin[s].items() if kk == k)
+              if any(kk == k for kk, _ in thin[s]) else math.nan for s in STEPS]
+        bx.plot([i + thin_dx for i in range(len(STEPS))], ys, color=tint(c, 0.8), linewidth=0.7, zorder=1)
+    for name, sums, dx, style in series:
+        w, marker, ls, face, edge, ew = SERIES_STYLES[style]
+        have = [i for i, s in enumerate(STEPS) if sums[s]]
+        st = {i: repeat_summary(sums[STEPS[i]]) for i in have}
+        x, ys = [i + dx for i in have], [st[i]["rate"] for i in have]
+        line = tint(c, w)
+        pt = dict(marker=marker, markersize=6.5, markeredgewidth=ew,
+                  markerfacecolor=line if face is None else face if isinstance(face, str) else tint(c, face),
+                  markeredgecolor=edge or c)
+        lines.append((x, ys))
+        bx.plot(x, ys, color=line, linewidth=1.8, linestyle=ls, zorder=3)
+        bx.errorbar(x, ys, yerr=[[st[i]["rate"] - st[i]["lo"] for i in have],
+                                 [st[i]["hi"] - st[i]["rate"] for i in have]],
+                    linestyle="none", ecolor=line, elinewidth=1.1, capsize=0, zorder=4, **pt)
+        # the light series' labels a shade darker than its line
+        labels += [(xi, yi, 1 if dx > 0 else -1, tint(c, 0.25) if w else c, 0.06) for xi, yi in zip(x, ys)]
+        handles.append(Line2D([], [], color=line, linewidth=1.8, linestyle=ls, label=name, **pt))
+        for i, s in enumerate(STEPS):
+            if style == "dark" and not sums[s]:
+                bx.text(i + dx, 92, f"no {base} run\n(endpoint retired)", ha="center", va="center", fontsize=7.5,
+                        color=INK_2, style="italic")
+    if thin:
+        handles.append(Line2D([], [], color=tint(c, 0.8), linewidth=0.7, label="single repeats"))
+    t3, paper_red = paper_table3(), "#b8302f"  # PAPER_MARKER's red, darkened for text
+    px, py = [i + series[0][2] for i in range(len(STEPS))], [math.nan] * len(STEPS)
+    py[STEPS.index("nonudge")], py[STEPS.index("nudge")] = t3[base]["without"]["ir"], t3[base]["with"]["ir"]
+    bx.plot(px, py, color=paper_red, linewidth=1.2, zorder=5, **PAPER_MARKER | {"linestyle": (0, (1.5, 1.5))})
+    lines.append((px, py))
+    labels += [(xi, yi, -1, paper_red, 0.1) for xi, yi in zip(px, py) if not math.isnan(yi)]
+    placed = []
+    for xi, yi, side, colour, off in labels:
+        bx.text(xi + side * off, label_y(lines, placed, xi, yi, side, off), f"{yi:.1f}",
+                ha="left" if side > 0 else "right", va="center", fontsize=7.5, color=colour, fontweight="bold",
+                zorder=6, bbox={"facecolor": "white", "edgecolor": "none", "pad": 0.6})
+    handles.append(Line2D([], [], color=paper_red, linewidth=1.2, label="paper (Table 3, all 76 tasks, T = 0)",
+                          **PAPER_MARKER | {"linestyle": (0, (1.5, 1.5))}))
+    style_axes(bx, "IR (%)" if col == 0 else None)
+    bx.tick_params(labelleft=col == 0)
+    bx.set_xlim(-0.55, len(STEPS) - 0.45)
+    bx.set_xticks(range(len(STEPS)), [s[0] for s in PROMPT_STEPS], fontsize=8.5, linespacing=1.15)
+    bx.set_title(title, loc="left", fontsize=10, color=INK, fontweight="bold")
+    # "below": under the axis, for panels whose data leave no corner free
+    where = dict(loc="upper center", bbox_to_anchor=(0.5, -0.16)) if legend_loc == "below" else dict(loc=legend_loc)
+    bx.legend(handles=handles, frameon=True, framealpha=0.95, edgecolor=GRID, fontsize=8, handlelength=3.2, **where)
 
 
 def figure11(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:
@@ -240,3 +255,31 @@ def figure12(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:
                 "All changes: Fable's 15 tasks, vendor-default sampling (10 repeats), strict judge "
                 f"({REPLACEMENT_STRICT_JUDGE}, % clear)", SHUT_DOWN, "repeats", _r1_label(models))
     return save(fig, out_dir, f"figure12_{judge}")
+
+
+# Figure 13: three series and the repeats fill every corner of gpt-4o's panel, so both legends go under the axes
+FIGURE13_LEGEND = {"gpt-4o": "below", "deepseek-r1": "below"}
+
+
+def figure13(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:
+    """Figure 10 (b, c) with the strict judge. Per model and prompt step: the original protocol (all 76 tasks, T = 0,
+    upstream judge; dark), the same responses under the strict judge (hollow, dotted), and all the changes (Fable's
+    15 tasks, vendor-default sampling, strict judge; light), with the paper's Table 3.
+    R1's repeats are deepseek-r1-0528; the stored deepseek-r1 has no oversight run."""
+    bench, _ = _upstream(judge)
+    by_step = {s: strict_cells(s) for s in STEPS}
+    if not any(by_step[s][1] for s in STEPS if s != "nudge"):
+        return []
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5.6), sharey=True)
+    fig.subplots_adjust(wspace=0.07)
+    for col, (base, (arm, _)) in enumerate(FIGURE10_ABLATION.items()):
+        changes = {s: by_step[s][1].get(arm, {}) for s in STEPS}
+        # no single-repeat lines: with three series they hid the lines (author, 2026-10-26)
+        step_panel(axes[col], col, base, f"({'ab'[col]}) System-prompt steps: {base}", FIGURE13_LEGEND[base], {},
+                   0.16, [(f"{base}, original protocol (76 tasks, T = 0, {judge} judge)",
+                           {s: _stored_cells(bench, base, s) for s in STEPS}, -0.16, "dark"),
+                          (f"{base}, same responses, strict judge",
+                           {s: by_step[s][0].get(base, {}) for s in STEPS}, -0.02, "hollow"),
+                          (f"{arm.removesuffix('@default')}, all changes (15 tasks, vendor defaults, strict judge)",
+                           changes, 0.16, "light")])
+    return save(fig, out_dir, f"figure13_{judge}")
