@@ -12,6 +12,8 @@ MAX_TOKENS_TEST = 1000
 MAX_TOKENS_JUDGE = 500
 # The strict judge (not upstream) writes its analysis before the verdict, so it gets more room than upstream's 500.
 MAX_TOKENS_STRICT_JUDGE = 1500
+# A strict judge that reasons first (claude-sonnet-4.6) needs room for its reasoning on top of the verdict.
+MAX_TOKENS_STRICT_JUDGE_REASONING = 4000
 
 # Open-weight models are served by third parties on OpenRouter. Exclude sub-fp8 quantizations;
 # "unknown" is allowed because DeepSeek-V3's only non-fp4 provider doesn't report one.
@@ -160,6 +162,12 @@ JUDGES: dict[str, ModelSpec] = {
         # No Grok 2 slot: mistral-large-2407 was tried and dropped (REPLICATION_NOTES.md, deviation 10).
         ModelSpec("gemini-2.5-flash", "google/gemini-2.5-flash", "Gemini 2.0 Flash", substitute=True,
                   max_tokens=MAX_TOKENS_JUDGE, extra_body=_NO_REASONING),
+        # Replacement strict judge (amendment S1, REPLICATION_NOTES.md "Strict judge"): claude-sonnet-4 is no longer
+        # served. Not a convergence judge. OpenRouter no longer passes temperature to Claude models (it accepts
+        # T = 2.0), so the T = 0 sent here has no effect and verdicts are sampled. Medium effort is adaptive thinking
+        # (at low effort it did not think at all on a dev item); reasoning counts against max_tokens, hence the cap.
+        ModelSpec("claude-sonnet-4.6", "anthropic/claude-sonnet-4.6", "", max_tokens=MAX_TOKENS_STRICT_JUDGE_REASONING,
+                  extra_body={"reasoning": {"effort": "medium"}, "provider": {"require_parameters": True}}),
     ]
 }
 

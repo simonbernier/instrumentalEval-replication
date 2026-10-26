@@ -164,7 +164,7 @@ def cmd_strict_judge(a):
                 models = set(_models(a.models or STRICT_MODELS))
                 for p in sorted(RESPONSES_DIR.glob("*.jsonl")):
                     m, v, ts = parse_run_id(p.stem)
-                    if m in models and v in a.variants and ts in a.task_sets:
+                    if m in models and split_repeat(v)[0] in a.variants and ts in a.task_sets:  # every repeat too
                         strict_judge_run(j, p.stem, workers=a.workers)
     except NotFrozenError as e:
         sys.exit(str(e))
@@ -185,11 +185,12 @@ def cmd_tables(a):
 
 def cmd_figures(a):
     from .figures import figure1, figure1_matched, figure1_strict, figure2, figure3, figure5, figure6, figure7, figure8
+    from .variability import figure10
     if a.strict:  # Figure 1 under the strict judge only (results/figures/figure1_strict-<judge>.*)
         paths = figure1_strict(DEFAULT_STRICT_JUDGE)
     else:
         paths = (figure1(a.judge) + figure1_matched(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge)
-                 + figure6(a.judge) + figure7(a.judge) + figure8(a.judge))
+                 + figure6(a.judge) + figure7(a.judge) + figure8(a.judge) + figure10(a.judge))
     for p in paths:
         print(p)
 

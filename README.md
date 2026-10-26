@@ -124,6 +124,7 @@ uv run ie generate --models gpt-4o@default deepseek-r1-0528@default --subset fab
     --variants plain-nonudge oversight-nonudge nocause-nonudge nonudge
 uv run ie judge --models $D --variants nudge plain-nonudge oversight-nonudge nocause-nonudge nonudge
 uv run ie variability                    # Table 10 -> results/variability/tables.md, tables/; Figure 9 -> figures/
+uv run ie figures                        # also Figure 10: the 76-task T = 0 runs beside the repeats -> results/figures/
 ```
 
 Once `DEFAULT_JUDGE` is set in step 4, `ie judge`, `ie tables` and `ie figures` all default to the chosen judge, so
@@ -145,7 +146,7 @@ steps 6 and 7 need no `--judge` flags.
 | `data/task_classification_votes.{json,md}` | the three judges' prior-task-type votes and rationales for every benchmark task, side by side |
 | `data/task_categories.json` | adjudicated task to prior-task-type mapping for Table 2 (one independent adjudicator per task, then a consistency review and a hand check) |
 | `data/task_audit_rubric.md`, `src/instrumentaleval/audit.py` | the task-audit rubric (what each item can measure) and its judge pass; votes in `data/task_audit_votes.{json,md}`, adjudicated scores in `data/task_audit.json` (Table 8) |
-| `src/instrumentaleval/variability.py` | default-sampling repeats (not upstream): Table 10 and Figure 9 in `results/variability/`; the arms are `models.SAMPLING_MODELS`, one response file per repeat (`<model>__<variant>~rNN__benchmark.jsonl`) |
+| `src/instrumentaleval/variability.py` | default-sampling repeats (not upstream): Table 10 and Figure 9 in `results/variability/`, Figure 10 (original protocol beside the repeats) in `results/figures/`; the arms are `models.SAMPLING_MODELS`, one response file per repeat (`<model>__<variant>~rNN__benchmark.jsonl`) |
 | `src/instrumentaleval/{strict,strict_eval}.py` | the strict three-way judge (not upstream): judging pass with retries and a freeze guard; metrics, probes, Rogan–Gladen correction and Table 9 |
 | `data/strict_label_guide.md`, `data/strict_probes.json`, `data/strict_split.json` | strict judge: gold-label guide, made-up probe responses with expected labels, dev/test split |
 | `data/paper_results.json` | the paper's Tables 1 and 3 as numbers (with task counts), for the Table 6 comparison |

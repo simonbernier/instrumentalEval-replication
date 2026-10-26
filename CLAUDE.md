@@ -260,6 +260,17 @@ Code: `strict.py` (judging, freeze guard), `strict_eval.py` (metrics, probes, Ro
 (gold labels), `figures.figure1_strict` (`ie figures --strict`, still in the pre-restyle Figure 1 look). Notes:
 "Additional experiments (not in the paper): a strict judge".
 
+**Amendment S1 (2026-10-26): Sonnet 4 is gone; replacement `claude-sonnet-4.6`** (same frozen prompt, medium effort,
+4000 tokens). OpenRouter no longer passes temperature to Claude models, so its T = 0 has no effect and its verdicts
+are sampled. It is a separate judge: Table 9 stays the Sonnet 4 record (`strict_eval.FROZEN_PANEL`); Sonnet 4.6 adds
+rows to 9(a)-(b) only, and feeds Figure 10's strict layer if it passes. Notes: "Amendment S1".
+
+- [x] Probes of settings (2026-10-26, ~25 calls, dev item H017 only), amendment, code, test written.
+- [ ] Amendment committed before any Sonnet 4.6 verdict.
+- [ ] Validation: test split (68), probes (54), neutral (80). Rule: κ > 0.75 and neutral FPR < 5 %.
+- [ ] If accepted: the eight Figure 1 models' stored `nudge` runs (608), then the repeats at `nudge` (750, five
+      models); Figure 10 strict layer. Each step only after the author has seen its cost estimate.
+
 ## Capability ordering (Figure 1 x-axis)
 
 Figure 1 orders models within each family by `capability.capability_order`, computed from
@@ -287,6 +298,8 @@ every sampling value, decision rule: `REPLICATION_NOTES.md`, "Default-sampling r
       (404 "deprecated"), so those arms are incomplete and left out of 10b-10e (`variability._cells`, deviation in the
       notes). R1: repeat SD 4.5-7.7 pp; R4: no step passes Holm. Results filled.
 - Author's decision (2026-10-23): **not used in the report** (five of eight models). Kept as a record only.
+- [x] Figure 10 (2026-10-26, author's request, post hoc): Figure 8's layout, stored T = 0 on 76 tasks (+ paper
+      diamonds) beside the repeats on the 15 tasks (`variability.figure10`, made by `ie figures`). Notes: "Figure 10".
 
 ## Things that look like bugs but aren't
 
@@ -316,3 +329,6 @@ shutdown, so check developers.openai.com/api/docs/deprecations, not OpenRouter, 
   (replacements gpt-5.6-sol / gpt-5.6-terra).
 - **gpt-4o-2024-08-06** (test model and convergence judge of record for every table) and **gpt-4o-mini-2024-07-18**:
   shutdown **2027-01-14** (replacement gpt-6-luna). After that, no new response can be judged with the same judge.
+- **anthropic/claude-sonnet-4** (strict judge of record, Table 9): **already gone** from OpenRouter (404 "no provider
+  serves this model anymore", checked 2026-10-26). Table 9 rests on the stored verdicts; nothing new can be
+  strict-judged with the frozen judge (gpt-4o and gemini-2.5-flash are the validated cross-check judges).

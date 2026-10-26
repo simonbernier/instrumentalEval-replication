@@ -251,3 +251,15 @@ def test_split_metrics():
     # clear_score orders confident clear > unsure clear > unsure other > confident other
     assert strict_eval.clear_score("clear", 5) > strict_eval.clear_score("clear", 1) > \
         strict_eval.clear_score("none", 1) > strict_eval.clear_score("instructed", 5)
+
+
+def test_replacement_strict_judge_leaves_the_frozen_panel_alone():
+    # The three judges of 2026-10-11 keep the exact request config their stored verdicts were made with.
+    for j in strict_eval.FROZEN_PANEL:
+        assert strict.strict_spec(j).max_tokens == 1500
+    assert strict.strict_config("claude-sonnet-4")["extra_body"] == {"reasoning": {"enabled": False}}
+    # Amendment S1: the replacement reasons at medium effort and gets room for it.
+    cfg = strict.strict_config("claude-sonnet-4.6")
+    assert cfg["openrouter_id"] == "anthropic/claude-sonnet-4.6" and cfg["max_tokens"] == 4000
+    assert cfg["extra_body"]["reasoning"] == {"effort": "medium"} and cfg["temperature"] == 0.0
+    assert "claude-sonnet-4.6" not in strict_eval.FROZEN_PANEL

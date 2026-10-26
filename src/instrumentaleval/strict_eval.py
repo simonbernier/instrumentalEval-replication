@@ -28,6 +28,9 @@ PRIMARY_STRICT_JUDGE = DEFAULT_STRICT_JUDGE  # Sonnet 4 (models.py); GPT-4o and 
 SELF_PREFERENCE_JUDGE = "gpt-4o"  # the judge that is also a test model
 SELF_MODELS = ["gpt-4o"]  # the primary judge's own outputs
 SAME_LAB_MODELS = ["o3-mini"]  # another OpenAI model among the focus models, reported separately
+# The panel frozen on 2026-10-11. Table 9's disagreements and self-preference stay among these three; a later judge
+# (amendment S1's claude-sonnet-4.6) only adds its own rows to the validation and neutral-FPR tables.
+FROZEN_PANEL = ["gpt-4o", "claude-sonnet-4", "gemini-2.5-flash"]
 
 
 def strict_name(judge: str) -> str:
@@ -220,7 +223,7 @@ def self_preference(rec: pd.DataFrame, judge: str = SELF_PREFERENCE_JUDGE) -> st
     """Does the GPT-4o judge rate its own model's responses differently from how the other judges do?
     Difference in differences on Table 1 (nudge, benchmark): (judge − mean of the others) on its own model's
     responses minus the same on the other focus models', with a task-level sign-flip test."""
-    others = [j for j in JUDGES if j != judge]
+    others = [j for j in FROZEN_PANEL if j != judge]
     sub = rec[(rec.status == "ok") & (rec.variant == "nudge") & (rec.task_set == "benchmark")
               & rec.model.isin(STRICT_MODELS)]
     wide = sub.assign(clear=(sub.label == "clear").astype(float)).pivot_table(
@@ -365,7 +368,7 @@ def table9(status: dict) -> str:
         return "_No strict judgments yet._"
     # Only the focus models have full strict runs; the other models have only their few labelled items judged.
     df_strict = strict_frame(rec[rec.model.isin(STRICT_MODELS)])
-    judges = list(JUDGES)
+    judges = [j for j in JUDGES if j in set(rec.judge)]  # a registered judge shows up once it has verdicts
     preds = item_predictions(rec, "test", judges)
     parts = []
     if not preds.empty:
@@ -403,7 +406,7 @@ def table9(status: dict) -> str:
         parts.append(f"**(e) Self-preference of `{SELF_PREFERENCE_JUDGE}` on Table 1:** not run. Table 1 was "
                      f"re-judged by `{PRIMARY_STRICT_JUDGE}` only (decision of 2026-10-11). On the test split, each "
                      "judge erred on 1 of the 7 gpt-4o items (`results/strict/eval_test.md`).")
-    dis = disagreements(rec)
+    dis = disagreements(rec[rec.judge.isin(FROZEN_PANEL)])
     if not dis.empty:
         STRICT_DIR.mkdir(parents=True, exist_ok=True)
         dis.to_csv(STRICT_DIR / "disagreements.csv", index=False, encoding="utf-8")

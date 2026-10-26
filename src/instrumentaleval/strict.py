@@ -37,7 +37,9 @@ def require_frozen(what: str) -> None:
 
 
 def strict_spec(judge: str):
-    return replace(JUDGES[judge], max_tokens=MAX_TOKENS_STRICT_JUDGE)
+    # the larger of the two: 1500 for the three frozen judges (their stored verdicts stay current), more for a judge
+    # registered with a reasoning cap
+    return replace(JUDGES[judge], max_tokens=max(JUDGES[judge].max_tokens, MAX_TOKENS_STRICT_JUDGE))
 
 
 def strict_config(judge: str) -> dict:

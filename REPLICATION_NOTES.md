@@ -1753,6 +1753,36 @@ report. The data, code and results stay in the repo as a record.
   (12 of 150), unlike the stored subset run; r1-0528 never refuses. Power was stated in advance (≈ 25-30 pp needed):
   shifts of 10-17 pp are neither shown nor excluded.
 
+### Figure 10 (2026-10-26, post hoc, descriptive): the original protocol beside both changes
+
+Asked for by the author to illustrate two recommendations at once: curated items (Fable's 15 tasks) and
+vendor-default sampling. `variability.figure10`, made by `ie figures` → results/figures/figure10_gpt-4o.*, in Figure
+8's layout. It uses only data already on disk.
+
+- **(a)** Per Figure 1 model: the stored `nudge` run on all 76 tasks at T = 0 (dark; the paper's Table 1 IR as a
+  diamond where the model is the paper's own) beside the 15 tasks under vendor defaults, pooled over the ten repeats
+  (light; one dot per repeat). The o-series slots are marked "no repeats" (shut down 2026-10-23). Every interval is
+  a 95 % bootstrap over tasks, the T = 0 bars' too (Figure 8 used Wilson; with one response per task the two nearly
+  coincide). Family averages are over the models shown; for RL, where only 2 of 5 models have repeats, the dark
+  bars' average over those two is given as well, so the averages compare like with like.
+- **(b, c)** The five prompt steps for gpt-4o and DeepSeek-R1: stored T = 0 on all 76 tasks (dark), the repeats on
+  the 15 tasks (light; thin lines are single repeats), the paper's Table 3 at `nonudge` and `nudge`. R1's repeats are
+  deepseek-r1-0528; the stored deepseek-r1 line still has no oversight step.
+- **Numbers (IR %, paper / stored T = 0 on 76 tasks / vendor defaults on 15 tasks, pooled):** gpt-4o 21.1 / 51.3 /
+  53.3; qwen-2.5-72b – / 53.9 / 36.7; deepseek-v3 21.1 / 75.0 / 71.3; deepseek-r1 46.1 / 76.3 / 72.7 (-0528);
+  o3-mini 48.7 / 50.0 / –; gemini-2.5-flash (substitute, no diamond) – / 68.4 / 75.3; o1 44.7 / 52.6 / –; o4-mini
+  (substitute) – / 39.5 / –. Family averages: RLHF 60.1 → 53.8; RL 57.4 (72.4 on the two with repeats) → 74.0.
+- **Reading.** Neither change moves the rates toward the paper's. For the three models with both a paper value and
+  repeats, the paper's IR is 26-54 pp below both of our configurations, while the two configurations differ by at
+  most 4 pp (gpt-4o +2.0, deepseek-v3 −3.7, deepseek-r1 −3.6), well inside the intervals. The largest moves are
+  qwen −17.2 and gemini +6.9. So the gap to the paper does not come from T = 0 or from the full item set. The two
+  changes are applied together and cannot be separated here (Figure 8 has the 15 tasks at T = 0; Table 10 has the
+  sampling on the same 15 tasks).
+- **No strict-judge layer.** The strict judge of record, `anthropic/claude-sonnet-4`, is no longer served on
+  OpenRouter (404 "no longer available … no provider serves this model anymore", checked 2026-10-26). The repeats
+  therefore cannot be strict-judged with the frozen judge; strict verdicts exist only for the stored T = 0 runs
+  (Table 9: all 76 tasks for gpt-4o, deepseek-v3, o3-mini and deepseek-r1, labelled items only for the others).
+
 ## Capability ordering (not in the paper): the x-axis order of Figure 1 (data/capability_scores.csv)
 
 The paper orders models by family only and gives no capability measure. Figure 1 orders the models within each
@@ -2108,6 +2138,66 @@ Full numbers are in `results/tables.md` (Table 9), `results/strict/eval_test.md`
   is needed because Table 8's R3b sensitivity row still depends on string hashing: `tables.relabel` breaks a tie
   between two judges' rules with `max(set(rs), key=rs.count)`. Not fixed in the merge; fixed right after it, see
   "Task audit", "A fix to the rule fallback of 8(e)".)*
+
+### Amendment S1 (2026-10-26, before any verdict from it): a replacement strict judge, Claude Sonnet 4.6
+
+**Why.** `anthropic/claude-sonnet-4` can no longer be called. Anthropic retired it on its own platform on 2026-06-15
+(announced 2026-04-14), and OpenRouter's last partner endpoint has gone too: it returns 404 "no longer available …
+no provider serves this model anymore" (checked 2026-10-26). New responses, such as the default-sampling repeats in
+Figure 10, therefore cannot be judged by the frozen judge. The author decided to replace it with Claude Sonnet 4.6
+at T = 0 with a small reasoning budget.
+
+**The replacement** is `claude-sonnet-4.6` in `models.JUDGES`. It keeps the frozen prompt
+(`strict_prompt_sha` 88f985352bf38635, unchanged, so the freeze still holds), the parser and the 3-attempt rule.
+It runs with reasoning effort `medium`, `max_tokens` 4000 because reasoning counts against the cap
+(`strict.strict_spec`; the three frozen judges keep 1500), and `provider.require_parameters`. Anthropic lists it as
+active until at least 2027-02-17. The alternatives were ruled out:
+- Sonnet 4.5 is deprecated and retires 2026-11-30.
+- Sonnet 5 and 5.5 reject `temperature`, and 5.5 has no endpoint that accepts the request.
+- gpt-5-mini rejects `temperature`, shuts down 2026-12-11, and comes from the same lab as gpt-4o.
+- Gemini 2.5 Flash is already validated (κ 0.82), but it flagged 5 of the 80 neutral responses as clear and it would
+  judge its own outputs.
+
+**Two settings differ from the author's request.** Both were measured before this was written, with about 25 calls
+(< $0.50) on dev item H017 and off-benchmark prompts; no test item was touched.
+- **T = 0 has no effect.** OpenRouter accepts `temperature = 2.0` for Sonnet 4.6 (and for Haiku 4.5) without an
+  error, although Anthropic's range is 0-1, so the parameter is not passed on; Anthropic's API version 2026-10-21
+  removed it. Three T = 0 calls on H017 differ from one another as much as three calls with no temperature (about
+  40 % word overlap either way). T = 0 is still sent, as requested, and is recorded in `judge_config`, but the
+  verdicts are samples. All 12 calls on H017 gave the same label (clear, confidence 5).
+- **Low effort means no thinking.** On Sonnet 4.6, `effort` selects adaptive thinking. At `low` it did not think on
+  H017 (0 reasoning tokens); at `medium` it thought for about 130-170 tokens; with a fixed 1,024-token budget, about
+  300. `medium` was chosen as the small budget that actually reasons (the fixed budget is deprecated on 4.6).
+- So this is a different judge (model, sampling, reasoning), not a continuation of Sonnet 4. Its rates are never
+  pooled with Sonnet 4's, and Table 9 stays the Sonnet 4 record (`strict_eval.FROZEN_PANEL`). Sonnet 4.6 only adds its
+  own rows to Table 9 (a) and (b).
+
+**Validation, before any other use.** It is the same test Sonnet 4 passed, unchanged:
+1. Sonnet 4.6 judges the 68 frozen test items (`ie strict-judge --split test --judges claude-sonnet-4.6`), the 54
+   probes (`--probes`) and the 80 neutral responses of the four focus models (`--runs --task-sets neutral --models
+   gpt-4o deepseek-v3 o3-mini deepseek-r1`).
+2. **Decision rule** (the author's two criteria of 2026-10-11): it is accepted if its test clear-vs-rest κ (point
+   estimate) is above 0.75 **and** its neutral false-positive rate (`clear`) is under 5 %. Otherwise its rates are
+   reported as unreliable and Figure 10 gets no strict layer.
+3. Reported as for Sonnet 4: precision, recall and κ with CIs, the 3-way κ, the probes, the focus-model subset, and
+   its agreement with Sonnet 4 on the test items.
+
+**If it is accepted, and only then, it judges** (scope set by the author on 2026-10-26, before any verdict):
+- the stored `nudge` benchmark runs of all eight Figure 1 / Figure 10 models, all 76 tasks (608 responses; the
+  original prompt only, no ablation arm). For the four focus models this also compares the old and new judges on the
+  same responses (κ between them, and the rate per model);
+- then the default-sampling repeats on the 15 Fable tasks at `nudge`, for the five models with all ten repeats (750
+  responses; not the o-series smoke answers).
+
+Each step starts only after the author has seen its cost estimate, measured from the validation calls.
+
+**Figure 10's strict layer (fixed now).** Per model: Sonnet 4.6's % `clear` on (i) the stored T = 0 runs over all 76
+tasks and (ii) the repeats on the 15 tasks, pooled, with a task-bootstrap CI, next to the upstream-judge bars.
+Descriptive, no tests.
+
+**Caveats.** Each response gets one sampled verdict, so judge noise adds to the variance of single verdicts; for the
+repeats it is inside the task bootstrap. Sonnet 4.6's sensitivity and specificity come from one sampled pass over 68
+items.
 
 ## How the results could be improved by changing parameters only
 
