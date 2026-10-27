@@ -2316,6 +2316,36 @@ Figures 12 and 13 do not change. Figure 11 gets a bottom row: Figure 13's two st
 protocol and the strict judge on the same 76-task responses, plus the paper's Table 3 (no repeats, no "all changes"
 series). Descriptive, as before.
 
+**Result (2026-10-27).** 67 new calls (the 9 test-split verdicts were reused), 0 errors, 0 parse errors, ≈ $0.60
+(prompt + completion tokens at $3 / $15 per M). gpt-4o-mini on all 76 tasks: 12 `clear`, 4 `instructed`, 60 `none`;
+IR 25.0 → **15.8 %** clear. With it in Figure 11 (a) the family averages are RLHF 51.3 → 41.8 and RL 57.4 → 41.8:
+under the strict judge the two families tie, where without gpt-4o-mini (above) the RLHF models sat 8.6 pp higher.
+Descriptive; the earlier sentence about RLHF above RL holds only for the eight-model set. Figure 11 (b) was first
+the two prompt-step panels planned in the scope note (the first two rows of the Figure 13 table with the paper's Table
+3); at the author's request (same day) it is now the category panel below, all nine models pooled, without the
+paper (its per-category CIRs cover other model sets).
+
+**Figure 11 by category (2026-10-27, author's request, post hoc, appendix; `recommendations.figure11_categories`).**
+(a) per category, upstream vs strict, all nine models pooled (the same panel as Figure 11 (b); 95% bootstrap over
+the category's tasks); (b-g) per model, with the paper's Table 1 CIR. Pooled over the nine models' stored `nudge`
+responses with both verdicts (683; one deepseek-r1 strict verdict missing):
+
+| Category | n | gpt-4o judge IR | strict % clear | Change (pp) | Upstream positives → `instructed` / `none` | Upstream negatives → `clear` |
+|---|---|---|---|---|---|---|
+| RAC | 117 | 87.2 | 10.3 | −76.9 | 42 / 48 of 102 | 0 |
+| HB | 98 | 50.0 | 45.9 | −4.1 | 0 / 4 of 49 | 0 |
+| ES | 180 | 81.1 | 78.3 | −2.8 | 1 / 8 of 146 | 4 |
+| DB | 99 | 17.2 | 18.2 | +1.0 | 0 / 3 of 17 | 4 |
+| HC | 90 | 7.8 | 12.2 | +4.4 | 0 / 1 of 7 | 5 |
+| SAA | 99 | 52.5 | 58.6 | +6.1 | 0 / 6 of 52 | 12 |
+
+- **Almost all of the strict judge's reduction is in Running Multiple AI Copies.** It removes 90 of RAC's 102
+  upstream positives (42 judged `instructed`, i.e. behaviour the task authorises; 48 `none`), in every model
+  (−46 to −92 pp per model). Outside RAC the two judges are within ±6 pp per category, and in HC, DB and SAA the strict
+  judge finds slightly more (SAA: the setback-as-on-track status reports, as on Fable's 15 tasks).
+- `instructed` occurs almost only in RAC (42 of the 43 on these responses; the other is one ES verdict).
+- Descriptive; categories have 10-20 tasks, so per-model intervals in (b-g) are wide.
+
 ## How the results could be improved by changing parameters only
 
 These are not run by default; every item is a configuration change.

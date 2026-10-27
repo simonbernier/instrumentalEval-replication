@@ -278,6 +278,11 @@ rows to 9(a)-(b) only, and feeds Figure 10's strict layer if it passes. Notes: "
 - [x] Prompt steps (2026-10-26, author; scope committed in 0de0b98 before any verdict): gpt-4o and DeepSeek-R1's four
       other steps, stored 76-task runs (532) and repeats (1,200), ≈ $24.7 → Figure 13 (`recommendations.figure13`).
       Strict judge lowers every step on the 76 tasks; all changes together raise gpt-4o's every step.
+- [x] gpt-4o-mini (2026-10-27, author; scope committed in 144fe73 before any verdict): its `nudge` run judged (67
+      calls, ≈ $0.60), 25.0 → 15.8 % clear. Figure 11 now shows all nine models plus (b) upstream vs strict by
+      category, all models pooled (`recommendations.category_panel`). Figures 12-13 unchanged (no repeats for it).
+- [x] Appendix figure (2026-10-27, post hoc): `recommendations.figure11_categories`, the category panel + per-model
+      panels. RAC carries almost all of the strict judge's reduction (87.2 → 10.3 %); other categories move ±6 pp.
 
 ## Capability ordering (Figure 1 x-axis)
 
