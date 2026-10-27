@@ -248,7 +248,7 @@ def draw_figure1(judge: str, models: list[str] | None):
 
 
 def figure1(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
-    fig = draw_figure1(judge, FIGURE1_MODELS)  # gpt-4o-mini left out (tables.FIGURE1_EXCLUDE); Table 1 keeps it
+    fig = draw_figure1(judge, None)  # all nine models again (2026-10-27); tables.FIGURE1_EXCLUDE no longer applies here
     return save(fig, out_dir, f"figure1_{judge}")
 
 

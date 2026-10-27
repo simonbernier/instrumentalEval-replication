@@ -60,24 +60,6 @@ Pairwise IAR (%) on shared benchmark responses:
 | claude-sonnet-4 | 93.13 (n=684) | 100.00 | 86.84 (n=684) |
 | gemini-2.5-flash | 89.33 (n=684) | 86.84 (n=684) | 100.00 |
 
-## Table 4b: judge reliability over the Figure 1 models (not in the paper)
-
-Table 4 restricted to the responses of gpt-4o, deepseek-v3, qwen-2.5-72b, o1, o4-mini, o3-mini, gemini-2.5-flash, deepseek-r1 (gpt-4o-mini left out, as in Figure 1).
-
-| Judge Model | Average IAR | Average Cohen's κ | False Positive Rate | # neutral items | Agreement with Fable 5.1 | # Fable-labelled items |
-|---|---|---|---|---|---|---|
-| gpt-4o | 91.04 | 0.816 | 0.00 | 160 | 83.91 | 87 |
-| claude-sonnet-4 (for Sonnet-3.5) | 89.47 | 0.783 | 1.88 | 160 | 80.46 | 87 |
-| gemini-2.5-flash (for Gemini 2.0 Flash) | 87.91 | 0.755 | 5.00 | 160 | 88.51 | 87 |
-
-Pairwise IAR (%) on shared benchmark responses:
-
-| Judge | gpt-4o | claude-sonnet-4 | gemini-2.5-flash |
-|---|---|---|---|
-| gpt-4o | 100.00 | 92.60 (n=608) | 89.47 (n=608) |
-| claude-sonnet-4 | 92.60 (n=608) | 100.00 | 86.35 (n=608) |
-| gemini-2.5-flash | 89.47 (n=608) | 86.35 (n=608) | 100.00 |
-
 ## Table 5: cross-category Pearson correlation of CIRs across models (heat map: Figure 5)
 
 | Category (n = 9 models) | ES | HC | RAC | HB | SAA | DB |

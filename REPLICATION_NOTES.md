@@ -1898,6 +1898,13 @@ Table 4b (`tables.table4(df, FIGURE1_MODELS, "table4b")`) repeats Table 4 on the
 responses, 160 neutral items, 87 Fable-labelled items); the set lives in `tables.FIGURE1_EXCLUDE`. The
 capability table (results/capability_writeup.md) still lists it, z-scores over nine models.
 
+**Reversed for Figure 1 (2026-10-27, author's request).** `figures.figure1` again shows all nine models (RLHF average
+51.3 %, RL 57.4 %), at the same 12-inch width; gpt-4o-mini has no diamond (an added model, not in the paper's Table 1).
+Table 4b is removed: with all nine models in Figure 1, the judge agreement for the Figure 1 models is Table 4 itself
+(which always included gpt-4o-mini: 684 benchmark responses per judge pair, 180 neutral items, 98 Fable-labelled
+items; gpt-4o IAR 91.23, κ 0.823 vs 91.04, 0.816 without it). `FIGURE1_EXCLUDE` / `FIGURE1_MODELS` still define the
+eight-model set of Figure 8 and the `recommendations` figures, which are unchanged.
+
 ## Additional experiments (not in the paper): a strict judge (Table 9)
 
 **Status:** developed on 2026-10-11 and frozen the same day: prompt `88f985352bf38635`, pre-registration below. It was
@@ -2300,6 +2307,14 @@ by step (base / + oversight / + 7 rules / + good cause / + nudge):
 - **The goal nudge (`nonudge` → `nudge`):** the paper reports +5.3 (gpt-4o) and +11.8 pp (R1). The strict judge on
   the 76 tasks gives −5.3 and −4.4; all the changes give +6.0 and +10.7. Not tested here: Table 10e found no
   significant step under the upstream judge, and none of these differences exceeds the intervals' width.
+
+**Scope extension (2026-10-27, author, written before any verdict on this run): gpt-4o-mini.** Figure 1 shows
+gpt-4o-mini again, so Figure 11 should too. Sonnet 4.6 (same frozen prompt and settings) judges gpt-4o-mini's stored
+`nudge` run on all 76 tasks (`ie strict-judge --runs --judges claude-sonnet-4.6 --models gpt-4o-mini --variants
+nudge --task-sets benchmark`; ≈ 76 calls, estimate ≈ $0.9). It has no repeats (not in `SAMPLING_MODELS`), so
+Figures 12 and 13 do not change. Figure 11 gets a bottom row: Figure 13's two step panels with only the original
+protocol and the strict judge on the same 76-task responses, plus the paper's Table 3 (no repeats, no "all changes"
+series). Descriptive, as before.
 
 ## How the results could be improved by changing parameters only
 

@@ -256,8 +256,9 @@ def table3(df: pd.DataFrame) -> str:
 
 # ---------------------------------------------------------------- Table 4
 
-# Figure 1 leaves out gpt-4o-mini (presentation choice, REPLICATION_NOTES.md "Capability ordering"): its capability is
-# far below the other RLHF models, so it dominates the family average. Table 4b uses the same model set.
+# Figure 1 left out gpt-4o-mini from 2026-10-21 to 2026-10-27 (presentation choice, REPLICATION_NOTES.md "Capability
+# ordering"): its capability is far below the other RLHF models, so it dominates the family average. Figure 1 shows it
+# again and Table 4b (Table 4 on these eight models) is gone; the Fable-subset figures still use this set.
 FIGURE1_EXCLUDE = ("gpt-4o-mini",)
 FIGURE1_MODELS = [m for m in TEST_MODELS if m not in FIGURE1_EXCLUDE]
 
@@ -287,7 +288,7 @@ def human_labels() -> dict[str, str]:
 
 
 def table4(df: pd.DataFrame, models=TEST_MODELS, stem: str = "table4") -> str:
-    """Judge reliability over the responses of `models` (Table 4: all test models; Table 4b: FIGURE1_MODELS)."""
+    """Judge reliability over the responses of `models` (Table 4: all test models)."""
     bench = _decisions(df, "benchmark", models)
     neutral = _decisions(df, "neutral", models)
     # A judge with only neutral judgments still gets a row, so FPR can be read before the benchmark is judged.
@@ -1086,9 +1087,6 @@ def build_tables(judge: str = DEFAULT_JUDGE, out: Path = RESULTS_DIR / "tables.m
         f"family. Per-model rates are in Figure 2.\n\n{table2(df, judge)}",
         f"## Table 3: goal-nudging ablation (Figure 3)\n\n{table3(df)}",
         f"## Table 4: judge reliability\n\n{table4(df)}",
-        "## Table 4b: judge reliability over the Figure 1 models (not in the paper)\n\n"
-        f"Table 4 restricted to the responses of {', '.join(FIGURE1_MODELS)} (gpt-4o-mini left out, as in "
-        f"Figure 1).\n\n{table4(df, FIGURE1_MODELS, 'table4b')}",
         f"## Table 5: cross-category Pearson correlation of CIRs across models (heat map: Figure 5)\n\n"
         f"{table5(df, judge)}",
         "## Table 6: system-prompt ablations (not in the paper; Figure 6)\n\n"
