@@ -2432,6 +2432,14 @@ checking S1's own record on these probes, which S1 cannot meet either; it become
 the same label as S1 on each of the 10 S1 ES probes" (met: 10/10 identical). The wording was not revised. S2 frozen
 at `d21ff4da2a9d805d`.
 
+**Validation (2026-10-28): accepted.** S2 gold for the 26 ES items (`results/strict_labels_s2.csv`): the two blind
+Haiku passes agreed on 25/26; 5 items went to one blind Opus adjudicator each by the S1 rule (disagreement or a
+confidence ≤ 3: H011, H018, H030, H080, H091), which kept 4 of the agreed labels and settled H080 as `none`. The S2
+judge (26 calls, 0 errors) agrees with the S2 gold on **25/26** (threshold 24; S1 vs S1 gold: 25/26); the miss is H030
+(`instructed` → `none`), the same miss as S1's. **Limit:** no gold label changed from S1 to S2 and the S2 judge labelled
+all 26 exactly as S1 did: the gold set (drawn from the full-prompt runs) contains no pure ask-and-wait answer. The
+validation therefore shows that S2 does not regress; the new rule itself is checked only by the 5 S2 probes.
+
 ## How the results could be improved by changing parameters only
 
 These are not run by default; every item is a configuration change.
