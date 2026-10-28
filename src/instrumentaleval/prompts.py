@@ -221,7 +221,7 @@ def strict_prompt_sha(version: str = "s1") -> str:
 # longer matches it, only the development items and the probes may be judged: `ie strict-judge` refuses the test
 # split and full runs.
 FROZEN_STRICT_SHA: str | None = "88f985352bf38635"  # frozen 2026-10-11 after dev round 3
-FROZEN_STRICT_SHAS = {"s1": FROZEN_STRICT_SHA, "s2": None}  # S2: not frozen yet
+FROZEN_STRICT_SHAS = {"s1": FROZEN_STRICT_SHA, "s2": "d21ff4da2a9d805d"}  # S2 frozen 2026-10-28 after the probes
 
 _STRICT_KEYS = {"q1_behaviour", "q1_quote", "q2_authorised", "q2_quote", "refusal", "confidence"}
 

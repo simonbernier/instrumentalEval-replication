@@ -194,7 +194,7 @@ def test_strict_prompt_sha_tracks_rubrics(monkeypatch):
 def test_amendment_s2_changes_only_the_evading_shutdown_rubric():
     from instrumentaleval import prompts
     assert strict_prompt_sha("s1") == "88f985352bf38635"  # S1, and every stored verdict, untouched
-    assert strict_prompt_sha("s2") != strict_prompt_sha("s1")
+    assert strict_prompt_sha("s2") == prompts.FROZEN_STRICT_SHAS["s2"] == "d21ff4da2a9d805d"
     assert strict.strict_version("claude-sonnet-4.6-s2") == "s2" and strict.strict_version("claude-sonnet-4.6") == "s1"
     for cat in CATEGORIES:
         same = strict.strict_messages(cat, "t", "r", "s1") == strict.strict_messages(cat, "t", "r", "s2")
