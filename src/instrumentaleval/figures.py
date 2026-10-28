@@ -6,7 +6,8 @@ only the models run under the paper's own ids; `figure1_strict` is Figure 1 unde
 figures --strict`).
 Figure 2 (Table 2): one panel per prior-task type, with a dashed line at the all-model average (the Table 2 value).
 In both, the models are grouped by family (RLHF, then RL) with a gap between the groups, a line marks each
-family's average (mean of per-model rates, as in Tables 1 and 2), and error bars are 95% Wilson intervals.
+family's average (mean of per-model rates, as in Tables 1 and 2), and error bars are 95% Wilson intervals. Figure
+1's overall panel also gives each family average a 95% CI from a by-task cluster bootstrap (ours, post hoc).
 Figure 3 (Table 3): one panel per model, the nudge gap per category as bars around zero.
 Figure 5 (Table 5): the upper triangle of the cross-category correlation matrix as a heat map.
 Figure 6 (Table 6): one panel per model in the Figure 1 order, IR as the upstream prompt is built up from "You are an
@@ -35,7 +36,7 @@ from .benchmark import CATEGORIES, FABLE_GOOD_TASKS
 from .capability import capability_order
 from .models import DEFAULT_JUDGE, DEFAULT_STRICT_JUDGE, EFFORT_BASE_MODELS, EFFORT_LEVELS, STRICT_MODELS, TEST_MODELS
 from .prompts import SYSTEM_PROMPTS
-from .stats import wilson_ci
+from .stats import cluster_bootstrap_contrast, wilson_ci
 from .tables import (
     FIGURE1_MODELS,
     PRIOR_TYPES,
@@ -79,6 +80,14 @@ PAPER_MARKER = {"marker": "D", "markersize": 7, "markerfacecolor": "#e34948", "m
 EFFORT_COLORS = {"o3-mini": "#2a78d6", "o4-mini": "#eb6834"}
 INK, INK_2, GRID ="#0b0b0b", "#52514e", "#e6e5e0"
 GROUP_GAP = 1.0  # extra x-space between the two families
+# Figure 1 with a second prompt variant: filled round markers right of the bar's centre, clear of its error bar;
+# neutral, so it doesn't compete with the family colours: a light grey fill inside a black outline and interval
+OVERLAY_DARK = INK
+OVERLAY_LIGHT = "#d4d3ce"
+OVERLAY_MARKER = {"fmt": "o", "markersize": 6, "markerfacecolor": OVERLAY_LIGHT, "markeredgecolor": OVERLAY_DARK,
+                  "markeredgewidth": 0.9, "ecolor": OVERLAY_DARK, "elinewidth": 1.4, "capsize": 0}
+OVERLAY_DX = 0.2
+OVERLAY_LABELS = {"nudge": "full prompt"}
 # diverging pair of the dataviz reference palette: blue <-> red around a neutral gray
 DIVERGING = LinearSegmentedColormap.from_list("ie_diverging", ["#2a78d6", "#f0efec", "#e34948"])
 
@@ -115,8 +124,9 @@ def style_axes(ax, ylabel: str | None) -> None:
 
 
 def draw_panel(ax, rates, counts, xs, groups, title, *, ylabel=None, value_labels=False, avg_labels=False,
-               colors=FAMILY_COLORS, avg_style="-", err_style=None, fills=None):
-    """Bars for one row of the CIR matrix. `counts` maps model -> (k, n) for the Wilson interval."""
+               colors=FAMILY_COLORS, avg_style="-", err_style=None, fills=None, avg_ci=None):
+    """Bars for one row of the CIR matrix. `counts` maps model -> (k, n) for the Wilson interval; `avg_ci` maps
+    family -> (lo, hi) of its average, drawn as a capped bar at the end of the average line."""
     for fam, fam_models in groups.items():
         fam_models = [m for m in fam_models if counts[m][1]]  # skip models with no judged task here
         if not fam_models:
@@ -139,8 +149,14 @@ def draw_panel(ax, rates, counts, xs, groups, title, *, ylabel=None, value_label
 
         avg = sum(y) / len(y)
         ax.hlines(avg, x[0] - 0.45, x[-1] + 0.45, colors=INK, linewidth=1.5, linestyles=avg_style, zorder=4)
+        ci_text = ""
+        if avg_ci:
+            lo, hi = avg_ci[fam]
+            ax.errorbar(x[-1] + 0.45, avg, yerr=[[avg - lo], [hi - avg]], fmt="none", ecolor=INK, elinewidth=1.5,
+                        capsize=3, zorder=4)
+            ci_text = f"\n[{lo:.1f}–{hi:.1f}]"
         if avg_labels:
-            ax.text(x[-1] + 0.5, avg, f"{fam} avg\n{avg:.1f}", ha="left", va="center", fontsize=8, color=INK)
+            ax.text(x[-1] + 0.6, avg, f"{fam} avg\n{avg:.1f}{ci_text}", ha="left", va="center", fontsize=8, color=INK)
 
     ax.set_title(title, loc="left", fontsize=10, color=INK, fontweight="bold")
     style_axes(ax, ylabel)
@@ -185,28 +201,59 @@ def save(fig, out_dir: Path, stem: str) -> list[Path]:
     return paths
 
 
-def draw_figure1(judge: str, models: list[str] | None):
-    """Overall IR panel + one panel per category for `models` (default: every judged model), with the paper's
-    Table 1 values overlaid; family averages are over the models shown. No figure title (the caption is written
-    separately) and no */† marks. Substitutes get no diamond (the paper's value belongs to the model they replace),
-    nor do the added models (the paper didn't run them)."""
+def task_outcomes(df, judge: str, models: list[str], variant: str = "nudge") -> dict[str, dict[str, int]]:
+    """task -> {model: 0/1} for one variant's benchmark judgments, the input of `cluster_bootstrap_contrast`."""
+    sub = df[(df.judge == judge) & (df.variant == variant) & (df.task_set == "benchmark") & df.model.isin(models)]
+    out: dict[str, dict[str, int]] = {}
+    for t, m, conv in zip(sub.task_id, sub.model, sub.conv):
+        out.setdefault(t, {})[m] = int(conv)
+    return out
+
+
+def family_avg_cis(df, judge: str, groups: dict[str, list[str]], variant: str = "nudge") -> dict[str, tuple[float, float]]:
+    """family -> 95% CI of its average IR (mean of model rates), by-task cluster bootstrap."""
+    outcomes = task_outcomes(df, judge, [m for g in groups.values() for m in g], variant)
+    return {f: cluster_bootstrap_contrast(outcomes, {m: 1 / len(g) for m in g})[1:] for f, g in groups.items()}
+
+
+def draw_figure1(judge: str, models: list[str] | None, variant: str = "nudge", overlay: str | None = None):
+    """Overall IR panel + one panel per category for `models` (default: every model judged under `variant`), with
+    the paper's Table 1 values overlaid under `nudge` (the prompt they were measured with); family averages are over
+    the models shown. No figure title (the caption is written separately) and no */† marks. Substitutes get no
+    diamond (the paper's value belongs to the model they replace), nor do the added models (the paper didn't run
+    them). `overlay` adds a second variant's overall IR as round markers with 95% Wilson intervals, right of each
+    bar's centre, in the overall panel only (per category it crowds the panels)."""
     df = load_judgments()
-    c = cir_counts(df, judge)
+    c = cir_counts(df, judge, variant)
     if c.empty:
-        raise SystemExit(f"no benchmark judgments from judge `{judge}` yet")
-    mat = cir_matrix(df, judge)
+        raise SystemExit(f"no `{variant}` benchmark judgments from judge `{judge}` yet")
+    mat = cir_matrix(df, judge, variant)
     order = capability_order(REASONING_ORDER)
     models = sorted((m for m in models or mat.columns if m in mat.columns), key=order.index)
     mat = mat[models]
     paper = paper_table1()
     xs, groups = layout(models)
     ticks = [xs[m] for m in models]
+
+    def overlay_variant(ax) -> None:
+        if not overlay:
+            return
+        counts = row_counts(cir_counts(df, judge, overlay), models, "Total")
+        for m in models:
+            k, n = counts[m]
+            lo, hi = wilson_ci(k, n)
+            y = 100 * k / n
+            ax.errorbar(xs[m] + OVERLAY_DX, y, yerr=[[max(0.0, y - lo)], [max(0.0, hi - y)]], zorder=6, clip_on=False,
+                        **OVERLAY_MARKER)
+
     labels = list(models)
     style = {"colors": FIGURE1_COLORS, "avg_style": (0, (5, 3)), "err_style": {"ecolor": INK, "elinewidth": 1},
              "fills": FIGURE1_FILLS}
-    on_paper = [m for m in models if m in paper and not TEST_MODELS[m].substitute]
+    on_paper = [m for m in models if m in paper and not TEST_MODELS[m].substitute] if variant == "nudge" else []
 
     def overlay_paper(ax, row: str) -> None:
+        if not on_paper:  # an empty unclipped marker line sits at the origin and widens the tight bbox
+            return
         y = [paper[m]["ir"] if row == "Total" else paper[m]["cir"][row] for m in on_paper]
         ax.plot([xs[m] for m in on_paper], y, zorder=6, clip_on=False, **PAPER_MARKER)  # 0 % sits on the axis
 
@@ -217,8 +264,10 @@ def draw_figure1(judge: str, models: list[str] | None):
     # overall IR: full width, values labelled
     ax = fig.add_subplot(outer[0])
     draw_panel(ax, mat.loc["Total"], row_counts(c, models, "Total"), xs, groups, "Instrumental Rate, all 76 tasks",
-               ylabel="IR (%)", value_labels=True, avg_labels=True, **style)
+               ylabel="IR (%)", value_labels=True, avg_labels=True, avg_ci=family_avg_cis(df, judge, groups, variant),
+               **style)
     overlay_paper(ax, "Total")
+    overlay_variant(ax)
     ax.set_xticks(ticks, labels, rotation=30, ha="right")
     ax.set_xlim(-0.6, max(xs.values()) + 1.6)
 
@@ -239,9 +288,12 @@ def draw_figure1(judge: str, models: list[str] | None):
     first.set_xlim(-0.6, max(xs.values()) + 0.6)
 
     handles = [Patch(facecolor=FIGURE1_FILLS[f], edgecolor=FIGURE1_COLORS[f], linewidth=1.5, label=f"{f} models")
-               for f in groups] + [
-        Line2D([], [], **PAPER_MARKER, label="paper (Table 1)"),
-        Line2D([], [], color=INK, linewidth=1.5, linestyle=style["avg_style"], label="family average")]
+               for f in groups] + [Line2D([], [], **PAPER_MARKER, label="paper (Table 1)")] * bool(on_paper) + [
+        Line2D([], [], marker="o", markersize=6, markerfacecolor=OVERLAY_LIGHT, markeredgecolor=OVERLAY_DARK,
+               markeredgewidth=0.9, color=OVERLAY_DARK, linewidth=1.4, label=OVERLAY_LABELS.get(overlay))
+    ] * bool(overlay) + [
+        Line2D([], [], color=INK, linewidth=1.5, linestyle=style["avg_style"],
+               label="family average" if overlay else "family average (top panel: 95% CI, tasks resampled)")]
     fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.125, 0.955), ncol=len(handles),
                frameon=False, fontsize=10, handlelength=1.8, columnspacing=1.2)
     return fig
@@ -258,6 +310,14 @@ def figure1_matched(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> 
     models = [m for m in TEST_MODELS if not (TEST_MODELS[m].substitute or TEST_MODELS[m].added) and m in paper]
     fig = draw_figure1(judge, models)
     return save(fig, out_dir, f"figure1_matched_{judge}")
+
+
+def figure1_base(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Path]:
+    """Figure 1 under the base prompt, "You are an autonomous AI agent." alone (`plain-nonudge`, Figure 6's first
+    step): the eight ablation models (o1 has no ablation runs), no paper diamonds (Table 1 used the full prompt). The
+    same models under the full upstream prompt (`nudge`, the Table 1 runs) are the round markers."""
+    fig = draw_figure1(judge, None, "plain-nonudge", overlay="nudge")
+    return save(fig, out_dir, f"figure1_base_{judge}")
 
 
 # The paper's Table 1 (He et al. 2025, GPT-4o judge) for the strict judge's focus models, as given by the user (a copy

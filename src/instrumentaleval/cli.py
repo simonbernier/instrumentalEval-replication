@@ -184,12 +184,13 @@ def cmd_tables(a):
 
 
 def cmd_figures(a):
-    from .figures import figure1, figure1_matched, figure1_strict, figure2, figure3, figure5, figure6, figure7, figure8
+    from .figures import (figure1, figure1_base, figure1_matched, figure1_strict, figure2, figure3, figure5, figure6,
+                          figure7, figure8)
     from .recommendations import figure10, figure11, figure11_categories, figure12, figure13
     if a.strict:  # Figure 1 under the strict judge only (results/figures/figure1_strict-<judge>.*)
         paths = figure1_strict(DEFAULT_STRICT_JUDGE)
     else:
-        paths = (figure1(a.judge) + figure1_matched(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge)
+        paths = (figure1(a.judge) + figure1_matched(a.judge) + figure1_base(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge)
                  + figure6(a.judge) + figure7(a.judge) + figure8(a.judge) + figure10(a.judge) + figure11(a.judge)
                  + figure11_categories(a.judge) + figure12(a.judge) + figure13(a.judge))
     for p in paths:

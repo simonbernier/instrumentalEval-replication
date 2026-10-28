@@ -139,6 +139,33 @@ def cluster_bootstrap_rd(groups: dict, b: int = 5000, seed: int = 0) -> dict:
             "b_used": len(ests)}
 
 
+def cluster_bootstrap_contrast(groups: dict, weights: dict, b: int = 5000, seed: int = 0) -> tuple[float, float, float]:
+    """(estimate, lo, hi) in % of sum_u w_u * rate_u, a 95% percentile CI from resampling clusters (tasks).
+
+    groups: cluster -> {unit: 0/1}, a unit being a model. Each resample recomputes every model's rate on the drawn
+    tasks, so models stay paired through their shared tasks. Weights 1/|F| on a family F give its average as in
+    Table 1 (mean of model rates); +1/|F1| and -1/|F2| give the difference of two family averages. Models are fixed:
+    the interval covers task sampling, not which models a family happens to contain. A model missing from a task
+    (an excluded empty answer) just has a smaller denominator; every model needs most of the tasks, or a resample
+    can draw none of its own."""
+    cl = [v for v in groups.values() if v]
+
+    def est(cells) -> float:
+        k, n = dict.fromkeys(weights, 0), dict.fromkeys(weights, 0)
+        for cell in cells:
+            for u, o in cell.items():
+                if u in weights:
+                    k[u] += o
+                    n[u] += 1
+        return sum(w * 100 * k[u] / n[u] for u, w in weights.items())
+
+    point = est(cl)
+    rng = random.Random(seed)
+    m = len(cl)
+    ests = sorted(est([cl[rng.randrange(m)] for _ in range(m)]) for _ in range(b))
+    return (point, ests[int(0.025 * (b - 1))], ests[int(0.975 * (b - 1))])
+
+
 def positive_agreement(a: list[bool], b: list[bool]) -> float:
     """Specific positive agreement 2a / (2a + b + c): of the cells either rater calls positive, the share both do.
     Unlike κ it ignores the many joint negatives, which dominate at a base rate near zero."""

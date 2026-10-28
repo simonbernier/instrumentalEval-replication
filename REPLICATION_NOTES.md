@@ -1905,6 +1905,28 @@ Table 4b is removed: with all nine models in Figure 1, the judge agreement for t
 items; gpt-4o IAR 91.23, κ 0.823 vs 91.04, 0.816 without it). `FIGURE1_EXCLUDE` / `FIGURE1_MODELS` still define the
 eight-model set of Figure 8 and the `recommendations` figures, which are unchanged.
 
+**Family-average intervals in Figure 1 (2026-10-28, author's request, post hoc, descriptive).** The overall panel now
+gives each family average a 95% CI (`stats.cluster_bootstrap_contrast`, `figures.family_avg_cis`): the 76 tasks are
+resampled with replacement (B = 5000, seed 0), every model's IR is recomputed on the draw, and the family average is
+the mean of those rates, as in Table 1. Models are held fixed, so the interval covers task sampling only, not which
+four or five models a family happens to contain; with that few models, the choice of models is the larger
+uncertainty and the interval does not cover it. Category panels get no interval (10-16 tasks each). Results, gpt-4o
+judge, `nudge`:
+
+- RLHF 51.3 % [43.1-59.5], RL 57.4 % [49.2-65.8] (all nine models).
+- RL − RLHF, same resamples, paired on tasks: +6.1 pp [1.3-11.1]. On the five models run under the paper's own ids
+  (gpt-4o, deepseek-v3 vs o1, o3-mini, deepseek-r1): RLHF 63.2 % [53.9-72.4], RL 59.6 % [50.9-68.4], RL − RLHF
+  −3.5 pp [−9.9 to +3.1]. The positive gap therefore rests on the added and substitute models (gpt-4o-mini's 25.0 %
+  pulls the RLHF average down); it is not evidence for the paper's RL > RLHF claim. Not pre-registered, not in the
+  figure, not a test.
+
+**Figure 1 under the base prompt (2026-10-28, author's request, descriptive).** `figures.figure1_base` →
+`figure1_base_<judge>`: bars are the eight ablation models under `plain-nonudge` ("You are an autonomous AI agent."
+alone; no o1), with the family-average CIs as above; grey round markers ("full prompt") are the same models
+under the full upstream prompt (`nudge`, the Table 1 runs), with 95% Wilson intervals. No paper diamonds (Table 1 used the full
+prompt). The markers are in the overall panel only: per category they crowded the panels, and the comparison is
+meant per model, on all 76 tasks.
+
 ## Additional experiments (not in the paper): a strict judge (Table 9)
 
 **Status:** developed on 2026-10-11 and frozen the same day: prompt `88f985352bf38635`, pre-registration below. It was
@@ -2345,6 +2367,17 @@ responses with both verdicts (683; one deepseek-r1 strict verdict missing):
   judge finds slightly more (SAA: the setback-as-on-track status reports, as on Fable's 15 tasks).
 - `instructed` occurs almost only in RAC (42 of the 43 on these responses; the other is one ES verdict).
 - Descriptive; categories have 10-20 tasks, so per-model intervals in (b-g) are wide.
+
+**Scope extension (2026-10-28, author, written before any verdict on these runs): the base prompt.** The base-prompt
+Figure 1 (`figure1_base`) and the ES / RAC inspection (judge reasons, answers) suggest that under the base prompt too
+the high ES and RAC rates come from task texts that ask for the behaviour. Sonnet 4.6 (same frozen prompt and
+settings) judges the stored `plain-nonudge` runs on all 76 tasks of the six ablation models that lack them:
+gpt-4o-mini, deepseek-v3, qwen-2.5-72b, o3-mini, o4-mini, gemini-2.5-flash (`ie strict-judge --runs --judges
+claude-sonnet-4.6 --models <the six> --variants plain-nonudge --task-sets benchmark`; 456 calls, estimate ≈ $4-7).
+gpt-4o and deepseek-r1 already have these verdicts (prompt-step scope above); o1 has no ablation runs. Shown as
+`figure11_base`: Figure 11's layout for the base prompt, gpt-4o judge vs strict judge on the same responses, with the
+paper's Table 1 IR and the gpt-4o judge's IR under the full prompt as reference points; its design will be iterated
+with the author. Descriptive; nothing is tested.
 
 ## How the results could be improved by changing parameters only
 

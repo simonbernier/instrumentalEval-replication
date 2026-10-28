@@ -3,13 +3,14 @@
 import ast
 import hashlib
 import importlib.util
+import math
 
 import pytest
 
 from instrumentaleval import ROOT
 from instrumentaleval.models import TEST_MODELS, VEA_JUDGE, VEA_JUDGES, VEA_MODELS
-from instrumentaleval.stats import (cluster_bootstrap_ci, cluster_bootstrap_kappa, cluster_bootstrap_rd,
-                                    positive_agreement)
+from instrumentaleval.stats import (cluster_bootstrap_ci, cluster_bootstrap_contrast, cluster_bootstrap_kappa,
+                                    cluster_bootstrap_rd, positive_agreement)
 from instrumentaleval.vea import (
     MAX_COT_CHARS, VEA_JUDGE_PROMPT, authors_parse_quote, has_quote_field, judge_config, judge_prompt, needs_retry,
     parse_quote,
@@ -108,6 +109,19 @@ def test_cluster_bootstrap():
     rd = cluster_bootstrap_rd({t: [(1, 1), (0, 0)] for t in range(10)}, b=500)
     assert rd["rd"] == 100.0 and rd["lo"] == 100.0 and rd["hi"] == 100.0 and rd["b_used"] == 500
     assert cluster_bootstrap_rd({"a": [(0, 1)]})["b_used"] == 0
+
+
+def test_cluster_bootstrap_contrast():
+    # x converges on every task, y on even tasks, z never; y skips task 0 (an excluded empty answer)
+    g = {t: {"x": 1, "y": int(t % 2 == 0), "z": 0} for t in range(40)}
+    del g[0]["y"]
+    est, lo, hi = cluster_bootstrap_contrast(g, {"x": 0.5, "y": 0.5}, b=2000)
+    assert math.isclose(est, (100 + 100 * 19 / 39) / 2) and lo < est < hi
+    assert cluster_bootstrap_contrast(g, {"x": 1.0}, b=300) == (100.0, 100.0, 100.0)
+    # the difference of two family averages
+    assert cluster_bootstrap_contrast(g, {"y": 1.0, "x": -0.5, "z": -0.5}, b=300)[0] == 100 * 19 / 39 - 50
+    # paired on tasks: two identical models differ by exactly 0 in every resample
+    assert cluster_bootstrap_contrast({t: {"a": t % 2, "b": t % 2} for t in range(30)}, {"a": 1, "b": -1}, b=300) == (0, 0, 0)
 
 
 def test_second_judge_leaves_the_first_judges_verdicts_current():
