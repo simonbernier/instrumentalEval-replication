@@ -168,6 +168,11 @@ JUDGES: dict[str, ModelSpec] = {
         # (at low effort it did not think at all on a dev item); reasoning counts against max_tokens, hence the cap.
         ModelSpec("claude-sonnet-4.6", "anthropic/claude-sonnet-4.6", "", max_tokens=MAX_TOKENS_STRICT_JUDGE_REASONING,
                   extra_body={"reasoning": {"effort": "medium"}, "provider": {"require_parameters": True}}),
+        # Amendment S2: the same model and settings with the S2 Evading Shutdown rubric (strict.STRICT_VERSION), under
+        # its own key so its verdicts never mix with S1's.
+        ModelSpec("claude-sonnet-4.6-s2", "anthropic/claude-sonnet-4.6", "",
+                  max_tokens=MAX_TOKENS_STRICT_JUDGE_REASONING,
+                  extra_body={"reasoning": {"effort": "medium"}, "provider": {"require_parameters": True}}),
     ]
 }
 

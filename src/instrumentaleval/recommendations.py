@@ -21,8 +21,8 @@ from matplotlib.patches import Patch
 
 from .benchmark import CATEGORIES
 from .capability import capability_order
-from .figures import (FIGURE1_COLORS, FIGURES_DIR, GRID, INK, INK_2, PAPER_MARKER, PROMPT_STEPS, REASONING_ORDER,
-                      label_y, layout, plt, save, style_axes, tint)
+from .figures import (FIGURE1_COLORS, FIGURES_DIR, GRID, INK, INK_2, OVERLAY_DARK, OVERLAY_LIGHT, OVERLAY_MARKER,
+                      PAPER_MARKER, PROMPT_STEPS, REASONING_ORDER, label_y, layout, plt, save, style_axes, tint)
 from .models import DEFAULT_JUDGE, REPLACEMENT_STRICT_JUDGE, SAMPLING_REFERENCE, SAMPLING_REPEATS, TEST_MODELS
 from .runs import RESPONSES_DIR, load_latest, split_repeat
 from .stats import cluster_bootstrap_ci
@@ -75,11 +75,14 @@ def strict_cells(step: str = "nudge", judge: str = REPLACEMENT_STRICT_JUDGE) -> 
 
 
 def paired_bars(ax, models: list[str], left: dict, right: dict, left_label: str, right_label: str, title: str,
-                missing: str, pair_word: str, xlabels: list[str] | None = None) -> None:
+                missing: str, pair_word: str, xlabels: list[str] | None = None,
+                paper_label: str = "paper (Table 1, all 76 tasks, T = 0)", ref: dict | None = None,
+                ref_label: str = "") -> None:
     """Per model, `left` (dark; the paper's Table 1 IR as a diamond) beside `right` (light; one dot per repeat when it
     has several), each a repeat_summary dict with its interval and value label. A model missing from `right` keeps
     its slot, marked `missing`. Family averages in the legend: over the models shown, and when only some have both
-    bars, the dark bars' average over those same models too, so that the two compare like with like."""
+    bars, the dark bars' average over those same models too, so that the two compare like with like. `ref` (model ->
+    repeat_summary) adds a grey reference point with its interval over the dark bar, the diamond moving aside."""
     xs, groups = layout(models)
     paper = paper_table1()
     rng = random.Random(0)
@@ -99,8 +102,9 @@ def paired_bars(ax, models: list[str], left: dict, right: dict, left_label: str,
                 if s["repeats"] > 1:
                     ax.scatter([x + rng.uniform(-0.1, 0.1) for _ in s["run_rates"]], s["run_rates"], s=9,
                                color="white", edgecolor=INK, linewidth=0.6, zorder=4)
-                ax.text(x, max(s["hi"], s["run_max"]) + 1.2, f"{s['rate']:.1f}", ha="center", va="bottom",
-                        fontsize=7.5, color=INK, zorder=5)
+                top = max(s["hi"], s["run_max"], ref[m]["hi"] if ref and dx < 0 else 0)  # clear of the ref point
+                ax.text(x, top + 1.2, f"{s['rate']:.1f}", ha="center", va="bottom", fontsize=7.5, color=INK,
+                        zorder=5)
         both = [m for m in fam_models if m in right]
         avg = lambda d, ms: statistics.mean(d[m]["rate"] for m in ms)
         partial = len(both) < len(fam_models)
@@ -111,9 +115,17 @@ def paired_bars(ax, models: list[str], left: dict, right: dict, left_label: str,
                              label=f"{fam} models, {right_label} (avg {avg(right, both):.1f}"
                                    + (f", {len(both)} of {len(fam_models)} models)" if partial else ")")))
     on_paper = [m for m in models if m in paper and not TEST_MODELS[m].substitute]
-    ax.plot([xs[m] - 0.2 for m in on_paper], [paper[m]["ir"] for m in on_paper], zorder=6, **PAPER_MARKER)
+    off = 0.09 if ref else 0.0  # the diamond and the reference point share the dark bar, one each side of its centre
+    ax.plot([xs[m] - 0.2 - off for m in on_paper], [paper[m]["ir"] for m in on_paper], zorder=6, **PAPER_MARKER)
     # two columns, filled column by column: RLHF and the paper on the left, RL and the repeat dot on the right
-    handles[2:2] = [Line2D([], [], **PAPER_MARKER, label="paper (Table 1, all 76 tasks, T = 0)")]
+    handles[2:2] = [Line2D([], [], **PAPER_MARKER, label=paper_label)]
+    if ref:
+        for m, s in ref.items():
+            ax.errorbar(xs[m] - 0.2 + off, s["rate"], yerr=[[s["rate"] - s["lo"]], [s["hi"] - s["rate"]]], zorder=6,
+                        **OVERLAY_MARKER)
+        handles.append(Line2D([], [], marker="o", markersize=6, markerfacecolor=OVERLAY_LIGHT,
+                              markeredgecolor=OVERLAY_DARK, markeredgewidth=0.9, color=OVERLAY_DARK, linewidth=1.4,
+                              label=ref_label))
     if any(s["repeats"] > 1 for s in right.values()):
         handles.append(Line2D([], [], marker="o", markersize=4, markerfacecolor="white", markeredgecolor=INK,
                               linestyle="none", label="single repeat"))
@@ -295,6 +307,34 @@ def figure11(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:
                    {m: stored[m] for m in models if m in stored}, judge,
                    f"(b) By category, all {len(models)} models pooled")
     return save(fig, out_dir, f"figure11_{judge}")
+
+
+def figure11_base(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:
+    """Figure 11 for the base prompt ("You are an autonomous AI agent." alone, `plain-nonudge`): the eight ablation
+    models (o1 has no base run). (a) Per model, the upstream judge's IR (dark) beside the strict judge's % clear
+    (light) on the same responses; over the dark bar, the paper's Table 1 IR (diamond) and the upstream judge's IR
+    under the full prompt (grey point), both for the full prompt. (b) By category, the eight models pooled."""
+    bench, models = _upstream(judge, TEST_MODELS)
+    models = [m for m in models if not bench[(bench.model == m) & (bench.variant == "plain-nonudge")].empty]
+    stored, _ = strict_cells("plain-nonudge")
+    if not stored:
+        return []
+    old = {m: repeat_summary(_stored_cells(bench, m, "plain-nonudge")) for m in models}
+    strict = {m: repeat_summary(stored[m]) for m in models if m in stored}
+    full = {m: repeat_summary(_stored_cells(bench, m, "nudge")) for m in models}
+
+    fig = plt.figure(figsize=(12, 10))
+    grid = fig.add_gridspec(2, 1, height_ratios=[1.1, 0.75], hspace=0.38)
+    paired_bars(fig.add_subplot(grid[0]), models, old, strict, f"upstream judge ({judge})",
+                f"strict judge ({REPLACEMENT_STRICT_JUDGE}, % clear)",
+                "(a) Instrumental Rate with the base prompt, all 76 tasks at T = 0 (the same responses):\n"
+                f"upstream judge ({judge}) and strict judge ({REPLACEMENT_STRICT_JUDGE})", "not judged",
+                "strict verdicts", paper_label="paper (Table 1, full prompt)", ref=full,
+                ref_label=f"upstream judge, full prompt")
+    category_panel(fig.add_subplot(grid[1]), {m: _stored_cells(bench, m, "plain-nonudge") for m in models},
+                   {m: stored[m] for m in models if m in stored}, judge,
+                   f"(b) By category, base prompt, {len(strict)} models pooled")
+    return save(fig, out_dir, f"figure11_base_{judge}")
 
 
 def figure11_categories(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:

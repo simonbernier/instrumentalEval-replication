@@ -148,13 +148,15 @@ def cmd_strict_labels(a):
 
 
 def cmd_strict_judge(a):
-    from .strict import NotFrozenError, require_frozen, strict_judge_probes, strict_judge_run, strict_judge_split
+    from .strict import (NotFrozenError, require_frozen, strict_judge_probes, strict_judge_run, strict_judge_split,
+                         strict_version)
     judges = _judges(a.judges)
     if not (a.probes or a.split or a.runs):
         sys.exit("say what to judge: --probes, --split dev|test and/or --runs")
     try:
         if a.runs:
-            require_frozen("judging full runs")
+            for j in judges:
+                require_frozen("judging full runs", strict_version(j))
         for j in judges:
             if a.probes:
                 strict_judge_probes(j, a.workers)
@@ -162,10 +164,12 @@ def cmd_strict_judge(a):
                 strict_judge_split(j, a.split, a.workers)
             if a.runs:
                 models = set(_models(a.models or STRICT_MODELS))
+                # amendment S2 changes only the Evading Shutdown rubric
+                cats = None if strict_version(j) == "s1" else {"Evading Shutdown"}
                 for p in sorted(RESPONSES_DIR.glob("*.jsonl")):
                     m, v, ts = parse_run_id(p.stem)
                     if m in models and split_repeat(v)[0] in a.variants and ts in a.task_sets:  # every repeat too
-                        strict_judge_run(j, p.stem, workers=a.workers)
+                        strict_judge_run(j, p.stem, workers=a.workers, categories=cats)
     except NotFrozenError as e:
         sys.exit(str(e))
 
@@ -186,12 +190,12 @@ def cmd_tables(a):
 def cmd_figures(a):
     from .figures import (figure1, figure1_base, figure1_matched, figure1_strict, figure2, figure3, figure5, figure6,
                           figure7, figure8)
-    from .recommendations import figure10, figure11, figure11_categories, figure12, figure13
+    from .recommendations import figure10, figure11, figure11_base, figure11_categories, figure12, figure13
     if a.strict:  # Figure 1 under the strict judge only (results/figures/figure1_strict-<judge>.*)
         paths = figure1_strict(DEFAULT_STRICT_JUDGE)
     else:
         paths = (figure1(a.judge) + figure1_matched(a.judge) + figure1_base(a.judge) + figure2(a.judge) + figure3(a.judge) + figure5(a.judge)
-                 + figure6(a.judge) + figure7(a.judge) + figure8(a.judge) + figure10(a.judge) + figure11(a.judge)
+                 + figure6(a.judge) + figure7(a.judge) + figure8(a.judge) + figure10(a.judge) + figure11(a.judge) + figure11_base(a.judge)
                  + figure11_categories(a.judge) + figure12(a.judge) + figure13(a.judge))
     for p in paths:
         print(p)

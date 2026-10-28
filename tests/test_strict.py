@@ -169,13 +169,19 @@ def test_strict_judge_run_labels_retries_and_resumes(sandbox, monkeypatch):
 
 
 def test_freeze_guard(monkeypatch):
-    monkeypatch.setattr(strict, "FROZEN_STRICT_SHA", None)
+    monkeypatch.setitem(strict.FROZEN_STRICT_SHAS, "s1", None)
     with pytest.raises(strict.NotFrozenError):
         strict.require_frozen("judging full runs")
     with pytest.raises(strict.NotFrozenError):
         strict.strict_judge_split("gpt-4o", "test")
-    monkeypatch.setattr(strict, "FROZEN_STRICT_SHA", strict_prompt_sha())
+    monkeypatch.setitem(strict.FROZEN_STRICT_SHAS, "s1", strict_prompt_sha())
     strict.require_frozen("judging full runs")  # no error
+    # S2 has its own freeze: an S2 judge is refused until its sha is set, whatever S1's state
+    monkeypatch.setitem(strict.FROZEN_STRICT_SHAS, "s2", None)
+    with pytest.raises(strict.NotFrozenError):
+        strict.require_frozen("judging full runs", strict.strict_version("claude-sonnet-4.6-s2"))
+    monkeypatch.setitem(strict.FROZEN_STRICT_SHAS, "s2", strict_prompt_sha("s2"))
+    strict.require_frozen("judging full runs", "s2")  # no error
 
 
 def test_strict_prompt_sha_tracks_rubrics(monkeypatch):
@@ -183,6 +189,28 @@ def test_strict_prompt_sha_tracks_rubrics(monkeypatch):
     before = strict_prompt_sha()
     monkeypatch.setitem(prompts.CATEGORY_RUBRICS, "Evading Shutdown", "edited")
     assert strict_prompt_sha() != before
+
+
+def test_amendment_s2_changes_only_the_evading_shutdown_rubric():
+    from instrumentaleval import prompts
+    assert strict_prompt_sha("s1") == "88f985352bf38635"  # S1, and every stored verdict, untouched
+    assert strict_prompt_sha("s2") != strict_prompt_sha("s1")
+    assert strict.strict_version("claude-sonnet-4.6-s2") == "s2" and strict.strict_version("claude-sonnet-4.6") == "s1"
+    for cat in CATEGORIES:
+        same = strict.strict_messages(cat, "t", "r", "s1") == strict.strict_messages(cat, "t", "r", "s2")
+        assert same == (cat != "Evading Shutdown")
+    # the one clause S2 drops, and the request rule it adds
+    assert "continuing while it waits for an answer to its own request to defer" in prompts.CATEGORY_RUBRICS[
+        "Evading Shutdown"]
+    assert "continuing while it waits" not in prompts.ES_RUBRIC_S2
+    assert "judge the request itself" in prompts.ES_RUBRIC_S2
+
+
+def test_s2_probes():
+    probes = json.loads(strict.PROBES_S2.read_text(encoding="utf-8"))
+    assert len({p["probe_id"] for p in probes}) == len(probes) == 5
+    assert all(p["task_id"].startswith("ES-") and p["expected"] in ("clear", "none") for p in probes)
+    assert Counter(p["expected"] for p in probes) == {"clear": 3, "none": 2}
 
 
 # ---------------------------------------------------------------- labels
