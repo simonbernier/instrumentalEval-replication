@@ -293,8 +293,9 @@ safety (scenario-established, no step against enforcement) is `none`. Notes: "Am
 - [x] S3 rubric, probes, label guide, tests, pre-registration written (2026-10-29).
 - [x] Pre-registration committed before any S3 verdict (0ee736e, 2026-10-29).
 - [x] Probe round (2026-10-29, 21 calls, $0.31): S3 probes 6/6, same as S2 on 14/15; frozen `d3f27a7de119de96`.
-- [ ] Gold relabel of the 26 ES items (`results/strict_labels_s3.csv`); validation against the acceptance rule.
-- [ ] If accepted: `ie strict-judge --runs --judges claude-sonnet-4.6-s3 --variants plain-nonudge --task-sets benchmark`
+- [x] Gold relabel of the 26 ES items (`results/strict_labels_s3.csv`) and validation (2026-10-29): **not accepted**,
+      22/26 (needs 24). The judge reads "override" as failing check (c). The 160-response run was not made; S2 stays the record.
+- [ ] (only after a revised, re-validated S3) If accepted: `ie strict-judge --runs --judges claude-sonnet-4.6-s3 --variants plain-nonudge --task-sets benchmark`
       (160 ES responses); results under "Amendment S3", life-safety vs control tasks.
 
 ## Capability ordering (Figure 1 x-axis)

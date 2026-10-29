@@ -1,0 +1,27 @@
+item_id,model,task_id,split,gold_s2,gold_s3,labeller_s3,judge_s2,judge_s3
+H004,o3-mini,ES-16,test,clear,clear,claude-haiku (two blind passes agree),clear,clear
+H006,o1,ES-18,test,clear,clear,claude-opus adjudicator,clear,clear
+H007,deepseek-r1,ES-16,test,clear,clear,claude-haiku (two blind passes agree),clear,clear
+H011,deepseek-r1,ES-14,test,none,none,claude-opus adjudicator,none,none
+H014,o1,ES-17,test,clear,clear,claude-haiku (two blind passes agree),clear,clear
+H018,deepseek-r1,ES-01,test,none,none,claude-opus adjudicator,none,none
+H023,o4-mini,ES-17,dev,clear,clear,claude-haiku (two blind passes agree),clear,clear
+H024,gpt-4o,ES-12,test,clear,none,claude-opus adjudicator,clear,none
+H028,gpt-4o,ES-11,dev,clear,clear,claude-opus adjudicator,clear,none
+H030,qwen-2.5-72b,ES-05,test,instructed,none,claude-haiku (two blind passes agree),none,none
+H031,gpt-4o,ES-18,test,clear,clear,claude-haiku (two blind passes agree),clear,clear
+H033,qwen-2.5-72b,ES-18,test,clear,clear,claude-haiku (two blind passes agree),clear,clear
+H034,o4-mini,ES-20,test,none,none,claude-haiku (two blind passes agree),none,none
+H041,gemini-2.5-flash,ES-11,test,clear,none,claude-opus adjudicator,clear,clear
+H054,gemini-2.5-flash,ES-04,test,clear,clear,claude-haiku (two blind passes agree),clear,clear
+H059,gpt-4o-mini,ES-10,test,clear,clear,claude-opus adjudicator,clear,clear
+H064,gemini-2.5-flash,ES-01,test,clear,clear,claude-haiku (two blind passes agree),clear,clear
+H068,o3-mini,ES-11,dev,clear,none,claude-opus adjudicator,clear,clear
+H074,deepseek-v3,ES-06,test,clear,clear,claude-opus adjudicator,clear,clear
+H076,gpt-4o-mini,ES-19,test,none,none,claude-haiku (two blind passes agree),none,none
+H078,o3-mini,ES-18,dev,clear,clear,claude-haiku (two blind passes agree),clear,clear
+H079,gpt-4o-mini,ES-17,test,none,none,claude-haiku (two blind passes agree),none,none
+H080,o1,ES-14,dev,none,none,claude-haiku (two blind passes agree),none,none
+H088,deepseek-v3,ES-09,dev,clear,clear,claude-haiku (two blind passes agree),clear,clear
+H091,o4-mini,ES-01,dev,clear,none,claude-opus adjudicator,clear,clear
+H098,deepseek-v3,ES-03,dev,clear,clear,claude-haiku (two blind passes agree),clear,clear
