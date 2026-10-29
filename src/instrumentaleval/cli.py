@@ -164,7 +164,7 @@ def cmd_strict_judge(a):
                 strict_judge_split(j, a.split, a.workers)
             if a.runs:
                 models = set(_models(a.models or STRICT_MODELS))
-                # amendment S2 changes only the Evading Shutdown rubric
+                # amendments S2 and S3 change only the Evading Shutdown rubric
                 cats = None if strict_version(j) == "s1" else {"Evading Shutdown"}
                 for p in sorted(RESPONSES_DIR.glob("*.jsonl")):
                     m, v, ts = parse_run_id(p.stem)

@@ -4,7 +4,7 @@ Stored like the upstream judge's output but under results/strict_judgments/<judg
 judgment is reused only if it was made with today's judge config on exactly today's request text (prompt_sha), so
 every edit of the strict prompt during development re-judges what it touches. Until the prompt is frozen
 (prompts.FROZEN_STRICT_SHAS), only the development items and the probes may be judged. A judge in STRICT_VERSION
-uses amendment S2's Evading Shutdown rubric and judges only that category.
+uses amendment S2's or S3's Evading Shutdown rubric and judges only that category.
 """
 
 import json
@@ -24,8 +24,11 @@ PROBES = DATA_DIR / "strict_probes.json"
 # Amendment S2's own probes: the Evading Shutdown cases its rule changes. An S2 judge's `--probes` judges these and the
 # Evading Shutdown probes of PROBES (their expected labels hold under S2 too), nothing else.
 PROBES_S2 = DATA_DIR / "strict_probes_s2.json"
+# Amendment S3's own probes (the protecting-people exception). An S3 judge is checked on these, S2's and the Evading
+# Shutdown probes of PROBES: S3 changes no expected label of the other two sets (all are on ES-02, a sorting task).
+PROBES_S3 = DATA_DIR / "strict_probes_s3.json"
 # judge -> rubric version (prompts.STRICT_RUBRICS); every other judge is S1
-STRICT_VERSION = {"claude-sonnet-4.6-s2": "s2"}
+STRICT_VERSION = {"claude-sonnet-4.6-s2": "s2", "claude-sonnet-4.6-s3": "s3"}
 
 
 def strict_version(judge: str) -> str:
@@ -141,10 +144,13 @@ def load_probes(path=PROBES) -> list[dict]:
 
 
 def judge_probes(judge: str) -> list[dict]:
-    """The probes a judge is checked on: all of PROBES for S1; for S2 its own and the Evading Shutdown ones."""
-    if strict_version(judge) == "s1":
+    """The probes a judge is checked on: all of PROBES for S1; for S2 its own and the Evading Shutdown ones; for S3
+    those of S2 plus its own."""
+    version = strict_version(judge)
+    if version == "s1":
         return load_probes()
-    return [p for p in load_probes() if p["category"] == "Evading Shutdown"] + load_probes(PROBES_S2)
+    es = [p for p in load_probes() if p["category"] == "Evading Shutdown"] + load_probes(PROBES_S2)
+    return es + load_probes(PROBES_S3) if version == "s3" else es
 
 
 def strict_judge_probes(judge: str, workers: int = 4) -> None:
@@ -176,7 +182,7 @@ def strict_judge_split(judge: str, split: str, workers: int = 4) -> None:
         require_frozen(f"judging the {split} split", version)
     by_rid: dict[str, set[str]] = {}
     for it in labelled_items(split):
-        if version == "s1" or it["category"] == "Evading Shutdown":  # S2 changes only that rubric
+        if version == "s1" or it["category"] == "Evading Shutdown":  # S2 and S3 change only that rubric
             by_rid.setdefault(f"{it['model']}__nudge__benchmark", set()).add(it["task_id"])
     for rid, task_ids in sorted(by_rid.items()):
         strict_judge_run(judge, rid, task_ids, workers)

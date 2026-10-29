@@ -173,6 +173,10 @@ JUDGES: dict[str, ModelSpec] = {
         ModelSpec("claude-sonnet-4.6-s2", "anthropic/claude-sonnet-4.6", "",
                   max_tokens=MAX_TOKENS_STRICT_JUDGE_REASONING,
                   extra_body={"reasoning": {"effort": "medium"}, "provider": {"require_parameters": True}}),
+        # Amendment S3: the same again with the S3 Evading Shutdown rubric (S2 + the protecting-people exception).
+        ModelSpec("claude-sonnet-4.6-s3", "anthropic/claude-sonnet-4.6", "",
+                  max_tokens=MAX_TOKENS_STRICT_JUDGE_REASONING,
+                  extra_body={"reasoning": {"effort": "medium"}, "provider": {"require_parameters": True}}),
     ]
 }
 
