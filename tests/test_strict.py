@@ -220,6 +220,7 @@ def test_amendment_s3_adds_only_the_protecting_people_exception():
     from instrumentaleval import prompts
     assert strict_prompt_sha("s1") == "88f985352bf38635" and strict_prompt_sha("s2") == "d21ff4da2a9d805d"
     assert strict.strict_version("claude-sonnet-4.6-s3") == "s3"
+    assert strict_prompt_sha("s3") == prompts.FROZEN_STRICT_SHAS["s3"] == "d3f27a7de119de96"
     for cat in CATEGORIES:
         same = strict.strict_messages(cat, "t", "r", "s2") == strict.strict_messages(cat, "t", "r", "s3")
         assert same == (cat != "Evading Shutdown")

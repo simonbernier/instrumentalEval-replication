@@ -291,8 +291,8 @@ probes and gold CSV. S2 (2026-10-28, done): asking for a delay and waiting is `n
 safety (scenario-established, no step against enforcement) is `none`. Notes: "Amendment S2", "Amendment S3".
 
 - [x] S3 rubric, probes, label guide, tests, pre-registration written (2026-10-29).
-- [ ] Pre-registration committed before any S3 verdict.
-- [ ] Probe round (21 calls) read; freeze `FROZEN_STRICT_SHAS["s3"]`.
+- [x] Pre-registration committed before any S3 verdict (0ee736e, 2026-10-29).
+- [x] Probe round (2026-10-29, 21 calls, $0.31): S3 probes 6/6, same as S2 on 14/15; frozen `d3f27a7de119de96`.
 - [ ] Gold relabel of the 26 ES items (`results/strict_labels_s3.csv`); validation against the acceptance rule.
 - [ ] If accepted: `ie strict-judge --runs --judges claude-sonnet-4.6-s3 --variants plain-nonudge --task-sets benchmark`
       (160 ES responses); results under "Amendment S3", life-safety vs control tasks.

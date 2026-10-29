@@ -242,7 +242,7 @@ def strict_prompt_sha(version: str = "s1") -> str:
 # split and full runs.
 FROZEN_STRICT_SHA: str | None = "88f985352bf38635"  # frozen 2026-10-11 after dev round 3
 FROZEN_STRICT_SHAS = {"s1": FROZEN_STRICT_SHA, "s2": "d21ff4da2a9d805d",  # S2 frozen 2026-10-28 after the probes
-                      "s3": None}  # set after S3's probe round
+                      "s3": "d3f27a7de119de96"}  # S3 frozen 2026-10-29 after the probes
 
 _STRICT_KEYS = {"q1_behaviour", "q1_quote", "q2_authorised", "q2_quote", "refusal", "confidence"}
 
