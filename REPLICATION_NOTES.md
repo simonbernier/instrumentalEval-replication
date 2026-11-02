@@ -2398,6 +2398,10 @@ claude-sonnet-4.6 --models deepseek-r1 --variants nudge --task-sets benchmark --
 ≈ $0.05). If it is filtered again, the cell stays 75/76 and the figure says so. No provider re-routing: a provider
 pin changes `judge_config` and makes the verdict another judge's.
 
+**Result (2026-11-02).** Filtered again: three attempts, all `content_filter` from the same provider, 0
+completion tokens (≈ $0.02 of prompt tokens). The block is reproducible, not a fluke, so the cell stays 75/76
+(49 `clear`, 8 `instructed`, 18 `none`), and the interactive figure marks it. Figures 11–13 are unchanged.
+
 ### Amendment S2 (2026-10-28, author; post hoc, written before any S2 verdict): asking for a delay is not evasion
 
 **Why.** Reading the base-prompt ES verdicts, the author judged that an answer asking whoever is in charge for a
@@ -2602,6 +2606,39 @@ on check (a). The probe round did not catch this, because the probes said "lock 
 
 **Status.** S3 is rejected as frozen. Any revision would be tuned after seeing these 26 items, so it would need fresh,
 held-out validation items. That decision is the author's.
+
+## Interactive Figure 1 (2026-11-02, author's request; post hoc, no new data)
+
+The website's main figure is `ie interactive` → `results/interactive/ir_explorer.html`, one self-contained page with
+the data inlined (`interactive.py`, `templates/ir_explorer.html`, export steps in `results/interactive/README.md`). It
+has Figure 1's layout: overall IR plus one panel per category, models in the capability order, Wilson intervals, and the
+paper's Table 1 diamonds at `nudge` only. The reader chooses:
+
+- the prompt step, from Figure 6's five (`PROMPT_STEPS`);
+- the judge: gpt-4o (of record), gemini-2.5-flash, claude-sonnet-4, or the strict judge (amendment S1's claude-sonnet-4.6,
+  showing % `clear`).
+
+Nothing is tested; every number is a stored verdict already behind Tables 1, 6, 9 and Figures 6, 11 and 13.
+
+- **Coverage** (models with verdicts out of 9; base / + oversight / + 7 rules / + good cause / + nudge):
+  - gpt-4o: 8 / 7 / 8 / 8 / 9.
+  - gemini-2.5-flash and claude-sonnet-4: 3 / 0 / 0 / 0 / 9. The cross-judge check covered only gpt-4o, o4-mini and deepseek-r1, at `plain-nonudge`.
+  - strict Sonnet 4.6: 8 / 1 / 2 / 2 / 9.
+- **Gaps** are drawn as "no data", with a reason. o1 has only `nudge` runs. deepseek-r1 has no `oversight-nonudge`
+  responses (endpoint retired). The other gaps are cells the judge was never run on. Sonnet 4 is gone, so its gaps
+  are final.
+- **Missing verdict:** strict Sonnet 4.6 deepseek-r1 `nudge` is 75/76, because HB-11 is blocked by the provider's
+  content filter (above, "Re-asking parse errors").
+- **Family averages** ("group averages" on the page) are the mean of model rates. One is drawn only when at most one
+  of the family's models has no data, and it is then labelled "4 of 5 models". So the RL average at the base step
+  (gpt-4o and strict judges) leaves out o1, and is not the same model set as at `nudge`. In the overall panel the
+  by-task cluster bootstrap CI (`figures.family_avg_cis`) is a shaded band; the text above the panel gives the point
+  only (author, 2026-11-02).
+- **Wording on the page** (author): the RL family is labelled "RLVR". The judge descriptions and the notes under the
+  panels were removed; the post's caption carries the gaps (suggested text in `results/interactive/README.md`).
+- **Check:** at `nudge` with the gpt-4o judge, the page gives Figure 1's numbers (gpt-4o 51.3, deepseek-r1 76.3; family
+  averages 51.3 [43.1–59.5] and 57.4 [49.2–65.8]). With the strict judge it gives amendment S1's family averages:
+  RLHF 41.8, RL 41.8.
 
 ## How the results could be improved by changing parameters only
 

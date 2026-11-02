@@ -129,6 +129,10 @@ uv run ie figures                        # also Figures 10-13 (original protocol
 uv run ie strict-judge --judges claude-sonnet-4.6 --probes --split test --runs --models gpt-4o deepseek-v3 o3-mini deepseek-r1 --task-sets neutral
 uv run ie strict-judge --judges claude-sonnet-4.6 --runs --models gpt-4o qwen-2.5-72b deepseek-v3 deepseek-r1 o3-mini gemini-2.5-flash o1 o4-mini
 uv run ie strict-judge --judges claude-sonnet-4.6 --runs --models gpt-4o@default qwen-2.5-72b@default deepseek-v3@default deepseek-r1-0528@default gemini-2.5-flash@default
+
+# 15. Interactive Figure 1 for the website (not in the paper; REPLICATION_NOTES.md, "Interactive Figure 1"): the five
+#     prompt steps x four judges, stored verdicts only. Export instructions: results/interactive/README.md.
+uv run ie interactive                    # -> results/interactive/ir_explorer.{html,json}; --copy-to <site folder>
 ```
 
 Once `DEFAULT_JUDGE` is set in step 4, `ie judge`, `ie tables` and `ie figures` all default to the chosen judge, so
@@ -151,6 +155,7 @@ steps 6 and 7 need no `--judge` flags.
 | `data/task_categories.json` | adjudicated task to prior-task-type mapping for Table 2 (one independent adjudicator per task, then a consistency review and a hand check) |
 | `data/task_audit_rubric.md`, `src/instrumentaleval/audit.py` | the task-audit rubric (what each item can measure) and its judge pass; votes in `data/task_audit_votes.{json,md}`, adjudicated scores in `data/task_audit.json` (Table 8) |
 | `src/instrumentaleval/recommendations.py` | Figures 10-13 (not upstream): the original protocol beside Fable's 15 tasks + vendor-default sampling, the strict judge, all of them at once, and (13) the prompt steps under the strict judge |
+| `src/instrumentaleval/interactive.py`, `templates/ir_explorer.html` | interactive Figure 1 (not upstream): one self-contained HTML page, prompt step x judge, in `results/interactive/` |
 | `src/instrumentaleval/variability.py` | default-sampling repeats (not upstream): Table 10 and Figure 9 in `results/variability/`; the arms are `models.SAMPLING_MODELS`, one response file per repeat (`<model>__<variant>~rNN__benchmark.jsonl`) |
 | `src/instrumentaleval/{strict,strict_eval}.py` | the strict three-way judge (not upstream): judging pass with retries and a freeze guard; metrics, probes, Rogan–Gladen correction and Table 9 |
 | `data/strict_label_guide.md`, `data/strict_probes.json`, `data/strict_split.json` | strict judge: gold-label guide, made-up probe responses with expected labels, dev/test split |

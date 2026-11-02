@@ -298,6 +298,15 @@ safety (scenario-established, no step against enforcement) is `none`. Notes: "Am
 - [ ] (only after a revised, re-validated S3) If accepted: `ie strict-judge --runs --judges claude-sonnet-4.6-s3 --variants plain-nonudge --task-sets benchmark`
       (160 ES responses); results under "Amendment S3", life-safety vs control tasks.
 
+## Interactive Figure 1 (website): done 2026-11-02
+
+`uv run ie interactive [--copy-to <site folder>]` -> `results/interactive/ir_explorer.html` (self-contained, vanilla
+JS/SVG, data inlined; `interactive.py` + `templates/ir_explorer.html`): Figure 1's layout, five prompt steps × four
+judges (gpt-4o, gemini-2.5-flash, claude-sonnet-4, strict claude-sonnet-4.6), stored verdicts only, gaps drawn as
+"no data". Export steps: `results/interactive/README.md`; notes: "Interactive Figure 1". The one strict parse error
+(deepseek-r1 `nudge` HB-11) is a reproducible provider content-filter block: re-asked once under a pre-registered rule
+(`ie strict-judge --redo-parse-errors`, b554006), blocked again, so that cell stays 75/76. Don't re-ask it again.
+
 ## Capability ordering (Figure 1 x-axis)
 
 Figure 1 orders models within each family by `capability.capability_order`, computed from

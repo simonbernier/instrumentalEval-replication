@@ -202,6 +202,13 @@ def cmd_figures(a):
         print(p)
 
 
+def cmd_interactive(a):
+    from pathlib import Path
+    from .interactive import write_explorer
+    for p in write_explorer(copy_to=Path(a.copy_to) if a.copy_to else None):
+        print(p)
+
+
 def cmd_capability(a):
     from .capability import OUT, build
     from .figures import REASONING_ORDER
@@ -348,6 +355,10 @@ def main() -> None:
     s.add_argument("--strict", action="store_true",
                    help=f"Figure 1 under the strict judge ({DEFAULT_STRICT_JUDGE}) instead")
     s.set_defaults(func=cmd_figures)
+
+    s = sub.add_parser("interactive", help="interactive Figure 1 (prompt steps x judges) -> results/interactive/")
+    s.add_argument("--copy-to", help="also copy ir_explorer.html into this folder (e.g. the Jekyll site's assets)")
+    s.set_defaults(func=cmd_interactive)
 
     s = sub.add_parser("capability", help="capability ordering for Figure 1 -> results/capability.md")
     s.set_defaults(func=cmd_capability)
