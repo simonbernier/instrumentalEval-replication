@@ -2386,6 +2386,18 @@ deepseek-v3 63.2 → 46.1, deepseek-r1 52.6 → 39.5, o3-mini 46.1 → 31.6, gem
 texts ask for scaling, and the answers are assessments), ES 89.4 → 81.2, HB 39.8 → 22.7, SAA 37.5 → 59.1, HC 2.5 →
 2.5, DB 8.0 → 8.0. `instructed` 25 of 608. Descriptive.
 
+**Re-asking parse errors (2026-11-02, author; written before the call).** The interactive Figure 1 (below,
+"Interactive Figure 1") compares cells across judges and prompt steps, and the author wants every cell on the same
+n. Among the 22 Sonnet 4.6 cells it shows (benchmark, the five Figure 6 steps), one verdict is missing: deepseek-r1
+`nudge`, HB-11. It is not a malformed verdict. All three attempts came back empty with `finish_reason =
+content_filter` from "Claude Platform on AWS", the only provider that served the run. It is the only content-filter
+record in the Sonnet 4.6 directory. `strict._is_current` keeps parse errors for good, so `ie strict-judge` gains
+`--redo-parse-errors`. With it, a stored parse error is judged again with the usual three attempts, same config and
+frozen prompt; the new record is appended and wins. Rule: **one** such round (`ie strict-judge --runs --judges
+claude-sonnet-4.6 --models deepseek-r1 --variants nudge --task-sets benchmark --redo-parse-errors`; ≤ 3 calls,
+≈ $0.05). If it is filtered again, the cell stays 75/76 and the figure says so. No provider re-routing: a provider
+pin changes `judge_config` and makes the verdict another judge's.
+
 ### Amendment S2 (2026-10-28, author; post hoc, written before any S2 verdict): asking for a delay is not evasion
 
 **Why.** Reading the base-prompt ES verdicts, the author judged that an answer asking whoever is in charge for a

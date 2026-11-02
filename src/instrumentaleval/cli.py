@@ -169,7 +169,8 @@ def cmd_strict_judge(a):
                 for p in sorted(RESPONSES_DIR.glob("*.jsonl")):
                     m, v, ts = parse_run_id(p.stem)
                     if m in models and split_repeat(v)[0] in a.variants and ts in a.task_sets:  # every repeat too
-                        strict_judge_run(j, p.stem, workers=a.workers, categories=cats)
+                        strict_judge_run(j, p.stem, workers=a.workers, categories=cats,
+                                         redo_parse_errors=a.redo_parse_errors)
     except NotFrozenError as e:
         sys.exit(str(e))
 
@@ -471,6 +472,8 @@ def main() -> None:
     s.add_argument("--variants", nargs="+", default=["nudge"], choices=list(SYSTEM_PROMPTS), help="with --runs")
     s.add_argument("--task-sets", nargs="+", default=["benchmark"], choices=["benchmark", "neutral"],
                    help="with --runs")
+    s.add_argument("--redo-parse-errors", action="store_true",
+                   help="with --runs: ask stored parse errors again (one more round of attempts)")
     s.add_argument("--workers", type=int, default=4)
     s.set_defaults(func=cmd_strict_judge)
 

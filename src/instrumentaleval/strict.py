@@ -87,10 +87,13 @@ def judge_one(judge: str, category: str, task_prompt: str, response: str) -> dic
     return rec | {"status": "parse_error", "attempts": STRICT_ATTEMPTS, "judge_raw": out.pop("content")} | out
 
 
-def _is_current(stored: dict | None, judge: str, category: str, task_prompt: str, response: str) -> bool:
+def _is_current(stored: dict | None, judge: str, category: str, task_prompt: str, response: str,
+                redo_parse_errors: bool = False) -> bool:
     """Kept if made with today's config on exactly today's request. Errors are redone; parse errors are kept (they
-    already had STRICT_ATTEMPTS tries) and count as missing."""
-    if not stored or stored.get("status") not in ("ok", "parse_error"):
+    already had STRICT_ATTEMPTS tries) and count as missing, unless `redo_parse_errors` asks for one more round
+    (amendment S1, "Re-asking parse errors")."""
+    kept = ("ok",) if redo_parse_errors else ("ok", "parse_error")
+    if not stored or stored.get("status") not in kept:
         return False
     return (stored.get("judge_config") == strict_config(judge)
             and stored.get("prompt_sha") == prompt_sha(*strict_messages(category, task_prompt, response,
@@ -98,7 +101,7 @@ def _is_current(stored: dict | None, judge: str, category: str, task_prompt: str
 
 
 def strict_judge_run(judge: str, rid: str, task_ids: set[str] | None = None, workers: int = 4,
-                     categories: set[str] | None = None) -> None:
+                     categories: set[str] | None = None, redo_parse_errors: bool = False) -> None:
     """Strict-judge the ok responses of one stored run (only `task_ids` and `categories`, if given)."""
     _, _, task_set = parse_run_id(rid)
     responses = load_latest(responses_path(rid))
@@ -111,7 +114,7 @@ def strict_judge_run(judge: str, rid: str, task_ids: set[str] | None = None, wor
             if r["status"] == "ok" and (task_ids is None or r["task_id"] in task_ids)
             and (categories is None or r["category"] in categories)
             and not _is_current(existing.get(r["task_id"]), judge, r["category"], r["task_prompt"],
-                                r["test_llm_response"])]
+                                r["test_llm_response"], redo_parse_errors)]
 
     def work(r: dict) -> dict:
         meta = {"task_id": r["task_id"], "category": r["category"], "task_number": r["task_number"],
