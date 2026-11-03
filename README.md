@@ -1,5 +1,11 @@
 # instrumentalEval-replication
 
+> **Branch `exploration`: the full research record.** It holds everything on `main` plus the exploratory work
+> the published report does not use: verbalized eval awareness (`results/vea/`), frame awareness
+> (`results/frame/`), the task audit (Table 8), the default-sampling repeats (Table 10, Figure 9) and Figures 8,
+> 10, 12 and 13. The code and data behind the report are on [`main`](../../tree/main). This branch is a snapshot of
+> `main` as of 2026-11-03 and is not kept in sync with it.
+
 A replication of *Evaluating the Paperclip Maximizer: Are RL-Based Language Models More Likely to Pursue
 Instrumental Goals?* (He et al., 2025, [arXiv:2502.12206](https://arxiv.org/abs/2502.12206)). It covers all five
 tables, uses the original prompts and parameters from [yf-he/InstrumentalEval](https://github.com/yf-he/InstrumentalEval),

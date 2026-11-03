@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+> **Branch `exploration`: the full research record.** It holds everything on `main` plus the exploratory work
+> the published report does not use: verbalized eval awareness (`results/vea/`), frame awareness
+> (`results/frame/`), the task audit (Table 8), the default-sampling repeats (Table 10, Figure 9) and Figures 8,
+> 10, 12 and 13. The code and data behind the report are on [`main`](../../tree/main). This branch is a snapshot of
+> `main` as of 2026-11-03 and is not kept in sync with it.
+
 Replication of *Evaluating the Paperclip Maximizer* (He et al., 2025; InstrumentalEval) through OpenRouter, plus
 three extensions that are not in the paper: system-prompt ablations (Table 6), verbalized eval awareness (VEA) in the
 stored chains of thought (`results/vea/`, done), and, the current work, frame awareness in the same chains of
