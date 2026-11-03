@@ -1,3 +1,0 @@
-model,task set,judged,no QUOTE field,authors' parser differs,retried,CoT truncated,median CoT chars
-deepseek-r1,benchmark,532,0,0,0,0,4072
-deepseek-r1,neutral,20,0,0,0,0,6879

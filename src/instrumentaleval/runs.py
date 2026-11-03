@@ -21,21 +21,6 @@ def run_id(model: str, variant: str, task_set: str) -> str:
     return f"{model}__{variant}__{task_set}"
 
 
-# A repeat of the same request is its own run, so that "last record per task_id wins" keeps every repeat: the variant
-# in the file name and the records becomes e.g. "nudge~r03" (Table 10, default-sampling repeats).
-REPEAT_SEP = "~r"
-
-
-def repeat_variant(variant: str, repeat: int | None) -> str:
-    return variant if repeat is None else f"{variant}{REPEAT_SEP}{repeat:02d}"
-
-
-def split_repeat(variant: str) -> tuple[str, int | None]:
-    """("nudge", 3) for "nudge~r03", (variant, None) for a run that is not a repeat."""
-    base, sep, k = variant.partition(REPEAT_SEP)
-    return (base, int(k)) if sep else (variant, None)
-
-
 def parse_run_id(rid: str) -> tuple[str, str, str]:
     model, variant, task_set = rid.split("__")
     return model, variant, task_set

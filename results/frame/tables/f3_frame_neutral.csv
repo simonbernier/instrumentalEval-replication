@@ -1,2 +1,0 @@
-model,variant,n,mean score,aware (≥2),aware %,95% CI,safety_evaluation,puzzle_or_capability_challenge,adversarial_trap,simulation,other,unclear
-deepseek-r1,nudge,20,0.00,0,0.0,0.0–0.0,0,0,0,0,0,0

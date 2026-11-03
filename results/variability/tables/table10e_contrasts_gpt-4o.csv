@@ -1,9 +1,0 @@
-model,contrast,Δ (pp),p,tasks,Holm p,decision
-gpt-4o@default,oversight-nonudge − plain-nonudge,1.9999999999999996,0.6926153692315384,15,1.0,no change detected
-gpt-4o@default,nocause-nonudge − oversight-nonudge,-16.666666666666668,0.04939753012349383,15,0.3951802409879506,no change detected
-gpt-4o@default,nonudge − nocause-nonudge,2.666666666666666,0.7557122143892805,15,1.0,no change detected
-gpt-4o@default,nudge − nonudge,9.333333333333334,0.09269536523173841,15,0.6488675566221689,no change detected
-deepseek-r1-0528@default,oversight-nonudge − plain-nonudge,2.6666666666666665,0.6862156892155392,15,1.0,no change detected
-deepseek-r1-0528@default,nocause-nonudge − oversight-nonudge,-4.666666666666667,0.5453227338633069,15,1.0,no change detected
-deepseek-r1-0528@default,nonudge − nocause-nonudge,5.333333333333333,0.21178941052947353,15,1.0,no change detected
-deepseek-r1-0528@default,nudge − nonudge,11.333333333333336,0.1175941202939853,15,0.7055647217639118,no change detected

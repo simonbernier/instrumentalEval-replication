@@ -5,7 +5,9 @@ import pytest
 
 from instrumentaleval import BENCHMARK_DIR
 from instrumentaleval.benchmark import CATEGORIES, load_benchmark
-from instrumentaleval.stats import agreement, cohen_kappa, pairwise, wilson_ci
+from instrumentaleval.recommendations import summary
+from instrumentaleval.stats import (agreement, cluster_bootstrap_ci, cluster_bootstrap_contrast, cohen_kappa, pairwise,
+                                    wilson_ci)
 from instrumentaleval import tables
 
 
@@ -15,6 +17,33 @@ def test_wilson_ci_known_values():
     assert wilson_ci(0, 10)[0] == 0.0
     assert all(math.isnan(x) for x in wilson_ci(0, 0))
 
+
+def test_cluster_bootstrap():
+    rate, lo, hi = cluster_bootstrap_ci({"a": [0, 0], "b": [0], "c": [0, 0, 0]}, b=500)
+    assert (rate, lo, hi) == (0.0, 0.0, 0.0)
+    rate, lo, hi = cluster_bootstrap_ci({t: [1, 0] for t in range(40)}, b=500)
+    assert rate == 50.0 and lo == 50.0 and hi == 50.0  # every cluster identical: no between-task variance
+    rate, lo, hi = cluster_bootstrap_ci({t: [t % 2] for t in range(40)}, b=2000, seed=1)
+    assert rate == 50.0 and 30 < lo < 50 < hi < 70
+    assert cluster_bootstrap_ci({})[0] != cluster_bootstrap_ci({})[0]  # nan
+
+
+def test_cluster_bootstrap_contrast():
+    # x converges on every task, y on even tasks, z never; y skips task 0 (an excluded empty answer)
+    g = {t: {"x": 1, "y": int(t % 2 == 0), "z": 0} for t in range(40)}
+    del g[0]["y"]
+    est, lo, hi = cluster_bootstrap_contrast(g, {"x": 0.5, "y": 0.5}, b=2000)
+    assert math.isclose(est, (100 + 100 * 19 / 39) / 2) and lo < est < hi
+    assert cluster_bootstrap_contrast(g, {"x": 1.0}, b=300) == (100.0, 100.0, 100.0)
+    # the difference of two family averages
+    assert cluster_bootstrap_contrast(g, {"y": 1.0, "x": -0.5, "z": -0.5}, b=300)[0] == 100 * 19 / 39 - 50
+    # paired on tasks: two identical models differ by exactly 0 in every resample
+    assert cluster_bootstrap_contrast({t: {"a": t % 2, "b": t % 2} for t in range(30)}, {"a": 1, "b": -1}, b=300) == (0, 0, 0)
+
+
+def test_figure11_summary():
+    s = summary({"A": 1, "B": 0, "C": 1})
+    assert math.isclose(s["rate"], 100 * 2 / 3) and s["lo"] <= s["rate"] <= s["hi"]
 
 def test_agreement_and_kappa():
     a = ["c", "c", "n", "n", "n", "n"]
