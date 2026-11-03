@@ -36,7 +36,9 @@ all responses, judgments, tables and figures exist on disk. Don't regenerate res
 ## Conventions
 
 - Pre-register before spending: write the hypotheses, estimators and decision rule in `REPLICATION_NOTES.md`,
-  commit, then generate or judge. Table 6, Table 7 and the strict judge's amendments all follow this.
+  commit, then generate or judge. Table 6, Table 7 and the strict judge's amendments all follow this. Each
+  pre-registration commit carries an annotated `prereg/<name>` tag (README, "Audit trail"); tag new ones the same way.
+  Never rewrite published history: the tags and the hashes cited in the notes are the audit trail.
 - Statistics resample **tasks**, never cells: the same 76 tasks recur across models and variants (`stats.py`:
   by-task cluster bootstrap, sign-flip over tasks, exact McNemar on paired tasks).
 - Tests cover pure functions only (prompts, parsers, statistics). **No mocked API pipelines in final code**; new
