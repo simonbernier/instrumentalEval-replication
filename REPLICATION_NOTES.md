@@ -1451,6 +1451,9 @@ Nothing is tested; every number is a stored verdict already behind Tables 1, 6, 
   only (author, 2026-11-02).
 - **Wording on the page** (author): the RL family is labelled "RLVR". The judge descriptions and the notes under the
   panels were removed; the post's caption carries the gaps (suggested text in `results/interactive/README.md`).
+- **Layout** (author, 2026-11-03): y axes read "IR (%)" under every judge (the strict judge's title is "Strict rate",
+  i.e. % judged `clear`); the category panels are two rows of three down to a 680px-wide frame, and the post's iframe may run past
+  the 720px text column, up to 1000px (`results/interactive/README.md`).
 - **Check:** at `nudge` with the gpt-4o judge, the page gives Figure 1's numbers (gpt-4o 51.3, deepseek-r1 76.3; family
   averages 51.3 [43.1–59.5] and 57.4 [49.2–65.8]). With the strict judge it gives amendment S1's family averages:
   RLHF 41.8, RL 41.8.

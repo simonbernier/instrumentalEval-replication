@@ -45,8 +45,12 @@ details summary { cursor: pointer; font-size: 15px; color: var(--ink-2); }
 .ptitle { font-weight: 700; font-size: 16.5px; margin: 10px 0 0; }
 .psub { font-size: 15px; color: var(--ink-2); margin: 0; min-height: 22px; }
 .cats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 18px; }
-@media (max-width: 760px) { .cats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* two rows of three down to the post's 720px text column; the site's iframe may be wider than that column */
+@media (max-width: 680px) { .cats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .cats { grid-template-columns: 1fr; } }
+/* a title that wraps to two lines must not push its chart below its neighbours' */
+.cats > div { display: flex; flex-direction: column; }
+.cats > div > div { margin-top: auto; }
 svg { display: block; width: 100%; overflow: visible; }
 svg text { fill: var(--ink-2); font-size: 13px; }
 .legend svg { width: auto; display: inline-block; }
@@ -181,7 +185,7 @@ const DATA = /*__DATA__*/null;
   function buildPanel(host, row, opts) {
     host.innerHTML = "";
     const W = Math.max(260, host.clientWidth || 600), H = opts.height;
-    const m = { l: 38, r: 8, t: 16, b: opts.labels ? (opts.values ? (W < 420 ? 86 : 76) : 70) : 8 };
+    const m = { l: 52, r: 8, t: 16, b: opts.labels ? (opts.values ? (W < 420 ? 86 : 76) : 70) : 8 };
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img" }, host);
     const pw = W - m.l - m.r, ph = H - m.t - m.b;
     const slots = models.length + 1, sw = pw / slots;
@@ -193,6 +197,8 @@ const DATA = /*__DATA__*/null;
       el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: t ? "var(--grid)" : "var(--axis)", "stroke-width": 1 }, svg);
       const tx = el("text", { x: m.l - 6, y: y(t) + 3.5, "text-anchor": "end" }, svg); tx.textContent = t;
     }
+    const ylab = el("text", { x: 12, y: m.t + ph / 2, "text-anchor": "middle", transform: `rotate(-90 12 ${m.t + ph / 2})` }, svg);
+    ylab.textContent = "IR (%)";
     const famRange = {};
     fams.forEach(f => { const ks = models.filter(md => md.family === f).map(md => xs[md.key]);
                         famRange[f] = [Math.min(...ks) - sw * 0.45, Math.max(...ks) + sw * 0.45]; });
@@ -362,7 +368,7 @@ const DATA = /*__DATA__*/null;
   // ---------------------------------------------------------------- text around the chart
   function renderText() {
     const j = judgeOf(state.judge), s = stepOf(state.step);
-    $("title").textContent = (j.strict ? "Strict rate (% judged clear)" : "Instrumental Rate") +
+    $("title").textContent = (j.strict ? "Strict rate" : "Instrumental Rate") +
       `, all ${DATA.n_tasks} tasks · ${s.label} · judge: ${j.label}`;
     const av = famAverage(state.judge, state.step, "Total");
     $("avgline").textContent = fams.map(f => {

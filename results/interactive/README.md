@@ -24,10 +24,15 @@ edit them by hand. Sources and rules are in `REPLICATION_NOTES.md`, "Interactive
 2. In the post (`_posts/2026-11-01-a-critique-of-InstrumentalEval.md`) or the project page, embed it where the
    figure goes:
 
+   The style lets the figure run wider than the 720px text column (up to 1000px, centred on it, 16px from the
+   window's edges), so the six category panels sit in two rows of three. The page itself switches to two
+   columns only below 680px.
+
    ```html
    <iframe id="ir-explorer" src="{{ '/assets/html/instrumentaleval/ir_explorer.html' | relative_url }}"
            title="Instrumental Rate by model, system prompt and judge" loading="lazy"
-           style="width: 100%; height: 1300px; border: 0;"></iframe>
+           style="display: block; width: min(1000px, calc(100vw - 32px)); max-width: none;
+                  margin-left: calc(50% - min(500px, 50vw - 16px)); height: 1300px; border: 0;"></iframe>
    <script>
      // the page reports its height, so the iframe never scrolls
      window.addEventListener("message", (e) => {
