@@ -175,6 +175,32 @@ steps 6 and 7 need no `--judge` flags.
   repeats (Table 10, Figures 8, 9, 10, 12 and 13). A one-paragraph summary of each is in REPLICATION_NOTES.md,
   "Exploratory work".
 
+## Audit trail and clone options
+
+Every experiment beyond the replication was pre-registered: the hypotheses, estimators and decision rule were
+committed to REPLICATION_NOTES.md before any of its data existed, and the history keeps those commits. Annotated tags
+mark them (`git tag -n9` prints each tag's note, or see the repository's Tags page):
+
+| Tag | What was committed before the data |
+|---|---|
+| `prereg/table6-ablations` | system-prompt ablations (Table 6) |
+| `prereg/strict-judge` | strict judge prompt frozen and its evaluation pre-registered (Table 9); only the 30 dev-split items had been judged |
+| `prereg/effort-sweep` | reasoning-effort sweep (Table 7) |
+| `prereg/five-step` | five-step decomposition, `oversight-nonudge` arm (Figure 6, H4a/H4b) |
+| `prereg/strict-s1`, `prereg/strict-s2`, `prereg/strict-s3` | strict-judge amendments S1 (Claude Sonnet 4.6), S2 and S3 |
+| `prereg/strict-reask` | the one re-ask round for the strict parse error |
+| `prereg/vea`, `prereg/vea-second-judge`, `prereg/frame-awareness`, `prereg/repeats` | the exploratory extensions (`exploration` branch) |
+| `report-published` | the repository when the report was published, before the split into `main` and `exploration` |
+| `v1.0` | first public `main` |
+
+To check a claim, compare the tagged commit with the first commit that adds the corresponding results files
+(`git log --diff-filter=A --format='%h %ad %s' -- <path>`). The task audit (Table 8, `exploration`) has no tag: its
+pilot gate failed, and the full run went ahead as exploratory (REPLICATION_NOTES.md on that branch).
+
+The full history (a 33 MB clone) is what makes these checks possible. To get only the current files (20 MB), clone
+with `git clone --depth 1 https://github.com/simonbernier/instrumentalEval-replication.git`, which is enough to
+rebuild the report; `git fetch --unshallow` turns it into a full clone later.
+
 ## License and attribution
 
 The code, the stored results and the notes in this repository are released under the [MIT License](LICENSE).
