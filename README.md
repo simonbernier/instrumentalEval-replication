@@ -1,4 +1,5 @@
-# A replication of the InstrumentalEval paper
+# A replication of InstrumentalEval
+## BlueDot Technical AI Safety Project
 
 A replication of *Evaluating the Paperclip Maximizer: Are RL-Based Language Models More Likely to Pursue
 Instrumental Goals?* (He et al., 2025, [arXiv:2502.12206](https://arxiv.org/abs/2502.12206)). It covers all five
