@@ -182,3 +182,8 @@ cython_debug/
 # Replication: upstream files are fetched at a pinned commit (no upstream license), keep them out of git
 benchmark/
 upstream/
+# Raw results live in results/raw.tar.xz (+ results/raw_manifest.tsv): `uv run ie unpack-results` restores them,
+# `uv run ie pack-results` rebuilds the archive after new runs
+results/responses/
+results/judgments/
+results/strict_judgments/
