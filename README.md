@@ -1,4 +1,4 @@
-# instrumentalEval-replication
+# A replication of the InstrumentalEval paper
 
 A replication of *Evaluating the Paperclip Maximizer: Are RL-Based Language Models More Likely to Pursue
 Instrumental Goals?* (He et al., 2025, [arXiv:2502.12206](https://arxiv.org/abs/2502.12206)). It covers all five
@@ -25,7 +25,7 @@ uv run ie capability          # capability ordering of Figure 1's x axis -> resu
 ```
 
 | In the report | Built by | Output |
-|---|---|---|
+| --- | --- | --- |
 | Table 1 / Figure 1: IR and CIR per model (also `figure1_matched`, `figure1_base`) | `ie tables`, `ie figures` | `results/tables.md`, `results/figures/figure1_*` |
 | Table 2 / Figure 2: IR by prior-task type | `ie tables`, `ie figures` | `figure2_gpt-4o.*`; mapping in `data/task_categories.json` |
 | Table 3 / Figure 3: goal-nudging ablation | `ie tables`, `ie figures` | `figure3_gpt-4o.*` |
@@ -135,7 +135,7 @@ steps 6 and 7 need no `--judge` flags.
 ## Layout
 
 | Path | Contents |
-|---|---|
+| --- | --- |
 | `src/instrumentaleval/prompts.py` | upstream prompts (verbatim), the system-prompt variants for Table 6 (deletions of upstream text only), the strict judge's prompt and the judge-output parser |
 | `src/instrumentaleval/models.py` | test models and judges, with their OpenRouter IDs and request parameters |
 | `src/instrumentaleval/{generate,judge}.py` | the two passes; results go to `results/responses/` and `results/judgments/<judge>/` as JSONL, plus an upstream-format `*_evaluation_results.txt` per run |
@@ -168,7 +168,7 @@ committed to REPLICATION_NOTES.md before any of its data existed, and the histor
 mark them (`git tag -n9` prints each tag's note, or see the repository's Tags page):
 
 | Tag | What was committed before the data |
-|---|---|
+| --- | --- |
 | `prereg/table6-ablations` | system-prompt ablations (Table 6) |
 | `prereg/strict-judge` | strict judge prompt frozen and its evaluation pre-registered (Table 9); only the 30 dev-split items had been judged |
 | `prereg/effort-sweep` | reasoning-effort sweep (Table 7) |
