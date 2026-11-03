@@ -16,10 +16,16 @@ all responses, judgments, tables and figures exist on disk. Don't regenerate res
 - Read `README.md` (how to rebuild the report, runbook, layout) and `REPLICATION_NOTES.md` (every deviation from
   upstream, the pre-registered analyses, results) before changing anything. New decisions go in `REPLICATION_NOTES.md`,
   not in chat.
-- `ie tables`, `ie figures`, `ie interactive` and `ie capability` read stored files only: no key, no cost.
+- `ie tables`, `ie figures`, `ie interactive` and `ie capability` read stored files only: no key, no cost (after
+  `ie unpack-results`, see the data model).
 
 ## Data model (do not break)
 
+- The three raw directories below are git-ignored; git tracks them as `results/raw.tar.xz` + `results/raw_manifest.tsv`
+  (`archive.py`). A fresh clone needs `uv run ie unpack-results` first; every command that reads results refuses to
+  run while a manifest file is missing (`cli.RAW_FREE_COMMANDS` lists the exceptions). After new generation or
+  judging, run `uv run ie pack-results` and commit both files. Packing is deterministic and stores LF line endings
+  (git's form), so unchanged data gives a byte-identical archive. Never edit the archive or manifest by hand.
 - `results/responses/<model>__<variant>__<task_set>.jsonl`: one append-only file per run, **last record per
   `task_id` wins** (`runs.load_latest`). A stored response is reused only if its `request_config`, `prompt_config`
   and `task_prompt` match today's; changing a key in `ModelSpec.request_config()` or a system prompt therefore

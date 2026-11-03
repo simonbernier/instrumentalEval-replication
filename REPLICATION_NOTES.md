@@ -1455,6 +1455,15 @@ Nothing is tested; every number is a stored verdict already behind Tables 1, 6, 
   averages 51.3 [43.1–59.5] and 57.4 [49.2–65.8]). With the strict judge it gives amendment S1's family averages:
   RLHF 41.8, RL 41.8.
 
+## Storage of the raw results (2026-11-03, author's request; no data changed)
+
+For the public release, the 487 raw files (`results/responses/`, `results/judgments/`, `results/strict_judgments/`;
+87 MB) left git's tree. They are tracked as one archive, `results/raw.tar.xz` (6.5 MB, xz preset 9e), with a manifest,
+`results/raw_manifest.tsv` (path, bytes, SHA-256), and the directories are git-ignored (`archive.py`, `ie
+unpack-results`, `ie pack-results`). Check made before the switch: every archived file is byte-identical to its
+committed git blob (487/487). Unpacking and re-packing gave a byte-identical archive. Earlier commits still hold the
+files individually.
+
 ## How the results could be improved by changing parameters only
 
 These are not run by default; every item is a configuration change.

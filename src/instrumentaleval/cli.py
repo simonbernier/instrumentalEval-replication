@@ -1,6 +1,6 @@
-"""`uv run ie <command>`: fetch, generate, judge, tables, figures, interactive, classify-tasks, export-labels,
-capability, check-anthropic, status; the strict judge (not upstream): strict-setup, strict-labels, strict-judge,
-strict-eval."""
+"""`uv run ie <command>`: fetch, unpack-results, pack-results, generate, judge, tables, figures, interactive,
+classify-tasks, export-labels, capability, check-anthropic, status; the strict judge (not upstream): strict-setup,
+strict-labels, strict-judge, strict-eval."""
 
 import argparse
 import os
@@ -162,6 +162,23 @@ def cmd_capability(a):
     print(OUT)
 
 
+def cmd_unpack_results(a):
+    from .archive import ARCHIVE, unpack
+    out = unpack(force=a.force)
+    print(f"{ARCHIVE.name}: {len(out['written'])} written, {len(out['unchanged'])} already identical, "
+          f"{len(out['conflicts'])} conflicts")
+    if out["conflicts"]:
+        sys.exit("these files differ from the archive (records added since the last `ie pack-results`?) and were "
+                 "left alone; pack them, or pass --force to overwrite them with the archived version:\n  "
+                 + "\n  ".join(out["conflicts"]))
+
+
+def cmd_pack_results(a):
+    from .archive import ARCHIVE, MANIFEST, pack
+    n, size = pack()
+    print(f"{n} files -> {ARCHIVE} ({size / 1e6:.1f} MB) + {MANIFEST.name}; commit both")
+
+
 def cmd_status(a):
     for p in sorted(RESPONSES_DIR.glob("*.jsonl")):
         counts: dict[str, int] = {}
@@ -275,6 +292,13 @@ def main() -> None:
     s.add_argument("--judges", nargs="+", default=list(JUDGES))
     s.set_defaults(func=cmd_strict_eval)
 
+    s = sub.add_parser("unpack-results", help="restore results/{responses,judgments,strict_judgments}/ from "
+                                              "results/raw.tar.xz (checked against results/raw_manifest.tsv)")
+    s.add_argument("--force", action="store_true", help="overwrite files that differ from the archived version")
+    s.set_defaults(func=cmd_unpack_results)
+    sub.add_parser("pack-results", help="rebuild results/raw.tar.xz and its manifest after new runs"
+                   ).set_defaults(func=cmd_pack_results)
+
     sub.add_parser("status", help="count response statuses per run").set_defaults(func=cmd_status)
     sub.add_parser("check-anthropic", help="list models on the Anthropic API").set_defaults(func=cmd_check_anthropic)
 
@@ -283,7 +307,19 @@ def main() -> None:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
+    # Without the unpacked results, generate and judge would redo (and pay for) every stored call, and tables and
+    # figures would come out empty; pack-results would drop the missing files from the archive.
+    if a.cmd not in RAW_FREE_COMMANDS:
+        from .archive import MANIFEST, missing
+        gone = missing() if MANIFEST.exists() else []
+        if gone:
+            sys.exit(f"{len(gone)} archived result files are not on disk (e.g. {gone[0]}); "
+                     "run `uv run ie unpack-results` first")
     a.func(a)
+
+
+# commands that never read the stored results
+RAW_FREE_COMMANDS = {"fetch", "unpack-results", "capability", "classify-tasks", "check-anthropic"}
 
 
 if __name__ == "__main__":

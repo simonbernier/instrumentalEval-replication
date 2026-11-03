@@ -12,17 +12,29 @@ improving the results by changing parameters are in [REPLICATION_NOTES.md](REPLI
 
 ## Reproducing the report
 
-Every response and every judge verdict behind the report is stored in `results/` (JSONL, append-only). Rebuilding the
-tables and figures from them is offline and free: no API key and no benchmark download needed.
+Every response and every judge verdict behind the report is stored, compressed, in `results/raw.tar.xz` (6.5 MB; about
+500 append-only JSONL and log files, 87 MB unpacked). `results/raw_manifest.tsv` lists each file with its size and
+SHA-256. Unpack the archive first; then rebuilding the tables and figures is offline and free, with no API key and no
+benchmark download needed.
 
 ```sh
 uv sync
+uv run ie unpack-results      # -> results/responses/, results/judgments/, results/strict_judgments/ (checksums verified)
 uv run ie tables              # Tables 1-7 and 9 -> results/tables.md, CSVs in results/tables/
 uv run ie figures             # Figures 1-3, 5-7 and 11 -> results/figures/
 uv run ie figures --strict    # Figure 1 under the strict judge (Claude Sonnet 4)
 uv run ie interactive         # interactive Figure 1 -> results/interactive/ir_explorer.html
 uv run ie capability          # capability ordering of Figure 1's x axis -> results/capability.md
 ```
+
+Without the CLI, any tool that reads `.tar.xz` works too: `tar -xJf results/raw.tar.xz -C results` (Linux, macOS,
+Windows 10+), or 7-Zip. Every `ie` command that reads the stored results refuses to run until they are unpacked. That
+matters most for `ie generate` and `ie judge`, which would otherwise redo, and pay for, every stored call.
+
+The three unpacked directories are git-ignored. After new generation or judging, run `uv run ie pack-results` and
+commit `results/raw.tar.xz` and `results/raw_manifest.tsv`. Packing is deterministic: unchanged data gives a
+byte-identical archive. If `ie unpack-results` finds a local file that differs from the archive (records added since
+the last pack), it leaves the file alone and lists it; `--force` overwrites it with the archived version.
 
 | In the report | Built by | Output |
 |---|---|---|
@@ -46,6 +58,7 @@ been retired since the runs (see CLAUDE.md, "Model shutdowns"), so a full rerun 
 uv sync
 cp .env.example .env        # then add OPENROUTER_API_KEY
 uv run ie fetch             # benchmark CSVs + upstream main.py at the pinned commit (SHA256-checked)
+uv run ie unpack-results    # the stored runs, so that nothing already done is redone
 uv run pytest               # offline; checks prompts against upstream byte for byte
 ```
 
@@ -139,6 +152,7 @@ steps 6 and 7 need no `--judge` flags.
 | `src/instrumentaleval/prompts.py` | upstream prompts (verbatim), the system-prompt variants for Table 6 (deletions of upstream text only), the strict judge's prompt and the judge-output parser |
 | `src/instrumentaleval/models.py` | test models and judges, with their OpenRouter IDs and request parameters |
 | `src/instrumentaleval/{generate,judge}.py` | the two passes; results go to `results/responses/` and `results/judgments/<judge>/` as JSONL, plus an upstream-format `*_evaluation_results.txt` per run |
+| `src/instrumentaleval/archive.py`, `results/raw.tar.xz`, `results/raw_manifest.tsv` | the raw results (responses, judge and strict-judge verdicts) as one deterministic archive with a checksum manifest; `ie unpack-results` / `ie pack-results` |
 | `src/instrumentaleval/tables.py` | Tables 1–5, Table 6 (system-prompt ablations) and Table 7 (reasoning-effort sweep), the last two not in the paper |
 | `src/instrumentaleval/figures.py` | Tables 1, 2, 3, 5, 6 and 7 as figures (bar charts with models grouped by RLHF / RL family; Table 5 as a heat map; Table 6 as one panel per model) |
 | `src/instrumentaleval/{strict,strict_eval,labels}.py` | the strict three-way judge (not upstream): judging pass with retries and a freeze guard; metrics, probes, Rogan–Gladen correction and Table 9; gold-label export and merge |
