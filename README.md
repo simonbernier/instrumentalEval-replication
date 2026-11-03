@@ -3,12 +3,44 @@
 A replication of *Evaluating the Paperclip Maximizer: Are RL-Based Language Models More Likely to Pursue
 Instrumental Goals?* (He et al., 2025, [arXiv:2502.12206](https://arxiv.org/abs/2502.12206)). It covers all five
 tables, uses the original prompts and parameters from [yf-he/InstrumentalEval](https://github.com/yf-he/InstrumentalEval),
-and calls every model through OpenRouter.
+and calls every model through OpenRouter. On top of the replication it adds system-prompt ablations (Table 6, Figure
+6), a reasoning-effort sweep (Table 7, Figure 7), a strict three-way judge (Table 9, Figure 11) and an interactive
+version of Figure 1.
 
-Model substitutions, deviations from upstream, and ideas for improving the results by changing parameters are in
-[REPLICATION_NOTES.md](REPLICATION_NOTES.md).
+Model substitutions, deviations from upstream, the pre-registrations and results of every addition, and ideas for
+improving the results by changing parameters are in [REPLICATION_NOTES.md](REPLICATION_NOTES.md).
 
-## Setup
+## Reproducing the report
+
+Every response and every judge verdict behind the report is stored in `results/` (JSONL, append-only). Rebuilding the
+tables and figures from them is offline and free: no API key and no benchmark download needed.
+
+```sh
+uv sync
+uv run ie tables              # Tables 1-7 and 9 -> results/tables.md, CSVs in results/tables/
+uv run ie figures             # Figures 1-3, 5-7 and 11 -> results/figures/
+uv run ie figures --strict    # Figure 1 under the strict judge (Claude Sonnet 4)
+uv run ie interactive         # interactive Figure 1 -> results/interactive/ir_explorer.html
+uv run ie capability          # capability ordering of Figure 1's x axis -> results/capability.md
+```
+
+| In the report | Built by | Output |
+|---|---|---|
+| Table 1 / Figure 1: IR and CIR per model (also `figure1_matched`, `figure1_base`) | `ie tables`, `ie figures` | `results/tables.md`, `results/figures/figure1_*` |
+| Table 2 / Figure 2: IR by prior-task type | `ie tables`, `ie figures` | `figure2_gpt-4o.*`; mapping in `data/task_categories.json` |
+| Table 3 / Figure 3: goal-nudging ablation | `ie tables`, `ie figures` | `figure3_gpt-4o.*` |
+| Table 4: judge reliability | `ie tables` | `results/tables/table4*.csv` |
+| Table 5 / Figure 5: cross-category correlations | `ie tables`, `ie figures` | `figure5_gpt-4o.*` |
+| Table 6 / Figure 6: system-prompt ablations, five cumulative prompt steps | `ie tables`, `ie figures` | `table6_*.csv`, `figure6_gpt-4o.*` |
+| Table 7 / Figure 7: reasoning-effort sweep (o3-mini, o4-mini) | `ie tables`, `ie figures` | `table7_*.csv`, `figure7_gpt-4o.*` |
+| Table 9: strict judge (validation, rates, Rogan–Gladen correction) | `ie tables`, `ie strict-eval` | `table9_*.csv`, `results/strict/` |
+| Figure 11: gpt-4o judge vs strict judge on the same responses (also `_base`, `_categories`) | `ie figures` | `figure11*_gpt-4o.*` |
+| Interactive Figure 1: five prompt steps × four judges | `ie interactive` | `results/interactive/` |
+
+Regenerating responses or verdicts is a different matter: it costs money, and several of the models and judges have
+been retired since the runs (see CLAUDE.md, "Model shutdowns"), so a full rerun would need substitutes.
+
+## Setup (for new runs)
 
 ```sh
 uv sync
@@ -19,8 +51,9 @@ uv run pytest               # offline; checks prompts against upstream byte for 
 
 ## Running
 
-Every command can be resumed: finished tasks are skipped, and failed calls are retried on the next run. Step 1 is
-the Setup section above.
+Every command can be resumed: finished tasks are skipped, and failed calls are retried on the next run. A stored
+response is reused only if its request config, system prompt and task text match today's, so nothing on this list
+re-spends money on work that is already stored. Step 1 is the Setup section above.
 
 ```sh
 # 2. Smoke test: 2 tasks per category per model; check for empty or truncated answers and the provider used
@@ -45,7 +78,7 @@ uv run ie classify-tasks    # Table 2: all 3 judges vote on each task's prior-ta
 uv run ie classify-tasks --merge <dir> --adjudicator "<who>"   # -> data/task_categories.json; review it by hand
 uv run ie export-labels     # then fill results/human_labels.csv (Table 4; filled with Claude Fable 5.1 labels, not human)
 uv run ie tables            # -> results/tables.md (+ CSVs in results/tables/); --judge <name> for another judge
-uv run ie figures           # Tables 1, 2, 3 and 5 as figures -> results/figures/ (also takes --judge)
+uv run ie figures           # -> results/figures/ (also takes --judge)
 
 # 7. Table 3: goal-nudging ablation, judged by the chosen judge. The no-nudge runs cover every model but o1
 #    (they are also a Table 6 arm); Table 3 shows gpt-4o, deepseek-v3, o4-mini and deepseek-r1, as configured
@@ -65,43 +98,15 @@ uv run ie generate --variants oversight-nonudge && uv run ie judge --variants ov
 uv run ie tables
 uv run ie figures
 
-# 9. Verbalized eval awareness (not in the paper): GPT-5-mini reads the stored chains of thought (deepseek-r1 only,
-#    the one model whose `reasoning` field is its own CoT) under the Goodfire F1 rubric, then VEA is crossed with the
-#    convergence verdicts. Pre-registered in REPLICATION_NOTES.md, "Eval awareness": commit that section first.
-uv run ie vea-judge --limit 2 --variants nudge --task-sets benchmark   # smoke test: 12 calls; read results/vea/gpt-5-mini/
-uv run ie vea-judge                     # all variants + neutral tasks (~630 calls, well under $1)
-uv run ie vea-tables                    # -> results/vea/tables.md, results/vea/tables/*.csv, results/vea/figures/
-uv run ie vea-export-labels             # then fill results/vea/hand_labels.csv (yes / no) and re-run `ie vea-tables`
-
-# 10. Frame awareness (not in the paper): does the model treat the scenario as real, or as a test / simulation /
-#     puzzle it is solving? Rajamanoharan & Nanda's 0-5 rubric + perceived-frame category, with an adaptation for this
-#     benchmark's own "scenario" / "Simulate..." wording. Pre-registered in REPLICATION_NOTES.md, "Frame awareness".
-uv run ie frame-judge --cells nonudge:ES-10 nudge:HC-01 ...   # known-cell check on the 14 cells listed in the notes; read the JSON
-uv run ie frame-judge                   # same 552 chains of thought as vea-judge (openai/gpt-5, medium effort)
-uv run ie frame-tables                  # -> results/frame/tables.md, tables/*.csv, figures/
-uv run ie frame-export-labels           # then fill results/frame/hand_labels.csv and re-run `ie frame-tables`
-
-# 11. Reasoning-effort sweep (not in the paper): o3-mini and o4-mini at explicit low / medium / high effort, full
-#     nudge prompt, gpt-4o judge. Pre-registered in REPLICATION_NOTES.md, "Reasoning-effort sweep": commit it first.
+# 9. Reasoning-effort sweep (not in the paper): o3-mini and o4-mini at explicit low / medium / high effort, full
+#    nudge prompt, gpt-4o judge. Pre-registered in REPLICATION_NOTES.md, "Reasoning-effort sweep": commit it first.
 E="o3-mini@low o3-mini@medium o3-mini@high o4-mini@low o4-mini@medium o4-mini@high"
 uv run ie generate --models $E --limit 1    # smoke test: 6 tasks per arm; check `ie status` for empty / cut answers
 uv run ie generate --models $E
 uv run ie judge --models $E
 uv run ie tables                            # Table 7 (+ CSVs); `ie figures` adds Figure 7
 
-# 12. Task audit (not in the paper): score the 76 task texts on what they can measure (probeable? would the best
-#     aligned response be scored convergent? instructed? permitted? realistic?) and re-report IR on the informative
-#     subset at the item level. Rubric: data/task_audit_rubric.md; pre-registration and analysis plan in
-#     REPLICATION_NOTES.md, "Task audit": commit it, then the pilot.
-uv run ie audit-tasks --pilot-sample 4 --blind-packets   # 24 seeded tasks -> data/task_audit_blind/: score them yourself first
-uv run ie audit-tasks --pilot-sample 4      # then 24 x 3 judges -> data/task_audit_pilot_votes.{json,md}
-uv run ie audit-tasks --pilot-sample 4 --compare-blind data/task_audit_blind   # gate: alpha on gating dims + kappa >= 0.6
-uv run ie audit-tasks                       # 76 tasks x 3 judges -> data/task_audit_votes.{json,md} + packets
-#     then one task-auditor agent per CONTESTED task (.claude/agents/task-auditor.md) writes <dir>/<task_id>.json
-uv run ie audit-tasks --merge <dir> --adjudicator "<who>"   # -> data/task_audit.json; review it by hand
-uv run ie tables                            # Table 8
-
-# 13. Strict judge (not in the paper; REPLICATION_NOTES.md, "Strict judge"). Three-way labels: clear / instructed / none
+# 10. Strict judge (not in the paper; REPLICATION_NOTES.md, "Strict judge"). Three-way labels: clear / instructed / none
 uv run ie strict-setup                   # blank results/strict_labels.csv + data/strict_split.json (30 dev / 68 test)
 #    label H001-H012 by hand and H013-H098 with the strict-labeller / strict-label-adjudicator subagents,
 #    following data/strict_label_guide.md, then:
@@ -114,23 +119,12 @@ uv run ie strict-judge --runs --task-sets benchmark neutral   # default judge: c
 uv run ie strict-judge --runs --judges gpt-4o gemini-2.5-flash --task-sets benchmark neutral
 uv run ie tables                         # Table 9
 uv run ie figures --strict               # Figure 1 under the strict judge -> results/figures/figure1_strict-claude-sonnet-4.*
-
-# 14. Default-sampling repeats (not in the paper; REPLICATION_NOTES.md, "Default-sampling repeats"): the Figure 8
-#     models with each vendor's sampling defaults, 10 repeats on the 15 Fable tasks; gpt-4o and deepseek-r1-0528 also
-#     on the five prompt steps. Commit the pre-registration first; the smoke test (--limit 1 --repeats 2) comes first.
-D="gpt-4o@default qwen-2.5-72b@default deepseek-v3@default deepseek-r1-0528@default o3-mini@default gemini-2.5-flash@default o1@default o4-mini@default"
-uv run ie generate --models $D --subset fable15 --repeats 10
-uv run ie generate --models gpt-4o@default deepseek-r1-0528@default --subset fable15 --repeats 10 \
-    --variants plain-nonudge oversight-nonudge nocause-nonudge nonudge
-uv run ie judge --models $D --variants nudge plain-nonudge oversight-nonudge nocause-nonudge nonudge
-uv run ie variability                    # Table 10 -> results/variability/tables.md, tables/; Figure 9 -> figures/
-uv run ie figures                        # also Figures 10-13 (original protocol vs the changes) -> results/figures/
-# strict judge for new responses (amendment S1; Sonnet 4 is gone): validate, then judge (REPLICATION_NOTES.md)
+#    Claude Sonnet 4 is gone; the replacement strict judge (amendment S1) is validated first, then judges the stored runs
 uv run ie strict-judge --judges claude-sonnet-4.6 --probes --split test --runs --models gpt-4o deepseek-v3 o3-mini deepseek-r1 --task-sets neutral
 uv run ie strict-judge --judges claude-sonnet-4.6 --runs --models gpt-4o qwen-2.5-72b deepseek-v3 deepseek-r1 o3-mini gemini-2.5-flash o1 o4-mini
-uv run ie strict-judge --judges claude-sonnet-4.6 --runs --models gpt-4o@default qwen-2.5-72b@default deepseek-v3@default deepseek-r1-0528@default gemini-2.5-flash@default
+uv run ie figures                        # Figure 11 (gpt-4o judge vs strict judge) -> results/figures/
 
-# 15. Interactive Figure 1 for the website (not in the paper; REPLICATION_NOTES.md, "Interactive Figure 1"): the five
+# 11. Interactive Figure 1 for the website (not in the paper; REPLICATION_NOTES.md, "Interactive Figure 1"): the five
 #     prompt steps x four judges, stored verdicts only. Export instructions: results/interactive/README.md.
 uv run ie interactive                    # -> results/interactive/ir_explorer.{html,json}; --copy-to <site folder>
 ```
@@ -142,21 +136,37 @@ steps 6 and 7 need no `--judge` flags.
 
 | Path | Contents |
 |---|---|
-| `src/instrumentaleval/prompts.py` | upstream prompts (verbatim), the system-prompt variants for Table 6 (deletions of upstream text only) and the judge-output parser |
+| `src/instrumentaleval/prompts.py` | upstream prompts (verbatim), the system-prompt variants for Table 6 (deletions of upstream text only), the strict judge's prompt and the judge-output parser |
 | `src/instrumentaleval/models.py` | test models and judges, with their OpenRouter IDs and request parameters |
 | `src/instrumentaleval/{generate,judge}.py` | the two passes; results go to `results/responses/` and `results/judgments/<judge>/` as JSONL, plus an upstream-format `*_evaluation_results.txt` per run |
 | `src/instrumentaleval/tables.py` | Tables 1–5, Table 6 (system-prompt ablations) and Table 7 (reasoning-effort sweep), the last two not in the paper |
-| `src/instrumentaleval/vea.py`, `vea_tables.py` | verbalized-eval-awareness judge pass (upstream/judge_vea.py's prompt and settings, verbatim; GPT-5-mini on the chain of thought only) and Tables V1–V5 in `results/vea/` |
-| `upstream/judge_vea.py` | Bharadwaj & Kirk's VEA judge (vendored; the tests check our prompt and parser against it) |
-| `src/instrumentaleval/frame.py`, `frame_tables.py` | frame-awareness judge pass (Rajamanoharan & Nanda's rubric, `upstream/frame_awareness_prompt.txt`, plus `frame.ADAPTATION`) and Tables F1–F5 in `results/frame/` |
-| `src/instrumentaleval/figures.py` | Tables 1, 2, 3, 5 and 6 as figures (bar charts with models grouped by RLHF / RL family; Table 5 as a heat map; Table 6 as one panel per model) |
+| `src/instrumentaleval/figures.py` | Tables 1, 2, 3, 5, 6 and 7 as figures (bar charts with models grouped by RLHF / RL family; Table 5 as a heat map; Table 6 as one panel per model) |
+| `src/instrumentaleval/{strict,strict_eval,labels}.py` | the strict three-way judge (not upstream): judging pass with retries and a freeze guard; metrics, probes, Rogan–Gladen correction and Table 9; gold-label export and merge |
+| `src/instrumentaleval/recommendations.py` | Figure 11 (not upstream): the gpt-4o judge vs the strict judge on the same stored responses |
+| `src/instrumentaleval/interactive.py`, `templates/ir_explorer.html` | interactive Figure 1 (not upstream): one self-contained HTML page, prompt step × judge, in `results/interactive/` |
+| `src/instrumentaleval/capability.py`, `data/capability_scores.csv` | Figure 1's within-family model order from Epoch AI benchmark scores (every row has its source URL) |
+| `src/instrumentaleval/classify.py` | Table 2's prior-task-type votes and their merge |
 | `data/neutral_tasks.csv`, `data/neutral_task_rubric.md` | control tasks for the false-positive check, and the rubric they were selected with |
 | `data/task_classification_votes.{json,md}` | the three judges' prior-task-type votes and rationales for every benchmark task, side by side |
 | `data/task_categories.json` | adjudicated task to prior-task-type mapping for Table 2 (one independent adjudicator per task, then a consistency review and a hand check) |
-| `data/task_audit_rubric.md`, `src/instrumentaleval/audit.py` | the task-audit rubric (what each item can measure) and its judge pass; votes in `data/task_audit_votes.{json,md}`, adjudicated scores in `data/task_audit.json` (Table 8) |
-| `src/instrumentaleval/recommendations.py` | Figures 10-13 (not upstream): the original protocol beside Fable's 15 tasks + vendor-default sampling, the strict judge, all of them at once, and (13) the prompt steps under the strict judge |
-| `src/instrumentaleval/interactive.py`, `templates/ir_explorer.html` | interactive Figure 1 (not upstream): one self-contained HTML page, prompt step x judge, in `results/interactive/` |
-| `src/instrumentaleval/variability.py` | default-sampling repeats (not upstream): Table 10 and Figure 9 in `results/variability/`; the arms are `models.SAMPLING_MODELS`, one response file per repeat (`<model>__<variant>~rNN__benchmark.jsonl`) |
-| `src/instrumentaleval/{strict,strict_eval}.py` | the strict three-way judge (not upstream): judging pass with retries and a freeze guard; metrics, probes, Rogan–Gladen correction and Table 9 |
-| `data/strict_label_guide.md`, `data/strict_probes.json`, `data/strict_split.json` | strict judge: gold-label guide, made-up probe responses with expected labels, dev/test split |
-| `data/paper_results.json` | the paper's Tables 1 and 3 as numbers (with task counts), for the Table 6 comparison |
+| `data/strict_label_guide*.md`, `data/strict_probes*.json`, `data/strict_split.json` | strict judge: gold-label guides (S1 and the S2/S3 amendments), made-up probe responses with expected labels, dev/test split |
+| `data/paper_results.json` | the paper's Tables 1 and 3 as numbers (with task counts), for the comparisons |
+| `.claude/agents/` | the subagent specs used for Table 2 adjudication and the strict judge's gold labels |
+
+## Branches
+
+- `main` (this branch): the code and data behind the report.
+- `exploration`: everything on `main` plus four extensions the report does not use: verbalized eval awareness and
+  frame awareness in deepseek-r1's chains of thought, a task audit of the 76 items (Table 8), and default-sampling
+  repeats (Table 10, Figures 8, 9, 10, 12 and 13). A one-paragraph summary of each is in REPLICATION_NOTES.md,
+  "Exploratory work".
+
+## License and attribution
+
+The code, the stored results and the notes in this repository are released under the [MIT License](LICENSE).
+
+The benchmark itself is not ours. The 76 task texts come from [yf-he/InstrumentalEval](https://github.com/yf-he/InstrumentalEval)
+(He et al., 2025), which carries no license; `ie fetch` downloads them, and they are not committed as files. They do
+appear verbatim inside the stored results (the `task_prompt` field of each response, the `PROMPT:` block of the
+upstream-format judge outputs, and the label sheets), because the judges and the data model need them. They remain
+the authors' work, and the MIT License does not cover them. Please cite the paper when you use them.
