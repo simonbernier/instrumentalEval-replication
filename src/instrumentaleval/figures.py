@@ -631,7 +631,7 @@ def figure6(judge: str = DEFAULT_JUDGE, out_dir: Path = FIGURES_DIR) -> list[Pat
                       label=f"IR, {f} models") for f in groups]
     handles += [Line2D([], [], color=INK, linewidth=1.5, linestyle=(0, (4, 2)), marker="s", markersize=4.5,
                        markerfacecolor="white", markeredgewidth=1.2, label="refusal rate"),
-                Line2D([], [], **paper_marker, label="paper (Table 3)")]
+                Line2D([], [], **paper_marker, label="He et al. (2025)")]
     fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.01, 1.0), ncol=len(handles), frameon=False,
                fontsize=8.5, handlelength=2.6)
     return save(fig, out_dir, f"figure6_{judge}")
