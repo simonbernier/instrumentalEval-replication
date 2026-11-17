@@ -7,16 +7,13 @@ of Table 9, is no longer served). All of it is ours; every interval is a 95% boo
 (stats.cluster_bootstrap_ci). Notes: "Strict judge" ("Amendment S1").
 """
 
-import statistics
-
 import pandas as pd
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 from .benchmark import CATEGORIES
 from .capability import capability_order
-from .figures import (FIGURE1_COLORS, FIGURES_DIR, GRID, INK, INK_2, OVERLAY_DARK, OVERLAY_LIGHT, OVERLAY_MARKER,
-                      PAPER_MARKER, REASONING_ORDER, layout, plt, save, style_axes, tint)
+from .figures import (FIGURE1_COLORS, FIGURES_DIR, GRID, INK, INK_2, PAPER_MARKER, REASONING_ORDER, layout, plt, save, style_axes, tint)
 from .models import DEFAULT_JUDGE, REPLACEMENT_STRICT_JUDGE, TEST_MODELS
 from .runs import RESPONSES_DIR, load_latest
 from .stats import cluster_bootstrap_ci
@@ -59,14 +56,19 @@ def strict_cells(step: str = "nudge", judge: str = REPLACEMENT_STRICT_JUDGE) -> 
     return {m: c for m, c in stored.items() if judged[m] == n_ok[m]}
 
 
-def paired_bars(ax, models: list[str], left: dict, right: dict, left_label: str, right_label: str, title: str,
-                missing: str, pair_word: str, paper_label: str = "paper (Table 1, all 76 tasks, T = 0)",
-                ref: dict | None = None, ref_label: str = "") -> None:
-    """Per model, `left` (dark; the paper's Table 1 IR as a diamond) beside `right` (light), each a `summary` dict
-    with its interval and value label. A model missing from `right` keeps its slot, marked `missing`. Family
-    averages in the legend: over the models shown, and when only some have both
-    bars, the dark bars' average over those same models too, so that the two compare like with like. `ref` (model ->
-    summary) adds a grey reference point with its interval over the dark bar, the diamond moving aside."""
+def panel_label(ax, label: str) -> None:
+    """The panel's letter, at its left edge a fixed distance above the 100 % gridline, clear of the change labels:
+    anchored to the data rather than the panel's top, so that panels with different legend headroom place it alike
+    (the blog figures carry no titles)."""
+    ax.annotate(label, (0.008, 100), xycoords=("axes fraction", "data"), xytext=(0, 14), textcoords="offset points",
+                ha="left", va="bottom", fontsize=12, color=INK, zorder=7)
+
+
+def paired_bars(ax, models: list[str], left: dict, right: dict, left_label: str, right_label: str, label: str,
+                missing: str, paper_label: str = "He et al. (2025)") -> None:
+    """Per model, `left` (dark; the paper's Table 1 IR as a diamond at its centre) beside `right` (light), each a
+    `summary` dict with its interval and value label. A model missing from `right` keeps its slot, marked `missing`.
+    The family averages are in REPLICATION_NOTES.md, not in the legend."""
     xs, groups = layout(models)
     paper = paper_table1()
     handles = []
@@ -82,36 +84,21 @@ def paired_bars(ax, models: list[str], left: dict, right: dict, left_label: str,
                 ax.bar(x, s["rate"], width=0.38, color=fill, edgecolor=c, linewidth=1.2, zorder=2)
                 ax.errorbar([x], [s["rate"]], yerr=[[s["rate"] - s["lo"]], [s["hi"] - s["rate"]]], fmt="none",
                             ecolor=INK, elinewidth=1, capsize=0, zorder=3)
-                top = max(s["hi"], s["rate"], ref[m]["hi"] if ref and dx < 0 else 0)  # clear of the ref point
-                ax.text(x, top + 1.2, f"{s['rate']:.1f}", ha="center", va="bottom", fontsize=7.5, color=INK,
-                        zorder=5)
-        both = [m for m in fam_models if m in right]
-        avg = lambda d, ms: statistics.mean(d[m]["rate"] for m in ms)
-        partial = len(both) < len(fam_models)
-        matched = f"; {avg(left, both):.1f} on the {len(both)} with {pair_word}" if partial else ""
-        handles.append(Patch(facecolor=c, edgecolor=c, linewidth=1.2,
-                             label=f"{fam} models, {left_label} (avg {avg(left, fam_models):.1f}{matched})"))
+                ax.text(x, max(s["hi"], s["rate"]) + 1.2, f"{s['rate']:.1f}", ha="center", va="bottom",
+                        fontsize=7.5, color=INK, zorder=5)
+        handles.append(Patch(facecolor=c, edgecolor=c, linewidth=1.2, label=f"{fam} models, {left_label}"))
         handles.append(Patch(facecolor=tint(c, 0.62), edgecolor=c, linewidth=1.2,
-                             label=f"{fam} models, {right_label} (avg {avg(right, both):.1f}"
-                                   + (f", {len(both)} of {len(fam_models)} models)" if partial else ")")))
+                             label=f"{fam} models, {right_label}"))
     on_paper = [m for m in models if m in paper and not TEST_MODELS[m].substitute]
-    off = 0.09 if ref else 0.0  # the diamond and the reference point share the dark bar, one each side of its centre
-    ax.plot([xs[m] - 0.2 - off for m in on_paper], [paper[m]["ir"] for m in on_paper], zorder=6, **PAPER_MARKER)
+    ax.plot([xs[m] - 0.2 for m in on_paper], [paper[m]["ir"] for m in on_paper], zorder=6, **PAPER_MARKER)
     # two columns, filled column by column: RLHF and the paper on the left, RL on the right
     handles[2:2] = [Line2D([], [], **PAPER_MARKER, label=paper_label)]
-    if ref:
-        for m, s in ref.items():
-            ax.errorbar(xs[m] - 0.2 + off, s["rate"], yerr=[[s["rate"] - s["lo"]], [s["hi"] - s["rate"]]], zorder=6,
-                        **OVERLAY_MARKER)
-        handles.append(Line2D([], [], marker="o", markersize=6, markerfacecolor=OVERLAY_LIGHT,
-                              markeredgecolor=OVERLAY_DARK, markeredgewidth=0.9, color=OVERLAY_DARK, linewidth=1.4,
-                              label=ref_label))
     style_axes(ax, "IR (%)")
-    ax.set_ylim(0, 132)  # headroom for the legend; the axis itself stops at 100
+    ax.set_ylim(0, 126)  # headroom for the legend; the axis itself stops at 100
     ax.spines["left"].set_bounds(0, 100)
     ax.set_xticks([xs[m] for m in models], models, rotation=30, ha="right", fontsize=9)
     ax.set_xlim(-0.6, max(xs.values()) + 0.6)
-    ax.set_title(title, loc="left", fontsize=10, color=INK, fontweight="bold")
+    panel_label(ax, label)
     ax.legend(handles=handles, loc="upper center", ncol=2, frameon=True, framealpha=0.95, edgecolor=GRID,
               fontsize=8, handlelength=1.8, columnspacing=1.4)
 
@@ -120,19 +107,22 @@ NEUTRAL = "#55606e"  # no family colour: the category panel pools both families
 
 
 def two_lines(text: str) -> str:
-    """`text` broken at the word gap that best balances two lines (the change label sits under the second)."""
+    """`text` broken at the word gap that best balances two lines."""
     w = text.split()
     k = min(range(1, len(w)), key=lambda k: max(len(" ".join(w[:k])), len(" ".join(w[k:]))))
     return " ".join(w[:k]) + "\n" + " ".join(w[k:])
 
 
-def category_panel(ax, up: dict, strict: dict, judge: str, title: str) -> None:
+def category_panel(ax, up: dict, strict: dict, judge: str, title: str, blog: bool = False) -> None:
     """Per category, the upstream judge's IR (dark) beside the strict judge's % clear (light) on the same responses,
-    pooled over every model in `strict` (model -> cells), with a 95% bootstrap over the category's tasks; the
-    change under the tick label. Only responses with both verdicts count (deepseek-r1 lacks one strict verdict)."""
+    pooled over every model in `strict` (model -> cells), with a 95% bootstrap over the category's tasks, and the
+    change. Only responses with both verdicts count (deepseek-r1 lacks one strict verdict). `blog` (Figure 11 and its
+    base-prompt twin): `title` is only the panel's letter, drawn inside; categories by full name; the change above
+    each pair in place of the value labels (in pp; the legend names the bars); the judges named "original design" and "strict design". Otherwise
+    (appendix): value labels, the change under the tick label, judges and category codes named."""
     up = {m: {k: v for k, v in up[m].items() if k in c} for m, c in strict.items()}
     for i, code in enumerate(CATEGORIES.values()):
-        rates = []
+        rates, tops = [], []
         for dx, cells, fill in ((-0.19, up, NEUTRAL), (0.19, strict, tint(NEUTRAL, 0.62))):
             by_task: dict[str, list[int]] = {}
             for c in cells.values():
@@ -141,31 +131,45 @@ def category_panel(ax, up: dict, strict: dict, judge: str, title: str) -> None:
                         by_task.setdefault(t, []).append(v)
             rate, lo, hi = cluster_bootstrap_ci(by_task)
             rates.append(rate)
+            tops.append(hi)
             ax.bar(i + dx, rate, width=0.36, color=fill, edgecolor=NEUTRAL, linewidth=1.2, zorder=2)
             ax.errorbar([i + dx], [rate], yerr=[[rate - lo], [hi - rate]], fmt="none", ecolor=INK, elinewidth=1,
                         capsize=0, zorder=3)
-            ax.text(i + dx, hi + 1.2, f"{rate:.1f}", ha="center", va="bottom", fontsize=7.5, color=INK)
-        # under the two-line tick label, in points so the gap does not depend on the panel's height
-        ax.annotate(f"change {rates[1] - rates[0]:+.1f} pp", (i, 0), xycoords=("data", "axes fraction"),
-                    xytext=(0, -33), textcoords="offset points", ha="center", va="top", fontsize=8.5, color=INK,
-                    fontweight="bold")
+            if not blog:
+                ax.text(i + dx, hi + 1.2, f"{rate:.1f}", ha="center", va="bottom", fontsize=7.5, color=INK)
+        change = f"change {rates[1] - rates[0]:+.1f} pp"
+        if blog:
+            ax.text(i, max(tops) + 2.5, change.removeprefix("change ").replace("-", "−"), ha="center",
+                    va="bottom", fontsize=10, color=INK, zorder=5)
+        else:  # under the two-line tick label, in points so the gap does not depend on the panel's height
+            ax.annotate(change, (i, 0), xycoords=("data", "axes fraction"), xytext=(0, -33),
+                        textcoords="offset points", ha="center", va="top", fontsize=8.5, color=INK,
+                        fontweight="bold")
     style_axes(ax, "IR (%)")
-    ax.set_ylim(0, 118)  # headroom for the legend; the axis itself stops at 100
+    ax.set_ylim(0, 122 if blog else 118)  # headroom for the legend; the axis itself stops at 100
     ax.spines["left"].set_bounds(0, 100)
-    ax.set_xticks(range(len(CATEGORIES)), [two_lines(f"{cat} ({code})") for cat, code in CATEGORIES.items()],
-                  fontsize=8.5)
+    names = [two_lines(cat if blog else f"{cat} ({code})") for cat, code in CATEGORIES.items()]
+    ax.set_xticks(range(len(CATEGORIES)), names, fontsize=8 if blog else 8.5)
     ax.set_xlim(-0.5, len(CATEGORIES) - 0.5)
-    ax.set_title(title, loc="left", fontsize=10, color=INK, fontweight="bold")
-    ax.legend(handles=[Patch(facecolor=NEUTRAL, edgecolor=NEUTRAL, linewidth=1.2, label=f"upstream judge ({judge})"),
-                       Patch(facecolor=tint(NEUTRAL, 0.62), edgecolor=NEUTRAL, linewidth=1.2,
-                             label=f"strict judge ({REPLACEMENT_STRICT_JUDGE}, % clear)")],
-              loc="upper center", ncol=2, frameon=True, framealpha=0.95, edgecolor=GRID, fontsize=8, handlelength=1.8)
+    if blog:
+        panel_label(ax, title)
+        labels, where = ("original design", "strict design"), {"loc": "upper right", "ncol": 1}
+    else:
+        ax.set_title(title, loc="left", fontsize=10, color=INK, fontweight="bold")
+        labels = (f"upstream judge ({judge})", f"strict judge ({REPLACEMENT_STRICT_JUDGE}, % clear)")
+        where = {"loc": "upper center", "ncol": 2}
+    ax.legend(handles=[Patch(facecolor=NEUTRAL, edgecolor=NEUTRAL, linewidth=1.2, label=labels[0]),
+                       Patch(facecolor=tint(NEUTRAL, 0.62), edgecolor=NEUTRAL, linewidth=1.2, label=labels[1])],
+              frameon=True, framealpha=0.95, edgecolor=GRID, fontsize=8, handlelength=1.8, **where)
+
+
+BLOG_SIZE = (8.4, 6.8)  # Figure 11 and its base-prompt twin sit in the blog post's text column
 
 
 def figure11(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:
-    """All 76 tasks at T = 0, the same responses under both judges. (a) Per model (all nine): the upstream judge's IR
-    (dark; the paper's IR as a diamond) beside the strict judge's % clear (light). (b) The same by category, pooled
-    over the nine models."""
+    """All 76 tasks at T = 0, the same responses under both judges (the blog post's "original design" and "strict
+    design"). (a) Per model (all nine): the upstream judge's IR (dark; the paper's IR as a diamond) beside the strict
+    judge's % clear (light). (b) The same by category, pooled over the nine models, with the change."""
     bench, models = _upstream(judge)
     stored = strict_cells()
     if not stored:
@@ -173,24 +177,20 @@ def figure11(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:
     old = {m: summary(_stored_cells(bench, m, "nudge")) for m in models}
     strict = {m: summary(stored[m]) for m in models if m in stored}
 
-    fig = plt.figure(figsize=(12, 10))
-    grid = fig.add_gridspec(2, 1, height_ratios=[1.1, 0.75], hspace=0.38)
-    paired_bars(fig.add_subplot(grid[0]), models, old, strict, f"upstream judge ({judge})",
-                f"strict judge ({REPLACEMENT_STRICT_JUDGE}, % clear)",
-                "(a) Instrumental Rate with the goal nudge, all 76 tasks at T = 0 (the same responses):\n"
-                f"upstream judge ({judge}) and strict judge ({REPLACEMENT_STRICT_JUDGE})", "not judged",
-                "strict verdicts")
+    fig = plt.figure(figsize=BLOG_SIZE)
+    grid = fig.add_gridspec(2, 1, height_ratios=[1.1, 0.8], hspace=0.3)
+    paired_bars(fig.add_subplot(grid[0]), models, old, strict, "original design", "strict design", "(a)",
+                "not judged")
     category_panel(fig.add_subplot(grid[1]), {m: _stored_cells(bench, m, "nudge") for m in models},
-                   {m: stored[m] for m in models if m in stored}, judge,
-                   f"(b) By category, all {len(models)} models pooled")
+                   {m: stored[m] for m in models if m in stored}, judge, "(b)", blog=True)
     return save(fig, out_dir, f"figure11_{judge}")
 
 
 def figure11_base(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:
     """Figure 11 for the base prompt ("You are an autonomous AI agent." alone, `plain-nonudge`): the eight ablation
     models (o1 has no base run). (a) Per model, the upstream judge's IR (dark) beside the strict judge's % clear
-    (light) on the same responses; over the dark bar, the paper's Table 1 IR (diamond) and the upstream judge's IR
-    under the full prompt (grey point), both for the full prompt. (b) By category, the eight models pooled."""
+    (light) on the same responses; on the dark bar, the paper's Table 1 IR (diamond, full prompt). (b) By category,
+    the eight models pooled."""
     bench, models = _upstream(judge)
     models = [m for m in models if not bench[(bench.model == m) & (bench.variant == "plain-nonudge")].empty]
     stored = strict_cells("plain-nonudge")
@@ -198,19 +198,13 @@ def figure11_base(judge: str = DEFAULT_JUDGE, out_dir=FIGURES_DIR) -> list:
         return []
     old = {m: summary(_stored_cells(bench, m, "plain-nonudge")) for m in models}
     strict = {m: summary(stored[m]) for m in models if m in stored}
-    full = {m: summary(_stored_cells(bench, m, "nudge")) for m in models}
 
-    fig = plt.figure(figsize=(12, 10))
-    grid = fig.add_gridspec(2, 1, height_ratios=[1.1, 0.75], hspace=0.38)
-    paired_bars(fig.add_subplot(grid[0]), models, old, strict, f"upstream judge ({judge})",
-                f"strict judge ({REPLACEMENT_STRICT_JUDGE}, % clear)",
-                "(a) Instrumental Rate with the base prompt, all 76 tasks at T = 0 (the same responses):\n"
-                f"upstream judge ({judge}) and strict judge ({REPLACEMENT_STRICT_JUDGE})", "not judged",
-                "strict verdicts", paper_label="paper (Table 1, full prompt)", ref=full,
-                ref_label=f"upstream judge, full prompt")
+    fig = plt.figure(figsize=BLOG_SIZE)
+    grid = fig.add_gridspec(2, 1, height_ratios=[1.1, 0.8], hspace=0.3)
+    paired_bars(fig.add_subplot(grid[0]), models, old, strict, "original design", "strict design", "(a)",
+                "not judged")
     category_panel(fig.add_subplot(grid[1]), {m: _stored_cells(bench, m, "plain-nonudge") for m in models},
-                   {m: stored[m] for m in models if m in stored}, judge,
-                   f"(b) By category, base prompt, {len(strict)} models pooled")
+                   {m: stored[m] for m in models if m in stored}, judge, "(b)", blog=True)
     return save(fig, out_dir, f"figure11_base_{judge}")
 
 

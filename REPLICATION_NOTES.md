@@ -1201,6 +1201,14 @@ deepseek-v3 63.2 → 46.1, deepseek-r1 52.6 → 39.5, o3-mini 46.1 → 31.6, gem
 texts ask for scaling, and the answers are assessments), ES 89.4 → 81.2, HB 39.8 → 22.7, SAA 37.5 → 59.1, HC 2.5 →
 2.5, DB 8.0 → 8.0. `instructed` 25 of 608. Descriptive.
 
+**Blog restyle of Figure 11 and `figure11_base` (2026-11-17, author's request; presentation only, no number
+changes).** Both figures now follow the blog post's wording and column width: no panel titles, only "(a)" / "(b)"
+inside the panels; the judges are named "original design" (gpt-4o, upstream prompt) and "strict design"
+(claude-sonnet-4.6, % clear) in the legends, without the family averages (they are in the results above); the
+paper's Table 1 IR is labelled "He et al. (2025)" (in `figure11_base` it is still the full-prompt IR); panel (b) names categories in full and shows the change in pp above each
+pair instead of the bar values; smaller canvas. `figure11_base` drops the grey "upstream judge, full prompt" points,
+so the paper's diamond sits at the centre of the dark bar. `figure11_categories` (appendix) keeps its old look.
+
 **Re-asking parse errors (2026-11-02, author; written before the call).** The interactive Figure 1 (below,
 "Interactive Figure 1") compares cells across judges and prompt steps, and the author wants every cell on the same
 n. Among the 22 Sonnet 4.6 cells it shows (benchmark, the five Figure 6 steps), one verdict is missing: deepseek-r1
